@@ -17,7 +17,7 @@ export function Home() {
         <h1>Lists</h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="Settings" onClick={() => navigate('/settings')}><GearIcon /></button>
+          <button class="icon-btn gear" aria-label="Settings" onClick={() => navigate('/settings')}><GearIcon /></button>
         </div>
       </header>
 
