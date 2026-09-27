@@ -3,6 +3,7 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { TabBar } from './TabBar.jsx';
+import { GearIcon } from './Icons.jsx';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
   DEFAULT_SLEEP_INTERVAL_MIN,
@@ -67,7 +68,7 @@ export function Baby() {
         <h1>{name}</h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="Baby settings" onClick={() => setMenu(true)}>⚙︎</button>
+          <button class="icon-btn" aria-label="Baby settings" onClick={() => setMenu(true)}><GearIcon /></button>
         </div>
       </header>
 

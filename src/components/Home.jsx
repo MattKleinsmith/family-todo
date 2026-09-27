@@ -4,6 +4,7 @@ import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { TabBar } from './TabBar.jsx';
+import { GearIcon, ChevronIcon } from './Icons.jsx';
 
 export function Home() {
   const { store, navigate } = useApp();
@@ -16,7 +17,7 @@ export function Home() {
         <h1>Lists</h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="Settings" onClick={() => navigate('/settings')}>⚙︎</button>
+          <button class="icon-btn" aria-label="Settings" onClick={() => navigate('/settings')}><GearIcon /></button>
         </div>
       </header>
 
@@ -41,7 +42,7 @@ export function Home() {
                       {left === 0 ? (items.length ? 'All done' : 'Empty') : `${left} to go`}
                     </span>
                   </span>
-                  <span class="chev">›</span>
+                  <span class="chev"><ChevronIcon /></span>
                 </a>
               </li>
             );

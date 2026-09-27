@@ -3,6 +3,7 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
+import { BackIcon, DotsIcon } from './Icons.jsx';
 
 export function ListView({ id }) {
   const { store, session, navigate } = useApp();
@@ -42,13 +43,13 @@ export function ListView({ id }) {
   return (
     <div class="screen">
       <header class="topbar">
-        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}>‹</button>
+        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>
         <h1 class="title-with-emoji">
           <span>{list.emoji || '📝'}</span> {list.name}
         </h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="List options" onClick={() => setMenu(true)}>⋯</button>
+          <button class="icon-btn" aria-label="List options" onClick={() => setMenu(true)}><DotsIcon /></button>
         </div>
       </header>
 
