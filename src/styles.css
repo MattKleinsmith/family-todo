@@ -351,3 +351,5 @@ details summary { cursor: pointer; }
 .members li.left { opacity: 0.55; }
 .member-body { display: flex; flex-direction: column; }
 .member-name { font-weight: 600; }
+.activity-toggle { padding: 4px 4px 12px; color: var(--muted); font-size: 15px; }
+.act.mine .avatar { background: var(--surface-2); color: var(--muted); }

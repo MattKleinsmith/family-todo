@@ -92,12 +92,13 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
 
   /** Write a record we produced on this device: stamp it, persist it, and hand it to sync. */
   function putLocal(entity) {
+    const prev = bucket(entity.type)[entity.id] || null;
     const stamped = { ...entity, updatedAt: now(), updatedBy: actor() || entity.updatedBy || entity.createdBy || '' };
     const key = BUCKETS[entity.type];
     state = { ...state, [key]: { ...state[key], [entity.id]: stamped } };
     save();
     notify();
-    for (const fn of localChangeListeners) fn(stamped);
+    for (const fn of localChangeListeners) fn(stamped, prev);
     return stamped;
   }
 

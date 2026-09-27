@@ -62,16 +62,23 @@ describe('createActivity', () => {
   it('records other people’s changes but not local ones or pre-join history', () => {
     const { store, activity } = setup();
     const g = store.createList({ name: 'Groceries', emoji: '🛒' });
-    store.addItem({ listId: g.id, text: 'Milk' }); // local: not news
-    expect(activity.entries()).toHaveLength(0);
+    store.addItem({ listId: g.id, text: 'Milk' }); // local: recorded as mine, already seen, hidden by default
+    expect(activity.entries()).toHaveLength(2);
+    expect(activity.entries().every((e) => e.mine && e.seen)).toBe(true);
+    expect(activity.visibleEntries()).toHaveLength(0);
+    expect(activity.unseenCount()).toBe(0);
     // History from before this phone joined
     store.applyRemote({ id: 'old', type: 'item', listId: g.id, text: 'Old', done: false, deleted: false, createdAt: 1, updatedAt: 1000, updatedBy: 'Huishi' });
-    expect(activity.entries()).toHaveLength(0);
+    expect(activity.entries()).toHaveLength(2); // still only my own two
     // A change from the other phone
     store.applyRemote({ id: 'old', type: 'item', listId: g.id, text: 'Old', done: true, deleted: false, createdAt: 1, updatedAt: 20_000, updatedBy: 'Huishi' });
     store.applyRemote({ id: 'new', type: 'item', listId: g.id, text: 'Eggs', done: false, deleted: false, createdAt: 20_001, updatedAt: 20_001, updatedBy: 'Huishi' });
-    const e = activity.entries();
+    const e = activity.visibleEntries();
     expect(e.map((x) => x.text)).toEqual(['added “Eggs” in Groceries', 'checked off “Old” in Groceries']);
+    activity.setShowMine(true);
+    expect(activity.visibleEntries().map((x) => x.text)).toEqual(['added “Eggs” in Groceries', 'checked off “Old” in Groceries', 'added “Milk” in Groceries', 'created the list 🛒 Groceries']);
+    expect(activity.visibleEntries()[3].actor).toBe('Matt');
+    activity.setShowMine(false);
     expect(e[0].actor).toBe('Huishi');
     expect(e[0].mine).toBe(false);
     expect(activity.unseenCount()).toBe(2);
@@ -85,7 +92,9 @@ describe('createActivity', () => {
     expect(g.updatedBy).toBe('Matt');
     store.applyRemote({ id: 'x', type: 'item', listId: g.id, text: 'Bread', done: false, deleted: false, createdAt: 1, updatedAt: 30_000, updatedBy: 'Huishi' });
     return new Promise((r) => setTimeout(r, 150)).then(() => {
-      expect(JSON.parse(storage.getItem('act'))).toHaveLength(1);
+      expect(JSON.parse(storage.getItem('act'))).toHaveLength(2); // Huishi's plus my own list creation
+      activity.setShowMine(true);
+      expect(storage.getItem('act:showMine')).toBe('1');
     });
   });
 });
