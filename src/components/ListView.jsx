@@ -33,13 +33,14 @@ export function ListView({ id }) {
   const add = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
-    store.addItem({ listId: id, text, createdBy: session.name });
+    const added = store.addItem({ listId: id, text, createdBy: session.name });
     setText('');
     inputRef.current && inputRef.current.focus();
+    if (added) requestAnimationFrame(() => document.getElementById(`item-${added.id}`)?.scrollIntoView({ block: 'nearest' }));
   };
 
   return (
-    <div class="screen has-input">
+    <div class="screen">
       <header class="topbar">
         <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}>‹</button>
         <h1 class="title-with-emoji">
@@ -51,6 +52,7 @@ export function ListView({ id }) {
         </div>
       </header>
 
+      <div class="content">
       {items.length === 0 && (
         <div class="empty">
           <p>Nothing here yet. Add something below.</p>
@@ -77,6 +79,7 @@ export function ListView({ id }) {
           )}
         </>
       )}
+      </div>
 
       <form class="add-bar" onSubmit={add}>
         <input
@@ -101,7 +104,7 @@ export function ListView({ id }) {
 
 function ItemRow({ item, onToggle, onEdit }) {
   return (
-    <li class={'item' + (item.done ? ' is-done' : '')}>
+    <li id={`item-${item.id}`} class={'item' + (item.done ? ' is-done' : '')}>
       <button class="check" aria-label={item.done ? 'Mark not done' : 'Mark done'} aria-pressed={item.done} onClick={onToggle}>
         <span class="check-mark">{item.done ? '✓' : ''}</span>
       </button>
