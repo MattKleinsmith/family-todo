@@ -37,6 +37,7 @@ export function App() {
     }
     let cancelled = false;
     let sync = null;
+    let feed = null;
     let timers = [];
     (async () => {
       try {
@@ -54,9 +55,11 @@ export function App() {
           store,
           storageKey: `ft:activity:${keys.pk}`,
           storage: kv,
+          device: deviceId,
           since: () => sessionRef.current?.joinedAt || 0,
           self: () => sessionRef.current?.name || '',
         });
+        feed = activity;
         await Promise.all([store.ready, activity.ready]);
         if (cancelled) return;
         sync = createSync({ keys, store, onStatus: setStatus });
@@ -104,6 +107,7 @@ export function App() {
     return () => {
       cancelled = true;
       for (const t of timers) clearTimeout(t), clearInterval(t);
+      if (feed) feed.stop();
       if (sync) sync.stop();
     };
   }, [session?.code]);
@@ -153,6 +157,7 @@ export function App() {
         // Tell the others, give the relays a moment to take it, then forget the family on this phone.
         if (family) {
           family.store.setMember(deviceId(), { leftAt: Date.now() });
+          family.activity.flushNow();
           await new Promise((r) => setTimeout(r, 1500));
         }
         clearSession();

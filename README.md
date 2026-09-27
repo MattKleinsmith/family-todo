@@ -58,18 +58,19 @@ crosses midnight is split across the two days.
 
 ## The activity feed
 
-Each phone already knows what it had before a change arrives, so it can say
-exactly what's different: "Huishi checked off “Eggs” in Groceries", "Huishi
-renamed the list “Groceries” to “Food”", "Huishi logged Augustine falling asleep
-at 10:00 AM". Every record carries who last touched it, so entries are
-attributed. Nothing extra is synced for the feed; it is computed on the phone
-from the records it receives (`src/activity.js`) and kept locally with a
-per-entry "seen" flag. The bell in the header shows how many entries you haven't
-looked at, list cards flag unseen changes, and opening Activity clears them.
+The phone that makes a change writes a plain-language entry for it: "Huishi
+checked off “Eggs” in Groceries", "Huishi renamed the list “Groceries” to
+“Food”", "Huishi logged Augustine falling asleep at 10:00 AM". It knows exactly
+what the record looked like before, so the wording is precise. Entries sync like
+any other data (`src/activity.js`), grouped into chunks of 20 per phone per day
+so relays see a few records a day rather than one per tap. Every phone,
+including one that joins later, sees the whole history. Entries are kept for
+180 days.
 
-Things that existed before a phone joined are treated as history, not news, so
-a new phone doesn't start with hundreds of entries. Your own changes on the same
-phone aren't listed either; the feed is about what *other people* did.
+What you've seen is per phone. The bell counts other people's entries newer
+than the last time you opened Activity; list cards flag unseen changes. A phone
+that just joined sees the full history already marked as seen. Your own changes
+are hidden unless you turn on "Show my own changes".
 
 People and devices: each phone publishes a small synced "member" record when it
 joins, changes its name, or leaves. Those appear in the feed and under
@@ -99,16 +100,16 @@ open message stores that anyone can publish to and subscribe from.
 
 ### Limits, in one place
 
-- **Shared data steady state: about 2 MB per family**, growing roughly 0.1 MB a
-  year. Baby logs older than 90 days are rolled into one small summary per day;
+- **Shared data steady state: about 3 MB per family** (2 MB of lists and baby
+  data, 1 MB of activity), growing roughly 0.1 MB a year. Baby logs older than 90 days are rolled into one small summary per day;
   deletion markers are dropped after 60 days (and relays are asked to drop them
   too, NIP-09); live list items are a few hundred records.
 - **Per record**: relays accept up to 64–100 KB; ours are about 0.5 KB.
 - **Per query**: relays return at most ~500 records; the app pages through.
 - **Phone storage**: IndexedDB, at least 1 GB on iOS. (Before this it was
   localStorage at ~5 MB, which would have filled in about two years.)
-- **Activity feed**: local to each phone, never synced, capped at 500 entries
-  (~100 KB).
+- **Activity feed**: synced, kept 180 days. At ~30 changes a day that is
+  roughly 1 MB per relay at steady state.
 - **Practical bottleneck**: the one-time download when a new phone joins, about
   5–10 seconds on cellular, and it no longer grows with time.
 

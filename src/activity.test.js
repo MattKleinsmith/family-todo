@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { describeChange, createActivity } from './activity.js';
+import { describeChange, createActivity, ACTIVITY_CHUNK } from './activity.js';
 import { createStore } from './store.js';
 import { formatTime } from './baby.js';
+import { pruneActivity } from './maintenance.js';
 
 const ctx = { listName: (id) => ({ g: 'Groceries', h: 'House' })[id], babyName: 'Theo' };
 const item = (o) => ({ id: 'i1', type: 'item', listId: 'g', text: 'Milk', done: false, deleted: false, updatedAt: 1, ...o });
 const list = (o) => ({ id: 'g', type: 'list', name: 'Groceries', emoji: '🛒', deleted: false, updatedAt: 1, ...o });
 const T = new Date(2026, 8, 27, 8, 30).getTime();
+const DAY = 24 * 3600_000;
 
 describe('describeChange', () => {
   it('items', () => {
@@ -39,7 +41,7 @@ describe('describeChange', () => {
     expect(describeChange(feed, { ...feed, note: '5 oz' }, ctx)).toBe(`noted “5 oz” on the ${formatTime(T)} feed`);
     expect(describeChange(feed, { ...feed, deleted: true }, ctx)).toBe(`removed the ${formatTime(T)} feed`);
   });
-  it('baby settings and members', () => {
+  it('baby settings, members, and housekeeping', () => {
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', updatedAt: 1 }, ctx)).toBe('named the baby Theo');
     expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 150, updatedAt: 1 }, ctx)).toBe('set feeds to about every 2h 30m');
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 180, sleepIntervalMin: 180, updatedAt: 1 }, ctx)).toBe('named the baby Theo');
@@ -49,54 +51,109 @@ describe('describeChange', () => {
     expect(describeChange(m, { ...m, leftAt: 5 }, ctx)).toBe('left the family on an iPhone');
     expect(describeChange({ ...m, leftAt: 5 }, { ...m, leftAt: null }, ctx)).toBe('rejoined the family on an iPhone');
     expect(describeChange(m, { ...m, name: 'Hui' }, ctx)).toBe('changed their name from Huishi to Hui');
+    expect(describeChange(null, { id: 'act:x', type: 'activity', entries: [], updatedAt: 1 }, ctx)).toBeNull();
   });
 });
 
-describe('createActivity', () => {
-  function setup() {
-    const m = new Map();
-    const storage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
-    let t = 10_000;
-    const store = createStore({ now: () => t++, actor: () => 'Matt' });
-    const activity = createActivity({ store, storageKey: 'act', storage, prefs: storage, since: () => 5_000, self: () => 'Matt' });
-    return { store, activity, storage };
-  }
-  it('records other people’s changes but not local ones or pre-join history', () => {
-    const { store, activity } = setup();
-    const g = store.createList({ name: 'Groceries', emoji: '🛒' });
-    store.addItem({ listId: g.id, text: 'Milk' }); // local: recorded as mine, already seen, hidden by default
-    expect(activity.entries()).toHaveLength(2);
-    expect(activity.entries().every((e) => e.mine && e.seen)).toBe(true);
-    expect(activity.visibleEntries()).toHaveLength(0);
-    expect(activity.unseenCount()).toBe(0);
-    // History from before this phone joined
-    store.applyRemote({ id: 'old', type: 'item', listId: g.id, text: 'Old', done: false, deleted: false, createdAt: 1, updatedAt: 1000, updatedBy: 'Huishi' });
-    expect(activity.entries()).toHaveLength(2); // still only my own two
-    // A change from the other phone
-    store.applyRemote({ id: 'old', type: 'item', listId: g.id, text: 'Old', done: true, deleted: false, createdAt: 1, updatedAt: 20_000, updatedBy: 'Huishi' });
-    store.applyRemote({ id: 'new', type: 'item', listId: g.id, text: 'Eggs', done: false, deleted: false, createdAt: 20_001, updatedAt: 20_001, updatedBy: 'Huishi' });
-    const e = activity.visibleEntries();
-    expect(e.map((x) => x.text)).toEqual(['added “Eggs” in Groceries', 'checked off “Old” in Groceries']);
-    activity.setShowMine(true);
-    expect(activity.visibleEntries().map((x) => x.text)).toEqual(['added “Eggs” in Groceries', 'checked off “Old” in Groceries', 'added “Milk” in Groceries', 'created the list 🛒 Groceries']);
-    expect(activity.visibleEntries()[3].actor).toBe('Matt');
-    activity.setShowMine(false);
-    expect(e[0].actor).toBe('Huishi');
-    expect(e[0].mine).toBe(false);
-    expect(activity.unseenCount()).toBe(2);
-    expect(activity.unseenForList(g.id)).toBe(2);
-    activity.markAllSeen();
-    expect(activity.unseenCount()).toBe(0);
+function memStorage(initial = {}) {
+  const m = new Map(Object.entries(initial));
+  return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+}
+
+/** A phone: its own store and activity feed. `relay` copies records between phones like the real sync does. */
+function phone({ name, device, joinedAt, relay, storage = memStorage(), clock }) {
+  const store = createStore({ now: () => clock.t++, actor: () => name });
+  const activity = createActivity({ store, storageKey: 'act', storage, prefs: storage, device: () => device, since: () => joinedAt, self: () => name, flushMs: 1 });
+  store.onLocalChange((e) => relay.push(e));
+  return { store, activity, storage };
+}
+const deliver = (relay, target) => { for (const e of relay) target.store.applyRemote(e); };
+const settle = () => new Promise((r) => setTimeout(r, 20));
+
+describe('createActivity (synced)', () => {
+  it('writes entries for local changes into this phone’s chunks, which other phones read', async () => {
+    const clock = { t: T };
+    const relay = [];
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T - 1, relay, clock });
+    const g = A.store.createList({ name: 'Groceries', emoji: '🛒' });
+    A.store.addItem({ listId: g.id, text: 'Milk' });
+    await settle();
+    const chunks = A.store.activityBuckets();
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].entries.map((e) => e.text)).toEqual(['created the list 🛒 Groceries', 'added “Milk” in Groceries']);
+    expect(A.activity.unseenCount()).toBe(0); // your own changes aren't news
+    expect(A.activity.visibleEntries()).toHaveLength(0);
+
+    // Huishi's phone joined earlier and now receives everything, including the activity chunk.
+    const B = phone({ name: 'Huishi', device: 'dB', joinedAt: T - 2, relay: [], clock });
+    await B.activity.ready;
+    deliver(relay, B);
+    expect(B.activity.visibleEntries().map((e) => e.text)).toEqual(['added “Milk” in Groceries', 'created the list 🛒 Groceries']);
+    expect(B.activity.visibleEntries()[0].actor).toBe('Matthew');
+    expect(B.activity.unseenCount()).toBe(2);
+    expect(B.activity.unseenForList(g.id)).toBe(2);
+    B.activity.markAllSeen();
+    expect(B.activity.unseenCount()).toBe(0);
   });
-  it('stamps local writes with the actor and persists entries', () => {
-    const { store, activity, storage } = setup();
-    const g = store.createList({ name: 'G' });
-    expect(g.updatedBy).toBe('Matt');
-    store.applyRemote({ id: 'x', type: 'item', listId: g.id, text: 'Bread', done: false, deleted: false, createdAt: 1, updatedAt: 30_000, updatedBy: 'Huishi' });
-    return new Promise((r) => setTimeout(r, 150)).then(() => {
-      expect(JSON.parse(storage.getItem('act'))).toHaveLength(2); // Huishi's plus my own list creation
-      activity.setShowMine(true);
-      expect(storage.getItem('act:showMine')).toBe('1');
-    });
+
+  it('a phone that joins later sees the whole history, already marked as seen', async () => {
+    const clock = { t: T };
+    const relay = [];
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T - 1, relay, clock });
+    const g = A.store.createList({ name: 'Groceries' });
+    for (const t of ['Milk', 'Eggs', 'Bread']) A.store.addItem({ listId: g.id, text: t });
+    await settle();
+    const C = phone({ name: 'Grandma', device: 'dC', joinedAt: clock.t + 1000, relay: [], clock });
+    await C.activity.ready;
+    deliver(relay, C);
+    expect(C.activity.visibleEntries()).toHaveLength(4);
+    expect(C.activity.unseenCount()).toBe(0);
+  });
+
+  it(`starts a new chunk every ${ACTIVITY_CHUNK} entries and never duplicates`, async () => {
+    const clock = { t: T };
+    const A = phone({ name: 'M', device: 'dA', joinedAt: T - 1, relay: [], clock });
+    const g = A.store.createList({ name: 'G' });
+    for (let i = 0; i < 45; i++) A.store.addItem({ listId: g.id, text: `i${i}` });
+    await settle();
+    const sizes = A.store.activityBuckets().sort((a, b) => a.chunk - b.chunk).map((b) => b.entries.length);
+    expect(sizes).toEqual([ACTIVITY_CHUNK, ACTIVITY_CHUNK, 6]);
+    A.activity.flushNow();
+    expect(A.activity.entries()).toHaveLength(46);
+  });
+
+  it('upgrading from the local-only feed shares own history and keeps the rest', async () => {
+    const old = [
+      { id: 'x:3', at: T + 3, actor: 'Huishi', mine: false, text: 'added “Eggs” in G', entityType: 'item', entityId: 'x', listId: 'g', seen: false },
+      { id: 'y:2', at: T + 2, actor: 'Matthew', mine: true, text: 'added “Milk” in G', entityType: 'item', entityId: 'y', listId: 'g', seen: true },
+      { id: 'z:1', at: T + 1, actor: 'Huishi', mine: false, text: 'created the list G', entityType: 'list', entityId: 'g', listId: 'g', seen: true },
+    ];
+    const storage = memStorage({ act: JSON.stringify(old) });
+    const clock = { t: T + 100 };
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T, relay: [], storage, clock });
+    await A.activity.ready;
+    await settle();
+    expect(A.store.activityBuckets()[0].entries.map((e) => e.id)).toEqual(['y:2']); // own history now shared
+    expect(A.activity.entries().map((e) => e.id)).toEqual(['x:3', 'y:2', 'z:1']);
+    expect(A.activity.unseenCount()).toBe(1); // the unseen one stays unseen
+    // Once the other phone's copy of the same change arrives, it isn't shown twice.
+    A.store.applyRemote({ id: 'act:dB:2026-09-27:0', type: 'activity', device: 'dB', day: '2026-09-27', chunk: 0, entries: [{ ...old[0], device: 'dB' }], createdAt: T, updatedAt: T + 50, deleted: false });
+    expect(A.activity.entries()).toHaveLength(3);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(JSON.parse(storage.getItem('act')).v).toBe(2);
+  });
+
+  it('old chunks are pruned and not taken back', async () => {
+    const clock = { t: T };
+    const A = phone({ name: 'M', device: 'dA', joinedAt: T - 1, relay: [], clock });
+    A.store.createList({ name: 'G' });
+    await settle();
+    const later = T + 200 * DAY;
+    const asked = [];
+    expect(pruneActivity(A.store, { publishDeletion: (t) => asked.push(...t) }, later)).toBe(1);
+    expect(A.store.activityBuckets()).toHaveLength(0);
+    expect(asked[0]).toMatch(/^ft:activity:act:dA:/);
+    const fresh = createStore({ now: () => later });
+    expect(fresh.applyRemote({ id: 'act:dB:old:0', type: 'activity', entries: [], createdAt: T, updatedAt: T, deleted: false })).toBe(false);
   });
 });

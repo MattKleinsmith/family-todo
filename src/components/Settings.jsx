@@ -4,6 +4,7 @@ import { DEFAULT_RELAYS, relaySizeOf } from '../sync.js';
 import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 import { BackIcon } from './Icons.jsx';
 import { getTheme, setTheme } from '../theme.js';
+import { Glyph } from './Glyph.jsx';
 
 export function Settings() {
   const { session, status, setName, leave, navigate, store, sync, activity } = useApp();
@@ -89,11 +90,13 @@ export function Settings() {
         <h2>Appearance</h2>
         <div class="segmented" role="radiogroup" aria-label="Appearance">
           {[
-            ['light', '☀️ Light'],
-            ['dark', '🌙 Dark'],
-            ['auto', 'Auto'],
-          ].map(([t, label]) => (
-            <button type="button" key={t} role="radio" aria-checked={theme === t} class={theme === t ? 'on' : ''} onClick={() => pickTheme(t)}>{label}</button>
+            ['light', 'sun', 'Light'],
+            ['dark', 'moon', 'Dark'],
+            ['auto', null, 'Auto'],
+          ].map(([t, glyph, label]) => (
+            <button type="button" key={t} role="radio" aria-checked={theme === t} class={theme === t ? 'on' : ''} onClick={() => pickTheme(t)}>
+              {glyph && <Glyph name={glyph} size={18} />} {label}
+            </button>
           ))}
         </div>
         <p class="hint">Auto follows your phone's light or dark setting. This is per phone.</p>
@@ -211,8 +214,7 @@ function DebugSection({ store, sync, activity, status }) {
   const relays = sync ? sync.relayStates() : [];
   const relayBytes = store.all().reduce((n, e) => n + relaySizeOf(e), 0);
   const envelope = sizes.totalRecords ? Math.round((relayBytes - sizes.totalBytes) / sizes.totalRecords) : 0;
-  const activityBytes = activity ? JSON.stringify(activity.entries()).length : 0;
-  const label = { list: 'Lists', item: 'Items', log: 'Baby logs', summary: 'Day summaries', member: 'Members', meta: 'Settings' };
+  const label = { list: 'Lists', item: 'Items', log: 'Baby logs', summary: 'Day summaries', member: 'Members', meta: 'Settings', activity: 'Activity chunks' };
   return (
     <section class="section debug">
       <h2>Debug</h2>
@@ -234,9 +236,9 @@ function DebugSection({ store, sync, activity, status }) {
             <td class="num">{fmtBytes(sizes.totalBytes)}</td>
           </tr>
           <tr>
-            <td>Activity feed</td>
-            <td>{activity ? activity.entries().length : 0} entries (local only)</td>
-            <td class="num">{fmtBytes(activityBytes)}</td>
+            <td>Activity entries</td>
+            <td>{activity ? activity.entries().length : 0} (synced, kept 180 days)</td>
+            <td class="num">in chunks above</td>
           </tr>
         </tbody>
       </table>

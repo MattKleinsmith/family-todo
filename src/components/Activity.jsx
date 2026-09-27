@@ -1,6 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { BackIcon, ChevronIcon } from './Icons.jsx';
+import { Glyph } from './Glyph.jsx';
 import { dayKey, dayLabel, formatTime } from '../baby.js';
 
 /** Where an entry should take you, or null when there's nowhere sensible to go. */
@@ -65,7 +66,7 @@ export function Activity() {
         </label>
         {entries.length === 0 && (
           <div class="empty">
-            <p class="big-emoji">👀</p>
+            <p class="big-emoji"><Glyph name="eyes" size={56} /></p>
             <p>
               {showMine || !hasMine
                 ? 'Nothing yet. When someone adds, changes or removes anything, it shows up here.'

@@ -7,6 +7,8 @@ import { TabBar } from './TabBar.jsx';
 import { GearIcon, ChevronIcon } from './Icons.jsx';
 import { Bell } from './Bell.jsx';
 import { ListIcon } from './ListIcon.jsx';
+import { Glyph } from './Glyph.jsx';
+import { iconToken } from '../icons.js';
 
 export function Home() {
   const { store, activity, navigate } = useApp();
@@ -27,7 +29,7 @@ export function Home() {
       <div class="content">
       {lists.length === 0 ? (
         <div class="empty">
-          <p class="big-emoji">🛒</p>
+          <p class="big-emoji"><Glyph name="shopping-cart" size={56} /></p>
           <p>No lists yet. Make a grocery list, a house to-do list, or one just for you.</p>
         </div>
       ) : (
@@ -69,7 +71,7 @@ export function Home() {
 function NewListSheet({ onClose }) {
   const { store, session, navigate } = useApp();
   const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('🛒');
+  const [emoji, setEmoji] = useState(iconToken('shopping-cart'));
 
   const submit = (e) => {
     e.preventDefault();
