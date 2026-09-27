@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { DEFAULT_RELAYS } from '../sync.js';
 import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
@@ -6,7 +6,7 @@ import { BackIcon } from './Icons.jsx';
 import { getTheme, setTheme } from '../theme.js';
 
 export function Settings() {
-  const { session, status, setName, leave, navigate, store } = useApp();
+  const { session, status, setName, leave, navigate, store, sync, activity } = useApp();
   const [leaving, setLeaving] = useState(false);
   const [theme, setThemeState] = useState(getTheme);
   const pickTheme = (t) => {
@@ -173,7 +173,112 @@ export function Settings() {
           {leaving ? 'Leaving…' : 'Leave family'}
         </button>
       </section>
+
+      <DebugSection store={store} sync={sync} activity={activity} status={status} />
       </div>
     </div>
+  );
+}
+
+function fmtBytes(n) {
+  if (n == null || !Number.isFinite(n)) return '?';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+/** A record on a relay is its JSON, encrypted and base64'd, inside an event envelope. */
+const RELAY_OVERHEAD_PER_RECORD = 330;
+const RELAY_CIPHERTEXT_FACTOR = 1.4;
+
+function DebugSection({ store, sync, activity, status }) {
+  const [estimate, setEstimate] = useState(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then((e) => alive && setEstimate(e)).catch(() => {});
+      tick((x) => x + 1);
+    };
+    refresh();
+    const t = setInterval(refresh, 5000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+  if (!store) return null;
+  const sizes = store.sizes();
+  const stats = sync ? sync.stats() : null;
+  const relays = sync ? sync.relayStates() : [];
+  const relayEstimate = sizes.totalBytes * RELAY_CIPHERTEXT_FACTOR + sizes.totalRecords * RELAY_OVERHEAD_PER_RECORD;
+  const activityBytes = activity ? JSON.stringify(activity.entries()).length : 0;
+  const label = { list: 'Lists', item: 'Items', log: 'Baby logs', summary: 'Day summaries', member: 'Members', meta: 'Settings' };
+  return (
+    <section class="section debug">
+      <h2>Debug</h2>
+      <p class="hint">For keeping an eye on things. Nothing here needs attention unless a number looks wild.</p>
+
+      <h3>Records on this phone</h3>
+      <table class="debug-table">
+        <tbody>
+          {Object.entries(sizes.byType).map(([type, s]) => (
+            <tr key={type}>
+              <td>{label[type] || type}</td>
+              <td>{s.live}{s.deleted ? <span class="hint"> + {s.deleted} deleted</span> : null}</td>
+              <td class="num">{fmtBytes(s.bytes)}</td>
+            </tr>
+          ))}
+          <tr class="total">
+            <td>Total</td>
+            <td>{sizes.totalRecords} records</td>
+            <td class="num">{fmtBytes(sizes.totalBytes)}</td>
+          </tr>
+          <tr>
+            <td>Activity feed</td>
+            <td>{activity ? activity.entries().length : 0} entries (local only)</td>
+            <td class="num">{fmtBytes(activityBytes)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Storage on this phone</h3>
+      <p class="hint">
+        {estimate ? `${fmtBytes(estimate.usage)} used of ${fmtBytes(estimate.quota)} available (${((estimate.usage / estimate.quota) * 100).toFixed(2)}%).` : 'Browser did not report storage usage.'}
+        {' '}Data is in IndexedDB; the old 5 MB localStorage limit no longer applies.
+      </p>
+
+      <h3>On the relays</h3>
+      <p class="hint">
+        Estimated {fmtBytes(relayEstimate)} for this family on each relay ({sizes.totalRecords} encrypted records, about {fmtBytes(sizes.totalRecords ? relayEstimate / sizes.totalRecords : 0)} each).
+        Relays keep only the newest version of each record.
+      </p>
+      <ul class="hint relay-list">
+        {relays.map((r) => (
+          <li key={r.url}>
+            <span class={'dot ' + (r.connected ? 'ok' : r.connecting ? 'warn' : 'off')} /> {r.url.replace('wss://', '')}
+            {r.connected ? ` · ${r.known} records seen` : r.connecting ? ' · connecting' : ' · reconnecting'}
+          </li>
+        ))}
+      </ul>
+
+      <h3>Traffic from this phone</h3>
+      {stats && (
+        <table class="debug-table">
+          <tbody>
+            <tr><td>Sent</td><td>{stats.sentEvents} events</td><td class="num">{fmtBytes(stats.sentBytes)}</td></tr>
+            <tr><td>Received</td><td>{stats.recvEvents} events</td><td class="num">{fmtBytes(stats.recvBytes)}</td></tr>
+          </tbody>
+        </table>
+      )}
+      <p class="hint">
+        Counting since {stats && stats.since ? new Date(stats.since).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}, across all relays. Received includes the full download on first sync and the fortnightly re-sync.
+        {status.lastSyncAt ? ` Last sync ${new Date(status.lastSyncAt).toLocaleTimeString()}.` : ''}
+      </p>
+      <div class="row">
+        <button class="btn" onClick={() => { sync && sync.resetStats(); tick((x) => x + 1); }}>Reset counters</button>
+      </div>
+    </section>
   );
 }

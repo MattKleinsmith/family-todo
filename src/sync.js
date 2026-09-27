@@ -57,6 +57,35 @@ export function createSync({
   const cursorKey = `ft:sync:${keys.pk}`;
   let cursors = loadCursors();
 
+  // Lifetime traffic from this phone to the relays, for the debug panel.
+  const statsKey = `ft:stats:${keys.pk}`;
+  let stats = loadStats();
+  let statsTimer = null;
+  function loadStats() {
+    try {
+      const parsed = JSON.parse((storage && storage.getItem(statsKey)) || 'null');
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {
+      /* ignore */
+    }
+    return { sentBytes: 0, recvBytes: 0, sentEvents: 0, recvEvents: 0, since: now() };
+  }
+  function saveStats() {
+    if (!storage) return;
+    clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => {
+      try {
+        storage.setItem(statsKey, JSON.stringify(stats));
+      } catch {
+        /* ignore */
+      }
+    }, 2000);
+  }
+  function resetStats() {
+    stats = { sentBytes: 0, recvBytes: 0, sentEvents: 0, recvEvents: 0, since: now() };
+    saveStats();
+  }
+
   function loadCursors() {
     try {
       const raw = storage && storage.getItem(cursorKey);
@@ -91,6 +120,14 @@ export function createSync({
     return { connected, total: relays.length, lastSyncAt, online: connected > 0 };
   }
 
+  function relayStates() {
+    return relays.map((url) => {
+      const c = conns.get(url);
+      const open = !!(c && c.ws && c.ws.readyState === 1);
+      return { url, connected: open, connecting: !!(c && c.ws && c.ws.readyState === 0), known: c ? c.known.size : 0 };
+    });
+  }
+
   function emitStatus() {
     onStatus(status());
   }
@@ -116,7 +153,12 @@ export function createSync({
   }
 
   function send(conn, msg) {
-    if (conn.ws && conn.ws.readyState === 1) conn.ws.send(JSON.stringify(msg));
+    if (!conn.ws || conn.ws.readyState !== 1) return;
+    const raw = JSON.stringify(msg);
+    conn.ws.send(raw);
+    stats.sentBytes += raw.length;
+    if (msg[0] === 'EVENT') stats.sentEvents++;
+    saveStats();
   }
 
   // ---- Publishing ----
@@ -247,12 +289,14 @@ export function createSync({
 
   function onMessage(conn, raw) {
     let msg;
+    stats.recvBytes += typeof raw === 'string' ? raw.length : 0;
     try {
       msg = JSON.parse(raw);
     } catch {
       return;
     }
     const [type] = msg;
+    if (type === 'EVENT') stats.recvEvents++;
     if (type === 'EVENT') {
       const [, subId, ev] = msg;
       const sub = conn.subs.get(subId);
@@ -421,5 +465,5 @@ export function createSync({
     emitStatus();
   }
 
-  return { start, stop, publish, publishDeletion, status, reconnectAll };
+  return { start, stop, publish, publishDeletion, status, reconnectAll, relayStates, stats: () => ({ ...stats }), resetStats };
 }

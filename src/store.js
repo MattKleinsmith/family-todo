@@ -378,6 +378,22 @@ export function createStore({
     return bucket(type)[id] || null;
   }
 
+  /** Counts and byte sizes per record type, for the debug panel. */
+  function sizes() {
+    const out = {};
+    let totalBytes = 0;
+    let totalRecords = 0;
+    for (const [type, key] of Object.entries(BUCKETS)) {
+      const all = Object.values(state[key]);
+      const deleted = all.filter((e) => e.deleted).length;
+      const bytes = JSON.stringify(all).length;
+      out[type] = { live: all.length - deleted, deleted, bytes };
+      totalBytes += bytes;
+      totalRecords += all.length;
+    }
+    return { byType: out, totalBytes, totalRecords };
+  }
+
   const ready = load();
 
   return {
@@ -413,5 +429,6 @@ export function createStore({
     logs,
     all,
     getEntity,
+    sizes,
   };
 }
