@@ -9,6 +9,17 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
   const [name, setName] = useState('');
   const [generated] = useState(generateCode);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(generated);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      prompt('Copy your family code:', generated);
+    }
+  };
 
   const normalized = normalizeCode(mode === 'create' ? generated : code);
   const canGo = normalized.length > 0 && name.trim().length > 0 && !busy;
@@ -42,6 +53,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
             <div class="field">
               <label>Your new family code</label>
               <div class="code-display">{generated}</div>
+              <button type="button" class="btn" onClick={copyCode}>{copied ? 'Copied!' : 'Copy code'}</button>
               <p class="hint">Write this down or share it with your partner. Anyone with the code can read and edit your lists, so keep it between you.</p>
             </div>
           ) : (

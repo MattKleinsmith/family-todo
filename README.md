@@ -3,7 +3,7 @@
 Shared to-do and shopping lists for a household. Open it on any phone, enter the
 family code once, and every list stays in sync between everyone who has the code.
 
-- Grocery list, house to-dos, a list just for you: any list, any emoji icon, all shared.
+- Grocery list, house to-dos, a list just for you: any list, any emoji as its icon (typed from your keyboard), all shared.
 - A **Baby** tab that tracks when he slept and when he ate: one tap to log a feed
   or a nap, a status card that shows asleep/awake time, last feed and when the next
   one is due, a daily timeline with totals, and tap-to-fix times.
@@ -87,7 +87,6 @@ npm run dev        # local dev server
 npm test           # unit tests (store merge logic + sync against an in-memory relay)
 npm run e2e        # two simulated phones syncing through the real public relays
 npm run build      # production build into dist/
-npm run build:emoji  # regenerate src/emoji-data.json from the emoji packages
 ```
 
 Stack: [Preact](https://preactjs.com), [Vite](https://vite.dev),
