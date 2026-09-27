@@ -8,6 +8,7 @@ import { createActivity } from './activity.js';
 import { deviceId, describeDevice } from './device.js';
 import { createKV, requestPersistence } from './kv.js';
 import { runMaintenance } from './maintenance.js';
+import { iconToken } from './icons.js';
 import { useRoute, navigate } from './router.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
@@ -77,14 +78,21 @@ export function App() {
             // Existing installs upgrading to this version get a record without announcing a "join".
             backfilled: !current.announceJoin,
           });
-          if (current.announceJoin) {
-            const s = { ...current };
-            delete s.announceJoin;
-            saveSession(s);
-            setSession(s);
-          }
         } else if (me.name !== current.name) {
           store.setMember(deviceId(), { name: current.name });
+        }
+        // A brand-new family starts with a few lists rather than an empty screen.
+        if (current.createDefaults && store.lists().length === 0) {
+          store.createList({ name: 'Groceries', emoji: iconToken('broccoli'), createdBy: current.name });
+          store.createList({ name: 'House', emoji: iconToken('house'), createdBy: current.name });
+          store.createList({ name: `${current.name}’s todos`, emoji: iconToken('seedling'), createdBy: current.name });
+        }
+        if (current.announceJoin || current.createDefaults) {
+          const s = { ...current };
+          delete s.announceJoin;
+          delete s.createDefaults;
+          saveSession(s);
+          setSession(s);
         }
         setFamily({ keys, store, sync, activity });
         setError(null);
@@ -129,8 +137,8 @@ export function App() {
       sync: family?.sync,
       activity: family?.activity,
       navigate,
-      join({ code, name }) {
-        const s = { code, name: name.trim(), joinedAt: Date.now(), announceJoin: true };
+      join({ code, name, create = false }) {
+        const s = { code, name: name.trim(), joinedAt: Date.now(), announceJoin: true, ...(create ? { createDefaults: true } : {}) };
         saveSession(s);
         setSession(s);
         navigate('/');

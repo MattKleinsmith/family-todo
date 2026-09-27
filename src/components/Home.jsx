@@ -6,6 +6,7 @@ import { EmojiPicker } from './EmojiPicker.jsx';
 import { TabBar } from './TabBar.jsx';
 import { GearIcon, ChevronIcon } from './Icons.jsx';
 import { Bell } from './Bell.jsx';
+import { ListIcon } from './ListIcon.jsx';
 
 export function Home() {
   const { store, activity, navigate } = useApp();
@@ -38,7 +39,7 @@ export function Home() {
             return (
               <li key={l.id}>
                 <a class="card" href={`#/list/${l.id}`}>
-                  <span class="card-emoji">{l.emoji || '📝'}</span>
+                  <span class="card-emoji"><ListIcon value={l.emoji} size={28} /></span>
                   <span class="card-body">
                     <span class="card-title">{l.name}</span>
                     <span class="card-sub">
