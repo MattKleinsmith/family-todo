@@ -1,7 +1,7 @@
-// The activity feed: a plain-language record of what other people changed,
-// worked out on this phone by comparing each incoming record with the version
-// it already had. Nothing extra is synced for it; every record simply carries
-// who last touched it.
+// The activity feed: a plain-language record of what changed, worked out on
+// this phone by comparing each record with the version it already had.
+// Other people's changes count as unseen until you look; your own are kept
+// too (already seen) and shown only when you ask.
 import { formatTime, formatDuration } from './baby.js';
 
 const MAX_ENTRIES = 500;
@@ -96,6 +96,13 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
   let entries = [];
   const listeners = new Set();
   let timer = null;
+  const showMineKey = storageKey ? `${storageKey}:showMine` : null;
+  let showMine = false;
+  try {
+    showMine = !!(storage && showMineKey && storage.getItem(showMineKey) === '1');
+  } catch {
+    showMine = false;
+  }
 
   try {
     const raw = storage && storageKey && storage.getItem(storageKey);
@@ -126,32 +133,45 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
     babyName: () => store.getMeta('baby')?.name,
   };
 
-  function record(prev, next) {
+  function record(prev, next, local) {
     // Things that existed before this phone joined are history, not news.
     if (!prev && next.updatedAt <= since()) return;
     const text = describeChange(prev, next, { listName: ctx.listName, babyName: ctx.babyName() });
     if (!text) return;
     const actor = actorOf(next);
+    const mine = local || (!!self() && actor === self());
     entries.unshift({
       id: `${next.id}:${next.updatedAt}`,
       at: next.updatedAt,
       actor,
-      mine: !!self() && actor === self(),
+      mine,
       text,
       entityType: next.type,
       entityId: next.id,
       listId: next.type === 'item' ? next.listId : next.type === 'list' ? next.id : null,
-      seen: false,
+      seen: mine, // you don't need to be told what you just did
     });
     if (entries.length > MAX_ENTRIES) entries.length = MAX_ENTRIES;
     save();
     notify();
   }
 
-  const unsubscribe = store.onRemoteChange(record);
+  const unsubRemote = store.onRemoteChange((prev, next) => record(prev, next, false));
+  const unsubLocal = store.onLocalChange((next, prev) => record(prev || null, next, true));
 
   return {
     entries: () => entries,
+    visibleEntries: () => (showMine ? entries : entries.filter((e) => !e.mine)),
+    showMine: () => showMine,
+    setShowMine(v) {
+      showMine = !!v;
+      try {
+        storage && showMineKey && storage.setItem(showMineKey, showMine ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      notify();
+    },
     unseenCount: () => entries.reduce((n, e) => n + (e.seen ? 0 : 1), 0),
     unseenForList: (listId) => entries.reduce((n, e) => n + (!e.seen && e.listId === listId ? 1 : 0), 0),
     markAllSeen() {
@@ -163,6 +183,9 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
       }
     },
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
-    stop: unsubscribe,
+    stop() {
+      unsubRemote();
+      unsubLocal();
+    },
   };
 }

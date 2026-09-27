@@ -5,7 +5,9 @@ import { dayKey, dayLabel, formatTime } from '../baby.js';
 
 export function Activity() {
   const { activity, navigate } = useApp();
-  const entries = activity.entries();
+  const entries = activity.visibleEntries();
+  const showMine = activity.showMine();
+  const hasMine = activity.entries().some((e) => e.mine);
 
   // Seen once you've looked.
   useEffect(() => {
@@ -31,10 +33,18 @@ export function Activity() {
         <div class="topbar-actions" />
       </header>
       <div class="content">
+        <label class="toggle activity-toggle">
+          <input type="checkbox" checked={showMine} onChange={(e) => activity.setShowMine(e.currentTarget.checked)} />
+          <span>Show my own changes</span>
+        </label>
         {entries.length === 0 && (
           <div class="empty">
             <p class="big-emoji">👀</p>
-            <p>Nothing yet. When someone else adds, changes or removes anything, it shows up here.</p>
+            <p>
+              {showMine || !hasMine
+                ? 'Nothing yet. When someone adds, changes or removes anything, it shows up here.'
+                : 'Nothing from anyone else yet. Turn on “Show my own changes” to see yours.'}
+            </p>
           </div>
         )}
         {groups.map((g) => (
@@ -42,7 +52,7 @@ export function Activity() {
             <div class="day-head"><span>{dayLabel(g.key)}</span></div>
             <ul class="items">
               {g.entries.map((e) => (
-                <li key={e.id} class={'act' + (e.seen ? '' : ' unseen')}>
+                <li key={e.id} class={'act' + (e.seen ? '' : ' unseen') + (e.mine ? ' mine' : '')}>
                   <span class="avatar" aria-hidden="true">{(e.actor || '?').slice(0, 1).toUpperCase()}</span>
                   <span class="act-body">
                     <span class="act-text"><b>{e.mine ? 'You' : e.actor}</b> {e.text}</span>
