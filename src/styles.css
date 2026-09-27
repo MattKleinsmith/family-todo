@@ -423,3 +423,16 @@ li:last-child > .act { border-bottom: none; }
 .member-body { display: flex; flex-direction: column; }
 .member-name { font-weight: 700; }
 .activity-toggle { padding: 4px 4px 12px; color: var(--muted); font-size: 15px; }
+
+/* Debug */
+.debug h3 { font-size: 14px; font-weight: 800; margin: 8px 0 0; }
+.debug-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.debug-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.debug-table tr:last-child td { border-bottom: none; }
+.debug-table td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+.debug-table tr.total td { font-weight: 800; }
+.relay-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.relay-list .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+.relay-list .dot.ok { background: var(--ok); }
+.relay-list .dot.warn { background: var(--warn); }
+.relay-list .dot.off { background: var(--danger); }
