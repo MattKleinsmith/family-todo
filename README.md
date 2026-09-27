@@ -4,6 +4,9 @@ Shared to-do and shopping lists for a household. Open it on any phone, enter the
 family code once, and every list stays in sync between everyone who has the code.
 
 - Grocery list, house to-dos, a list just for you: any list, any emoji icon, all shared.
+- A **Baby** tab that tracks when he slept and when he ate: one tap to log a feed
+  or a nap, a status card that shows asleep/awake time, last feed and when the next
+  one is due, a daily timeline with totals, and tap-to-fix times.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
 - Installs to the iPhone home screen as an app (Safari → Share → *Add to Home Screen*).
@@ -35,6 +38,19 @@ Anyone with the code can read and edit everything, which is the point: it is a
 household, not a permission system. Keep the code between you. Codes are
 generated from four random dictionary words (about 44 bits of entropy), which is
 not guessable in practice.
+
+## The baby tracker
+
+Two buttons, always at the bottom of the Baby tab: **Fed now** and **Fell asleep**
+(which turns into **Woke up** while a nap is running). Either parent taps; both
+phones update within a second. The status card shows how long he has been asleep
+or awake, when he last ate, and an estimate of the next feed and nap based on the
+cycle length set in the tab's menu (default 3 hours; also where you set his name).
+
+Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nudges for
+the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
+it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
+crosses midnight is split across the two days.
 
 ## How syncing works
 
@@ -81,9 +97,10 @@ Stack: [Preact](https://preactjs.com), [Vite](https://vite.dev),
 src/
   app.jsx          boot: session -> keys -> store -> sync, routing
   store.js         local-first state, last-writer-wins merge, selectors
+  baby.js          baby tracker helpers: current state, daily totals, formatting
   sync.js          relay connections, publish/subscribe, reconcile, cursors
   keys.js          key derivation and encryption from the family code
   codes.js         family code generation and normalisation
-  components/      Join, Home, ListView, Settings, Sheet, SyncBadge, EmojiPicker
+  components/      Join, Home, ListView, Baby, TabBar, Settings, Sheet, SyncBadge, EmojiPicker
 e2e/sync.e2e.mjs   live check against the public relays
 ```
