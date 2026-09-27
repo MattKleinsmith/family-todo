@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { DEFAULT_RELAYS } from '../sync.js';
 import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
+import { BackIcon } from './Icons.jsx';
 
 export function Settings() {
   const { session, status, setName, leave, navigate } = useApp();
@@ -44,7 +45,7 @@ export function Settings() {
   return (
     <div class="screen">
       <header class="topbar">
-        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}>‹</button>
+        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>
         <h1>Settings</h1>
         <div class="topbar-actions" />
       </header>

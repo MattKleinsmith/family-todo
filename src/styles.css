@@ -83,12 +83,14 @@ h1, h2, p { margin: 0; }
 .title-with-emoji span { margin-right: 4px; }
 .topbar-actions { display: flex; align-items: center; gap: 6px; }
 .icon-btn {
-  width: 44px; height: 44px; border-radius: 50%;
-  border: none; background: transparent; font-size: 24px; line-height: 1;
-  color: var(--text);
+  width: 44px; height: 44px; border-radius: 50%; padding: 0;
+  border: none; background: transparent; color: var(--text);
+  display: grid; place-items: center;
 }
+.icon-btn svg { width: 26px; height: 26px; display: block; }
 .icon-btn:active { background: var(--surface-2); }
-.icon-btn.back { font-size: 34px; margin-left: -12px; padding-bottom: 4px; }
+.icon-btn.back { margin-left: -12px; }
+.icon-btn.back svg { width: 30px; height: 30px; }
 
 /* Sync badge */
 .sync {
@@ -165,7 +167,8 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px co
 .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .card-title { font-weight: 600; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-sub { color: var(--muted); font-size: 14px; }
-.chev { color: var(--muted); font-size: 26px; }
+.chev { color: var(--muted); display: flex; align-items: center; }
+.chev svg { width: 22px; height: 22px; display: block; }
 
 .empty { text-align: center; color: var(--muted); padding: 48px 16px; }
 .big-emoji { font-size: 48px; margin-bottom: 8px; }
@@ -219,11 +222,11 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px co
   display: flex; background: var(--surface); border-top: 1px solid var(--border);
 }
 .tab {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  font-size: 11px; font-weight: 600; color: var(--muted);
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 11px; font-weight: 600; line-height: 1; color: var(--muted);
 }
 .tab.active { color: var(--accent); }
-.tab-icon { font-size: 22px; line-height: 1; }
+.tab-icon { height: 26px; display: flex; align-items: center; font-size: 22px; line-height: 1; }
 
 /* Baby */
 .status {
