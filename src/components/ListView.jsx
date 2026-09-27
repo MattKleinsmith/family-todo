@@ -5,14 +5,30 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon } from './Icons.jsx';
 
-export function ListView({ id }) {
+export function ListView({ id, focus }) {
   const { store, session, navigate } = useApp();
   const list = store.get().lists[id];
   const [text, setText] = useState('');
   const [editing, setEditing] = useState(null); // item id
   const [menu, setMenu] = useState(false);
   const [showDone, setShowDone] = useState(true);
+  const [flash, setFlash] = useState(null);
   const inputRef = useRef(null);
+
+  // Arriving from the activity feed: scroll to the item in question and highlight it briefly.
+  useEffect(() => {
+    if (!focus) return;
+    setShowDone(true);
+    setFlash(focus);
+    const t = setTimeout(() => {
+      document.getElementById(`item-${focus}`)?.scrollIntoView({ block: 'center' });
+    }, 50);
+    const clear = setTimeout(() => setFlash(null), 2000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(clear);
+    };
+  }, [focus]);
 
   useEffect(() => {
     if (list && list.deleted) navigate('/');
@@ -62,7 +78,7 @@ export function ListView({ id }) {
 
       <ul class="items">
         {open.map((item) => (
-          <ItemRow key={item.id} item={item} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+          <ItemRow key={item.id} item={item} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
         ))}
       </ul>
 
@@ -74,7 +90,7 @@ export function ListView({ id }) {
           {showDone && (
             <ul class="items done">
               {done.map((item) => (
-                <ItemRow key={item.id} item={item} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+                <ItemRow key={item.id} item={item} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
               ))}
             </ul>
           )}
@@ -103,9 +119,9 @@ export function ListView({ id }) {
   );
 }
 
-function ItemRow({ item, onToggle, onEdit }) {
+function ItemRow({ item, flash, onToggle, onEdit }) {
   return (
-    <li id={`item-${item.id}`} class={'item' + (item.done ? ' is-done' : '')}>
+    <li id={`item-${item.id}`} class={'item' + (item.done ? ' is-done' : '') + (flash ? ' flash' : '')}>
       <button class="check" aria-label={item.done ? 'Mark not done' : 'Mark done'} aria-pressed={item.done} onClick={onToggle}>
         <span class="check-mark">{item.done ? '✓' : ''}</span>
       </button>

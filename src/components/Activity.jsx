@@ -1,10 +1,36 @@
 import { useEffect } from 'preact/hooks';
 import { useApp } from '../app.jsx';
-import { BackIcon } from './Icons.jsx';
+import { BackIcon, ChevronIcon } from './Icons.jsx';
 import { dayKey, dayLabel, formatTime } from '../baby.js';
 
+/** Where an entry should take you, or null when there's nowhere sensible to go. */
+export function targetFor(entry, store) {
+  switch (entry.entityType) {
+    case 'item': {
+      const list = entry.listId && store.getEntity('list', entry.listId);
+      if (!list || list.deleted) return null;
+      const item = store.getEntity('item', entry.entityId);
+      return `#/list/${list.id}${item && !item.deleted ? `?focus=${item.id}` : ''}`;
+    }
+    case 'list': {
+      const list = store.getEntity('list', entry.entityId);
+      return list && !list.deleted ? `#/list/${list.id}` : null;
+    }
+    case 'log': {
+      const log = store.getEntity('log', entry.entityId);
+      return `#/baby${log && !log.deleted ? `?focus=${log.id}` : ''}`;
+    }
+    case 'meta':
+      return '#/baby';
+    case 'member':
+      return '#/settings';
+    default:
+      return null;
+  }
+}
+
 export function Activity() {
-  const { activity, navigate } = useApp();
+  const { activity, navigate, store } = useApp();
   const entries = activity.visibleEntries();
   const showMine = activity.showMine();
   const hasMine = activity.entries().some((e) => e.mine);
@@ -51,15 +77,25 @@ export function Activity() {
           <section key={g.key} class="day">
             <div class="day-head"><span>{dayLabel(g.key)}</span></div>
             <ul class="items">
-              {g.entries.map((e) => (
-                <li key={e.id} class={'act' + (e.seen ? '' : ' unseen') + (e.mine ? ' mine' : '')}>
-                  <span class="avatar" aria-hidden="true">{(e.actor || '?').slice(0, 1).toUpperCase()}</span>
-                  <span class="act-body">
-                    <span class="act-text"><b>{e.mine ? 'You' : e.actor}</b> {e.text}</span>
-                    <span class="act-time">{formatTime(e.at)}</span>
-                  </span>
-                </li>
-              ))}
+              {g.entries.map((e) => {
+                const href = targetFor(e, store);
+                const inner = (
+                  <>
+                    <span class="avatar" aria-hidden="true">{(e.actor || '?').slice(0, 1).toUpperCase()}</span>
+                    <span class="act-body">
+                      <span class="act-text"><b>{e.mine ? 'You' : e.actor}</b> {e.text}</span>
+                      <span class="act-time">{formatTime(e.at)}</span>
+                    </span>
+                    {href && <span class="chev"><ChevronIcon /></span>}
+                  </>
+                );
+                const cls = 'act' + (e.seen ? '' : ' unseen') + (e.mine ? ' mine' : '') + (href ? ' link' : '');
+                return (
+                  <li key={e.id}>
+                    {href ? <a class={cls} href={href}>{inner}</a> : <div class={cls}>{inner}</div>}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}
