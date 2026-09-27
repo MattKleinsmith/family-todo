@@ -157,3 +157,25 @@ describe('createActivity (synced)', () => {
     expect(fresh.applyRemote({ id: 'act:dB:old:0', type: 'activity', entries: [], createdAt: T, updatedAt: T, deleted: false })).toBe(false);
   });
 });
+
+describe('reinstalls', () => {
+  it('a second install of the same person on the same device type does not announce a join, and old repeats are hidden', async () => {
+    const clock = { t: T };
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T - 1, relay: [], clock });
+    A.store.setMember('dA', { name: 'Matthew', device: 'iPhone', joinedAt: T, leftAt: null });
+    await settle();
+    // An old install's record and its join line, as synced from a previous home-screen copy.
+    A.store.applyRemote({ id: 'dOld', type: 'member', name: 'Matthew', device: 'iPhone', joinedAt: T - 100, leftAt: null, createdAt: 1, updatedAt: T - 100, deleted: false });
+    A.store.applyRemote({ id: 'act:dOld:x:0', type: 'activity', device: 'dOld', day: 'x', chunk: 0, entries: [{ id: 'dOld:1', at: T - 100, actor: 'Matthew', text: 'joined the family on an iPhone', entityType: 'member', entityId: 'dOld', listId: null }], createdAt: 1, updatedAt: T - 100, deleted: false });
+    const joins = A.activity.entries().filter((e) => /joined the family/.test(e.text));
+    expect(joins).toHaveLength(1);
+    // A fresh install now registers: no new join line.
+    A.store.setMember('dNew', { name: 'Matthew', device: 'iPhone', joinedAt: clock.t, leftAt: null });
+    await settle();
+    expect(A.activity.entries().filter((e) => /joined the family/.test(e.text))).toHaveLength(1);
+    // A genuinely different device still announces.
+    A.store.setMember('dMac', { name: 'Matthew', device: 'Mac', joinedAt: clock.t, leftAt: null });
+    await settle();
+    expect(A.activity.entries().filter((e) => /joined the family/.test(e.text)).map((e) => e.text)).toContain('joined the family on a Mac');
+  });
+});
