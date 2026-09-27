@@ -163,9 +163,9 @@ export function App() {
   }
 
   let page;
-  if (route.name === 'list') page = <ListView id={route.id} />;
+  if (route.name === 'list') page = <ListView id={route.id} focus={route.focus} />;
   else if (route.name === 'settings') page = <Settings />;
-  else if (route.name === 'baby') page = <Baby />;
+  else if (route.name === 'baby') page = <Baby focus={route.focus} />;
   else if (route.name === 'activity') page = <Activity />;
   else page = <Home />;
 

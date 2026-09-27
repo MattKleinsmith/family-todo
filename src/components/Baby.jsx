@@ -23,7 +23,7 @@ import {
 
 const INTERVALS = [120, 150, 180, 210, 240];
 
-export function Baby() {
+export function Baby({ focus }) {
   const { store, session, navigate } = useApp();
   const [, tick] = useReducer((x) => x + 1, 0);
   const [editing, setEditing] = useState(null);
@@ -35,6 +35,18 @@ export function Baby() {
     const t = setInterval(tick, 30_000);
     return () => clearInterval(t);
   }, []);
+
+  // Arriving from the activity feed: scroll to the log entry in question and highlight it.
+  useEffect(() => {
+    if (!focus) return;
+    setJustAdded(focus);
+    const t = setTimeout(() => document.getElementById(`log-${focus}`)?.scrollIntoView({ block: 'center' }), 50);
+    const clear = setTimeout(() => setJustAdded((cur) => (cur === focus ? null : cur)), 2000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(clear);
+    };
+  }, [focus]);
 
   const now = Date.now();
   const logs = store.logs();
@@ -131,7 +143,7 @@ export function Baby() {
             </div>
             <ul class="items">
               {g.logs.map((l) => (
-                <li key={l.id} class={'log' + (justAdded === l.id ? ' flash' : '')}>
+                <li key={l.id} id={`log-${l.id}`} class={'log' + (justAdded === l.id ? ' flash' : '')}>
                   <button class="log-row" onClick={() => setEditing(l.id)}>
                     <span class="log-emoji">{l.kind === 'feed' ? '🍼' : '😴'}</span>
                     <span class="log-body">

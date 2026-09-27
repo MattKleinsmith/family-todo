@@ -335,8 +335,12 @@ details summary { cursor: pointer; }
   display: grid; place-items: center; line-height: 1; border: 2px solid var(--bg);
 }
 .fresh { color: var(--accent); font-weight: 600; }
-.act { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-.act:last-child { border-bottom: none; }
+.act { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+li:last-child > .act { border-bottom: none; }
+.act.link:active { background: var(--surface-2); }
+.act .act-body { flex: 1; }
+.act .chev { flex: none; }
+.item.flash { animation: flash 1.8s ease-out; }
 .act.unseen { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .avatar {
   flex: none; width: 34px; height: 34px; border-radius: 50%;
