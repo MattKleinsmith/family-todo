@@ -1,19 +1,36 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { extractEmoji } from '../emoji.js';
 
-/** Icon field: switch the keyboard to emoji and type one. Anything else typed is ignored. */
+/**
+ * Icon field. There is no way for a web page to open the phone's emoji
+ * keyboard, so the field asks for it and explains itself when letters arrive.
+ */
 export function EmojiPicker({ value, onChange }) {
   const [text, setText] = useState('');
+  const [nudge, setNudge] = useState(false);
+  const timer = useRef(null);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
   const onInput = (e) => {
     const v = e.currentTarget.value;
+    e.currentTarget.value = ''; // the field never holds text; state alone won't clear an already-empty controlled input
     const emoji = extractEmoji(v);
     if (emoji) {
       onChange(emoji);
       setText('');
-    } else {
-      setText(v.length > 1 ? '' : v);
+      setNudge(false);
+      return;
+    }
+    // Letters typed: keep the field clear and say why, briefly.
+    setText('');
+    if (v.trim()) {
+      setNudge(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setNudge(false), 3000);
     }
   };
+
   return (
     <div class="field">
       <label for="emoji-input">Icon</label>
@@ -22,7 +39,7 @@ export function EmojiPicker({ value, onChange }) {
         <input
           id="emoji-input"
           type="text"
-          placeholder="Type an emoji"
+          placeholder="Tap 😀 on your keyboard, pick one"
           value={text}
           autocomplete="off"
           autocorrect="off"
@@ -31,7 +48,9 @@ export function EmojiPicker({ value, onChange }) {
           onInput={onInput}
         />
       </div>
-      <p class="hint">Use your keyboard's emoji page. Any emoji works.</p>
+      <p class={'hint' + (nudge ? ' warn' : '')} aria-live="polite">
+        {nudge ? 'Letters don’t work here. Switch your keyboard to emoji (the 😀 or 🌐 key) and tap one.' : 'Any emoji works. Phones can’t open the emoji keyboard on their own, so switch to it yourself.'}
+      </p>
     </div>
   );
 }
