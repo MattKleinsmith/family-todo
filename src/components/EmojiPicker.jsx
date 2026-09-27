@@ -49,7 +49,7 @@ export function EmojiPicker({ value, onChange }) {
         />
       </div>
       <p class={'hint' + (nudge ? ' warn' : '')} aria-live="polite">
-        {nudge ? 'Letters don’t work here. Switch your keyboard to emoji (the 😀 or 🌐 key) and tap one.' : 'Any emoji works. Phones can’t open the emoji keyboard on their own, so switch to it yourself.'}
+        {nudge ? 'Just emoji here. Tap the 😀 or 🌐 key on your keyboard to pick one.' : 'Any emoji works. The 😀 or 🌐 key on your keyboard opens the emoji picker.'}
       </p>
     </div>
   );
