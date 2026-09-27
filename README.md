@@ -18,8 +18,10 @@ The app is a static site, built and published to GitHub Pages by
    run enables GitHub Pages for the repo automatically.
 3. The app is then live at `https://<your-github-username>.github.io/family-todo/`.
 
-If the deploy job complains that Pages is not enabled, open *Settings → Pages* and
-set **Source** to *GitHub Actions*, then re-run the workflow.
+The repo's Pages source is currently the `main` branch, so GitHub also runs its
+own Jekyll build on each push. The deploy job waits for that build to finish so
+the real app always wins. Setting *Settings → Pages → Source* to **GitHub
+Actions** removes that extra build; it's optional.
 
 ## How to use it
 
