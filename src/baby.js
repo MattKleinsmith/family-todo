@@ -81,8 +81,10 @@ export function nextFeedAt(lastFeed, intervalMin = DEFAULT_FEED_INTERVAL_MIN) {
   return lastFeed ? lastFeed.startAt + intervalMin * MIN : null;
 }
 
+/** Naps run on a start-to-start cycle, like feeds: the next one is due `intervalMin` after the last one began. */
 export function nextSleepAt(state, intervalMin = DEFAULT_SLEEP_INTERVAL_MIN) {
-  return state.awakeSince ? state.awakeSince + intervalMin * MIN : null;
+  if (state.asleep) return null;
+  return state.lastSleep ? state.lastSleep.startAt + intervalMin * MIN : null;
 }
 
 /** "in 45m" / "20m ago" / "now" for a target timestamp. */

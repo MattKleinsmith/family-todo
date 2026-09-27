@@ -105,7 +105,7 @@ export function Baby({ focus }) {
               <div class="status-title">{state.awakeSince ? `Awake ${formatDuration(now - state.awakeSince)}` : 'Awake'}</div>
               <div class="status-sub">
                 {state.awakeSince ? `up since ${formatTime(state.awakeSince)}` : 'no sleep logged yet'}
-                {sleepDue ? ` · nap ${relative(sleepDue, now)}` : ''}
+                {sleepDue ? (sleepDue <= now ? ` · nap due (${relative(sleepDue, now)})` : ` · next nap ~${formatTime(sleepDue)} (${relative(sleepDue, now)})`) : ''}
               </div>
             </div>
           </div>
@@ -277,7 +277,7 @@ function BabyMenuSheet({ profile, onClose }) {
               <button type="button" key={m} role="radio" aria-checked={sleepEvery === m} class={'chip' + (sleepEvery === m ? ' on' : '')} onClick={() => setSleepEvery(m)}>{label(m)}</button>
             ))}
           </div>
-          <p class="hint">Used only for the "next feed" and "nap" hints. Adjust as his rhythm changes.</p>
+          <p class="hint">Used only for the "next feed" and "next nap" hints. Both count from the start of the last one. Adjust as his rhythm changes.</p>
         </div>
         <button class="btn primary big" type="submit">Save</button>
         <button class="btn link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>Family code, sync & app settings</button>
