@@ -1,0 +1,112 @@
+import { useState } from 'preact/hooks';
+import { useApp } from '../app.jsx';
+import { DEFAULT_RELAYS } from '../sync.js';
+
+export function Settings() {
+  const { session, status, setName, leave, navigate } = useApp();
+  const [name, setNameInput] = useState(session.name);
+  const [copied, setCopied] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+
+  const joinLink = `${location.origin}${location.pathname}#/join/${encodeURIComponent(session.code)}`;
+
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      prompt('Copy this:', text);
+    }
+  };
+
+  const share = async () => {
+    const data = { title: 'Join our family lists', text: `Join our family to-do lists. Family code: ${session.code}`, url: joinLink };
+    if (navigator.share) {
+      try {
+        await navigator.share(data);
+        return;
+      } catch {
+        /* cancelled */
+      }
+    }
+    copy(joinLink);
+  };
+
+  return (
+    <div class="screen">
+      <header class="topbar">
+        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}>‹</button>
+        <h1>Settings</h1>
+        <div class="topbar-actions" />
+      </header>
+
+      <section class="section">
+        <h2>Family code</h2>
+        <p class="hint">Your partner enters this code (or opens the link) to see and edit the same lists.</p>
+        <div class="code-display" onClick={() => setShowCode(!showCode)}>
+          {showCode ? session.code : '•••• tap to reveal ••••'}
+        </div>
+        <div class="row">
+          <button class="btn" onClick={() => copy(session.code)}>{copied ? 'Copied!' : 'Copy code'}</button>
+          <button class="btn primary" onClick={share}>Share invite link</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Your name</h2>
+        <form
+          class="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) setName(name);
+          }}
+        >
+          <input type="text" value={name} onInput={(e) => setNameInput(e.currentTarget.value)} />
+          <button class="btn" type="submit" disabled={!name.trim() || name.trim() === session.name}>Save</button>
+        </form>
+      </section>
+
+      <section class="section">
+        <h2>Sync</h2>
+        <p class="hint">
+          Connected to {status.connected} of {status.total} relays.
+          {status.lastSyncAt ? ` Last synced ${new Date(status.lastSyncAt).toLocaleTimeString()}.` : ''}
+        </p>
+        <p class="hint">
+          Lists are stored on your phone and mirrored, encrypted, to public relays so your partner's phone can pick
+          them up. Only people with the family code can read them.
+        </p>
+        <details>
+          <summary class="hint">Relays</summary>
+          <ul class="hint">
+            {DEFAULT_RELAYS.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </details>
+      </section>
+
+      <section class="section">
+        <h2>Add to your home screen</h2>
+        <p class="hint">
+          On iPhone: open this page in Safari, tap the Share button, then "Add to Home Screen". It then opens
+          full-screen like a normal app and works offline.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Leave family</h2>
+        <p class="hint">Removes the code and lists from this phone only. Your partner keeps everything, and you can rejoin with the code.</p>
+        <button
+          class="btn danger"
+          onClick={() => {
+            if (confirm('Leave this family on this phone?')) leave();
+          }}
+        >
+          Leave family
+        </button>
+      </section>
+    </div>
+  );
+}
