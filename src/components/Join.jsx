@@ -28,7 +28,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
     e.preventDefault();
     if (!canGo) return;
     setBusy(true);
-    join({ code: normalized, name });
+    join({ code: normalized, name, create: mode === 'create' });
   };
 
   return (

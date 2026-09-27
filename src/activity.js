@@ -3,6 +3,7 @@
 // Other people's changes count as unseen until you look; your own are kept
 // too (already seen) and shown only when you ask.
 import { formatTime, formatDuration } from './baby.js';
+import { iconToText } from './icons.js';
 
 const MAX_ENTRIES = 500;
 
@@ -29,13 +30,13 @@ export function describeChange(prev, next, ctx = {}) {
       return `${joinParts(parts)} ${where}`;
     }
     case 'list': {
-      const label = (l) => `${l.emoji ? l.emoji + ' ' : ''}${l.name}`;
+      const label = (l) => `${l.emoji ? iconToText(l.emoji) + ' ' : ''}${l.name}`;
       if (!prev) return next.deleted ? null : `created the list ${label(next)}`;
       if (next.deleted && !prev.deleted) return `deleted the list ${label(prev)}`;
       if (next.deleted) return null;
       const parts = [];
       if (next.name !== prev.name) parts.push(`renamed the list ${q(prev.name)} to ${q(next.name)}`);
-      if ((next.emoji || '') !== (prev.emoji || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.emoji || 'none'}`);
+      if ((next.emoji || '') !== (prev.emoji || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.emoji ? iconToText(next.emoji) : 'none'}`);
       return parts.length ? joinParts(parts) : null;
     }
     case 'log': {

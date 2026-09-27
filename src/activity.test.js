@@ -24,6 +24,8 @@ describe('describeChange', () => {
     expect(describeChange(null, list(), ctx)).toBe('created the list 🛒 Groceries');
     expect(describeChange(list(), list({ name: 'Food' }), ctx)).toBe('renamed the list “Groceries” to “Food”');
     expect(describeChange(list(), list({ emoji: '🥦' }), ctx)).toBe('changed Groceries’ icon to 🥦');
+    expect(describeChange(list(), list({ emoji: 'icon:seedling' }), ctx)).toBe('changed Groceries’ icon to 🌱');
+    expect(describeChange(null, list({ emoji: 'icon:house' }), ctx)).toBe('created the list 🏡 Groceries');
     expect(describeChange(list(), list({ deleted: true }), ctx)).toBe('deleted the list 🛒 Groceries');
   });
   it('baby logs', () => {

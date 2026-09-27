@@ -4,6 +4,7 @@ import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon } from './Icons.jsx';
+import { ListIcon } from './ListIcon.jsx';
 
 export function ListView({ id, focus }) {
   const { store, session, navigate } = useApp();
@@ -61,7 +62,7 @@ export function ListView({ id, focus }) {
       <header class="topbar">
         <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>
         <h1 class="title-with-emoji">
-          <span>{list.emoji || '📝'}</span> {list.name}
+          <span class="title-icon"><ListIcon value={list.emoji} size={28} /></span> {list.name}
         </h1>
         <div class="topbar-actions">
           <SyncBadge />
