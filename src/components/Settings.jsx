@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
-import { DEFAULT_RELAYS } from '../sync.js';
+import { DEFAULT_RELAYS, relaySizeOf } from '../sync.js';
 import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 import { BackIcon } from './Icons.jsx';
 import { getTheme, setTheme } from '../theme.js';
@@ -188,9 +188,6 @@ function fmtBytes(n) {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-/** A record on a relay is its JSON, encrypted and base64'd, inside an event envelope. */
-const RELAY_OVERHEAD_PER_RECORD = 330;
-const RELAY_CIPHERTEXT_FACTOR = 1.4;
 
 function DebugSection({ store, sync, activity, status }) {
   const [estimate, setEstimate] = useState(null);
@@ -212,7 +209,8 @@ function DebugSection({ store, sync, activity, status }) {
   const sizes = store.sizes();
   const stats = sync ? sync.stats() : null;
   const relays = sync ? sync.relayStates() : [];
-  const relayEstimate = sizes.totalBytes * RELAY_CIPHERTEXT_FACTOR + sizes.totalRecords * RELAY_OVERHEAD_PER_RECORD;
+  const relayBytes = store.all().reduce((n, e) => n + relaySizeOf(e), 0);
+  const envelope = sizes.totalRecords ? Math.round((relayBytes - sizes.totalBytes) / sizes.totalRecords) : 0;
   const activityBytes = activity ? JSON.stringify(activity.entries()).length : 0;
   const label = { list: 'Lists', item: 'Items', log: 'Baby logs', summary: 'Day summaries', member: 'Members', meta: 'Settings' };
   return (
@@ -246,13 +244,12 @@ function DebugSection({ store, sync, activity, status }) {
       <h3>Storage on this phone</h3>
       <p class="hint">
         {estimate ? `${fmtBytes(estimate.usage)} used of ${fmtBytes(estimate.quota)} available (${((estimate.usage / estimate.quota) * 100).toFixed(2)}%).` : 'Browser did not report storage usage.'}
-        {' '}Data is in IndexedDB; the old 5 MB localStorage limit no longer applies.
       </p>
 
       <h3>On the relays</h3>
       <p class="hint">
-        Estimated {fmtBytes(relayEstimate)} for this family on each relay ({sizes.totalRecords} encrypted records, about {fmtBytes(sizes.totalRecords ? relayEstimate / sizes.totalRecords : 0)} each).
-        Relays keep only the newest version of each record.
+        {fmtBytes(relayBytes)} for this family on each relay: the {fmtBytes(sizes.totalBytes)} of records above, each encrypted and wrapped in a signed envelope
+        (id, key, signature, timestamp, tag) that adds about {envelope} B per record. Small records are mostly envelope. Relays keep only the newest version of each record.
       </p>
       <ul class="hint relay-list">
         {relays.map((r) => (

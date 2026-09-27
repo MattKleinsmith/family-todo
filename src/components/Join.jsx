@@ -35,7 +35,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
     <div class="screen join">
       <div class="join-inner">
       <div class="join-hero">
-        <div class="logo">✓</div>
+        <img class="logo" src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" width="96" height="96" />
         <h1>Family To-Do</h1>
         <p class="muted">Shared lists for the two of you. One code, every phone in sync.</p>
       </div>

@@ -1,6 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="128" fill="#faf5ec"/>
-  <circle cx="352" cy="176" r="88" fill="#f5c1a0"/>
-  <path d="M256 448c-88 0-160-64-160-152 0-72 56-136 160-200 104 64 160 128 160 200 0 88-72 152-160 152z" fill="#6f9d72"/>
-  <path d="M196 292l44 44 84-96" fill="none" stroke="#fffdf8" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- soft ground -->
+  <ellipse cx="256" cy="418" rx="190" ry="34" fill="#f2eadb"/>
+  <!-- parent left (sage) -->
+  <circle cx="176" cy="196" r="52" fill="#6f9d72"/>
+  <path d="M96 400c0-84 36-130 80-130s80 46 80 130z" fill="#6f9d72"/>
+  <!-- parent right (peach) -->
+  <circle cx="336" cy="196" r="52" fill="#f5c1a0"/>
+  <path d="M256 400c0-84 36-130 80-130s80 46 80 130z" fill="#f5c1a0"/>
+  <!-- little one (sun) in front -->
+  <circle cx="256" cy="288" r="38" fill="#f6c85f"/>
+  <path d="M200 400c0-52 24-82 56-82s56 30 56 82z" fill="#f6c85f"/>
+  <!-- heart -->
+  <path d="M256 120c-10-22-44-22-44 6 0 22 22 34 44 54 22-20 44-32 44-54 0-28-34-28-44-6z" fill="#d9776b"/>
 </svg>

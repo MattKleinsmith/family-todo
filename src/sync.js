@@ -17,7 +17,7 @@
 // net against clock skew or a relay that lost data.
 
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure';
-import { encrypt, decrypt } from './keys.js';
+import { encrypt, decrypt, ciphertextLength } from './keys.js';
 import { isValidEntity } from './store.js';
 
 export const DEFAULT_RELAYS = [
@@ -37,6 +37,20 @@ const FULL_SYNC_EVERY_MS = 14 * 24 * 3600 * 1000;
 
 export function dTagFor(entity) {
   return `${TAG_PREFIX}${entity.type}:${entity.id}`;
+}
+
+/** Bytes a record occupies on a relay: its encrypted content inside the signed event envelope. Exact, no signing needed. */
+export function relaySizeOf(entity) {
+  const envelope = JSON.stringify({
+    id: 'x'.repeat(64),
+    pubkey: 'x'.repeat(64),
+    created_at: 1_000_000_000,
+    kind: KIND,
+    tags: [['d', dTagFor(entity)]],
+    content: '',
+    sig: 'x'.repeat(128),
+  }).length;
+  return envelope + ciphertextLength(JSON.stringify(entity));
 }
 
 export function createSync({
