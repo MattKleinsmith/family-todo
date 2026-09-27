@@ -152,6 +152,28 @@ export function createSync({
     for (const conn of conns.values()) queuePublish(conn, entity);
   }
 
+  /**
+   * Ask the relays to drop records we've pruned (NIP-09 deletion request,
+   * addressing each replaceable record by its `a` coordinate). Best effort:
+   * a relay that ignores it just keeps a small deletion marker around.
+   */
+  function publishDeletion(dTags) {
+    if (!dTags.length) return;
+    for (let i = 0; i < dTags.length; i += 50) {
+      const chunk = dTags.slice(i, i + 50);
+      const ev = finalizeEvent(
+        {
+          kind: 5,
+          created_at: Math.floor(now() / 1000),
+          tags: chunk.map((d) => ['a', `${KIND}:${keys.pk}:${d}`]),
+          content: 'pruned',
+        },
+        keys.sk,
+      );
+      for (const conn of conns.values()) send(conn, ['EVENT', ev]);
+    }
+  }
+
   /** Once a reconcile round has fully drained with no failures, remember how far this relay is caught up. */
   function maybeAdvanceAck(conn) {
     if (conn.reconcileMax === null) return;
@@ -399,5 +421,5 @@ export function createSync({
     emitStatus();
   }
 
-  return { start, stop, publish, status, reconnectAll };
+  return { start, stop, publish, publishDeletion, status, reconnectAll };
 }

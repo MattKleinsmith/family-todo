@@ -20,7 +20,8 @@ export function isNewer(a, b) {
   return stableStringify(a) > stableStringify(b);
 }
 
-const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members' };
+const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries' };
+const DAY = 24 * 3600 * 1000;
 
 export function isValidEntity(e) {
   return (
@@ -33,35 +34,111 @@ export function isValidEntity(e) {
 }
 
 function emptyState() {
-  return { lists: {}, items: {}, logs: {}, meta: {}, members: {} };
+  return { lists: {}, items: {}, logs: {}, meta: {}, members: {}, summaries: {} };
 }
 
-export function createStore({ storageKey, storage = globalThis.localStorage, now = () => Date.now(), actor = () => '' } = {}) {
+/**
+ * `storage` may be synchronous (localStorage, an in-memory map) or asynchronous
+ * (IndexedDB via kv.js). `ready` resolves once saved data has been loaded;
+ * nothing is written to storage before then, so a write that races the load
+ * can't clobber what's saved. If `legacyStorage` still holds data under the
+ * same key (from before the IndexedDB move) it is imported once and removed.
+ */
+export function createStore({
+  storageKey,
+  storage = globalThis.localStorage,
+  legacyStorage = null,
+  now = () => Date.now(),
+  actor = () => '',
+  pruneAfterMs = 60 * DAY,
+} = {}) {
   let state = emptyState();
+  let loaded = false;
+  let pendingSave = false;
   const listeners = new Set();
   const localChangeListeners = new Set();
   const remoteChangeListeners = new Set();
   let saveTimer = null;
 
-  function load() {
-    if (!storage || !storageKey) return;
+  function mergeLoaded(raw) {
+    if (!raw) return;
+    let parsed;
     try {
-      const raw = storage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.lists && parsed.items) state = { ...emptyState(), ...parsed };
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.warn('Could not parse saved data', err);
+      return;
+    }
+    if (!parsed || !parsed.lists || !parsed.items) return;
+    // Anything written while the load was in flight wins over the saved copy.
+    for (const key of Object.values(BUCKETS)) {
+      const saved = parsed[key] || {};
+      const cur = state[key];
+      for (const [id, entity] of Object.entries(saved)) {
+        if (!cur[id] || isNewer(entity, cur[id])) cur[id] = entity;
       }
+    }
+    state = { ...state };
+  }
+
+  function finishLoad() {
+    loaded = true;
+    notify();
+    if (pendingSave) save();
+  }
+
+  function load() {
+    if (!storage || !storageKey) {
+      loaded = true;
+      return Promise.resolve();
+    }
+    let raw;
+    try {
+      raw = storage.getItem(storageKey);
     } catch (err) {
       console.warn('Could not load saved data', err);
+      loaded = true;
+      return Promise.resolve();
     }
+    if (!raw || typeof raw.then !== 'function') {
+      mergeLoaded(raw);
+      finishLoad();
+      return Promise.resolve();
+    }
+    return raw
+      .then((value) => {
+        if (value == null && legacyStorage) {
+          // First run after the move to IndexedDB: bring the old copy across.
+          const old = legacyStorage.getItem(storageKey);
+          if (old) {
+            mergeLoaded(old);
+            pendingSave = true;
+            try {
+              legacyStorage.removeItem(storageKey);
+            } catch {
+              /* ignore */
+            }
+          }
+        } else {
+          mergeLoaded(value);
+        }
+      })
+      .catch((err) => console.warn('Could not load saved data', err))
+      .then(finishLoad);
   }
 
   function save() {
     if (!storage || !storageKey) return;
+    if (!loaded) {
+      pendingSave = true;
+      return;
+    }
+    pendingSave = false;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
-        storage.setItem(storageKey, JSON.stringify(state));
+        const r = storage.setItem(storageKey, JSON.stringify(state));
+        if (r && typeof r.catch === 'function') r.catch((err) => console.warn('Could not save data', err));
       } catch (err) {
         console.warn('Could not save data', err);
       }
@@ -82,6 +159,9 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     const b = bucket(entity.type);
     const existing = b[entity.id];
     if (existing && !isNewer(entity, existing)) return false;
+    // A deletion marker older than the prune horizon that we don't already hold
+    // is one we (or another phone) pruned; taking it back would just churn.
+    if (!existing && entity.deleted && entity.updatedAt < now() - pruneAfterMs) return false;
     b[entity.id] = entity;
     state = { ...state, [BUCKETS[entity.type]]: { ...b } };
     save();
@@ -210,6 +290,42 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     return putLocal({ ...existing, ...changes });
   }
 
+  /** Forget a record on this phone only (no tombstone, nothing published). Used when pruning. */
+  function removeLocal(type, id) {
+    const key = BUCKETS[type];
+    if (!key || !state[key][id]) return false;
+    const next = { ...state[key] };
+    delete next[id];
+    state = { ...state, [key]: next };
+    save();
+    notify();
+    return true;
+  }
+
+  /** Deletion markers last changed before `before`. */
+  function tombstones(before) {
+    const out = [];
+    for (const type of ['item', 'list', 'log']) {
+      for (const e of Object.values(bucket(type))) if (e.deleted && e.updatedAt < before) out.push(e);
+    }
+    return out;
+  }
+
+  // ---- Daily summaries of compacted baby logs ----
+
+  function setSummary(day, data) {
+    const id = `day:${day}`;
+    const existing = state.summaries[id];
+    if (existing) return existing;
+    return putLocal({ id, type: 'summary', day, createdAt: now(), deleted: false, ...data });
+  }
+
+  function summaries() {
+    return Object.values(state.summaries)
+      .filter((s) => !s.deleted)
+      .sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));
+  }
+
   // ---- Family members: one record per device that has joined ----
 
   function setMember(id, changes) {
@@ -254,6 +370,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
       ...Object.values(state.logs),
       ...Object.values(state.meta),
       ...Object.values(state.members),
+      ...Object.values(state.summaries),
     ];
   }
 
@@ -261,9 +378,10 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     return bucket(type)[id] || null;
   }
 
-  load();
+  const ready = load();
 
   return {
+    ready,
     get: () => state,
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     onLocalChange: (fn) => (localChangeListeners.add(fn), () => localChangeListeners.delete(fn)),
@@ -286,6 +404,10 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     setMeta,
     setMember,
     members,
+    removeLocal,
+    tombstones,
+    setSummary,
+    summaries,
     lists,
     itemsFor,
     logs,

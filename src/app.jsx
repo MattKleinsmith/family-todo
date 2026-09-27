@@ -6,6 +6,8 @@ import { createStore } from './store.js';
 import { createSync } from './sync.js';
 import { createActivity } from './activity.js';
 import { deviceId, describeDevice } from './device.js';
+import { createKV, requestPersistence } from './kv.js';
+import { runMaintenance } from './maintenance.js';
 import { useRoute, navigate } from './router.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
@@ -34,19 +36,35 @@ export function App() {
     }
     let cancelled = false;
     let sync = null;
+    let timers = [];
     (async () => {
       try {
         const keys = await deriveKeys(session.code);
         if (cancelled) return;
-        const store = createStore({ storageKey: `ft:data:${keys.pk}`, actor: () => sessionRef.current?.name || '' });
+        const kv = createKV();
+        requestPersistence();
+        const store = createStore({
+          storageKey: `ft:data:${keys.pk}`,
+          storage: kv,
+          legacyStorage: globalThis.localStorage,
+          actor: () => sessionRef.current?.name || '',
+        });
         const activity = createActivity({
           store,
           storageKey: `ft:activity:${keys.pk}`,
+          storage: kv,
           since: () => sessionRef.current?.joinedAt || 0,
           self: () => sessionRef.current?.name || '',
         });
+        await Promise.all([store.ready, activity.ready]);
+        if (cancelled) return;
         sync = createSync({ keys, store, onStatus: setStatus });
         sync.start();
+        // Housekeeping once the first sync has had a chance to land, then every few hours.
+        const tidy = () => {
+          if (sync && sync.status().online) runMaintenance({ store, sync });
+        };
+        timers = [setTimeout(tidy, 20_000), setInterval(tidy, 6 * 3600 * 1000)];
         // Make sure this phone is listed as a member of the family.
         const me = store.getEntity('member', deviceId());
         const current = sessionRef.current;
@@ -77,6 +95,7 @@ export function App() {
     })();
     return () => {
       cancelled = true;
+      for (const t of timers) clearTimeout(t), clearInterval(t);
       if (sync) sync.stop();
     };
   }, [session?.code]);

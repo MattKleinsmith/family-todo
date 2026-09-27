@@ -56,7 +56,7 @@ describe('createActivity', () => {
     const storage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) };
     let t = 10_000;
     const store = createStore({ now: () => t++, actor: () => 'Matt' });
-    const activity = createActivity({ store, storageKey: 'act', storage, since: () => 5_000, self: () => 'Matt' });
+    const activity = createActivity({ store, storageKey: 'act', storage, prefs: storage, since: () => 5_000, self: () => 'Matt' });
     return { store, activity, storage };
   }
   it('records other people’s changes but not local ones or pre-join history', () => {
