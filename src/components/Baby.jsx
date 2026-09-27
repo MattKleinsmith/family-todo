@@ -10,6 +10,7 @@ import {
   DEFAULT_SLEEP_INTERVAL_MIN,
   currentState,
   dayLabel,
+  dayStart,
   dayStats,
   formatDuration,
   formatTime,
@@ -74,6 +75,8 @@ export function Baby({ focus }) {
   const feedDue = nextFeedAt(state.lastFeed, feedEvery);
   const sleepDue = nextSleepAt(state, sleepEvery);
   const groups = groupByDay(logs);
+  const older = store.summaries();
+  const [showOlder, setShowOlder] = useState(false);
 
   return (
     <div class="screen has-tabs">
@@ -164,6 +167,32 @@ export function Baby({ focus }) {
           </section>
         );
       })}
+
+      {older.length > 0 && (
+        <>
+          <button class="section-toggle" onClick={() => setShowOlder(!showOlder)}>
+            {showOlder ? '▾' : '▸'} Older days ({older.length})
+          </button>
+          {showOlder && (
+            <ul class="items done">
+              {older.map((s) => (
+                <li key={s.id} class="log">
+                  <div class="log-row">
+                    <span class="log-emoji">📅</span>
+                    <span class="log-body">
+                      <span class="log-title">{new Date(dayStart(s.day)).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      <span class="log-sub">
+                        {s.feeds} feed{s.feeds === 1 ? '' : 's'} · {s.sleeps} nap{s.sleeps === 1 ? '' : 's'} · {formatDuration(s.sleepMs)} sleep
+                      </span>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p class="hint" style="padding: 8px 4px 0">Days older than 90 days are kept as daily totals to keep the app fast.</p>
+        </>
+      )}
       </div>
 
       <div class="bottom-bar actions">

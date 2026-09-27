@@ -12,6 +12,7 @@ const joinParts = (parts) => (parts.length <= 2 ? parts.join(' and ') : `${parts
 
 /** Describe the change from `prev` (what we had, or null) to `next`. Returns null when nothing worth telling changed. */
 export function describeChange(prev, next, ctx = {}) {
+  if (next.type === 'summary' || next.compacted) return null; // housekeeping, not news
   const listName = (id) => ctx.listName?.(id) || 'a list';
   const baby = ctx.babyName || 'the baby';
   switch (next.type) {
@@ -92,32 +93,84 @@ export function actorOf(entity) {
  * Watches the store for changes that came in from other phones and keeps a
  * capped, persisted list of them with a per-entry "seen" flag.
  */
-export function createActivity({ store, storageKey, storage = globalThis.localStorage, since = () => 0, self = () => '' }) {
+export function createActivity({ store, storageKey, storage = globalThis.localStorage, prefs = globalThis.localStorage, since = () => 0, self = () => '' }) {
   let entries = [];
   const listeners = new Set();
   let timer = null;
+  let loaded = false;
+  let pendingSave = false;
+  // The toggle is tiny and per phone; it stays in localStorage (`prefs`).
   const showMineKey = storageKey ? `${storageKey}:showMine` : null;
   let showMine = false;
   try {
-    showMine = !!(storage && showMineKey && storage.getItem(showMineKey) === '1');
+    showMine = !!(prefs && showMineKey && prefs.getItem(showMineKey) === '1');
   } catch {
     showMine = false;
   }
 
-  try {
-    const raw = storage && storageKey && storage.getItem(storageKey);
-    const parsed = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(parsed)) entries = parsed;
-  } catch {
-    entries = [];
+  function mergeLoaded(raw) {
+    let parsed = null;
+    try {
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+    if (!Array.isArray(parsed)) return;
+    const have = new Set(entries.map((e) => e.id));
+    entries = [...entries, ...parsed.filter((e) => e && !have.has(e.id))].sort((a, b) => b.at - a.at).slice(0, MAX_ENTRIES);
   }
+
+  function finishLoad() {
+    loaded = true;
+    if (pendingSave) save();
+    notify();
+  }
+
+  const ready = (() => {
+    if (!storage || !storageKey) {
+      loaded = true;
+      return Promise.resolve();
+    }
+    let raw;
+    try {
+      raw = storage.getItem(storageKey);
+    } catch {
+      loaded = true;
+      return Promise.resolve();
+    }
+    if (!raw || typeof raw.then !== 'function') {
+      mergeLoaded(raw);
+      loaded = true;
+      return Promise.resolve();
+    }
+    return raw
+      .then((value) => {
+        if (value == null && prefs && prefs.getItem(storageKey)) {
+          mergeLoaded(prefs.getItem(storageKey));
+          pendingSave = true;
+          try {
+            prefs.removeItem(storageKey);
+          } catch {
+            /* ignore */
+          }
+        } else mergeLoaded(value);
+      })
+      .catch(() => {})
+      .then(finishLoad);
+  })();
 
   function save() {
     if (!storage || !storageKey) return;
+    if (!loaded) {
+      pendingSave = true;
+      return;
+    }
+    pendingSave = false;
     clearTimeout(timer);
     timer = setTimeout(() => {
       try {
-        storage.setItem(storageKey, JSON.stringify(entries));
+        const r = storage.setItem(storageKey, JSON.stringify(entries));
+        if (r && typeof r.catch === 'function') r.catch(() => {});
       } catch {
         /* ignore */
       }
@@ -160,13 +213,14 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
   const unsubLocal = store.onLocalChange((next, prev) => record(prev || null, next, true));
 
   return {
+    ready,
     entries: () => entries,
     visibleEntries: () => (showMine ? entries : entries.filter((e) => !e.mine)),
     showMine: () => showMine,
     setShowMine(v) {
       showMine = !!v;
       try {
-        storage && showMineKey && storage.setItem(showMineKey, showMine ? '1' : '0');
+        prefs && showMineKey && prefs.setItem(showMineKey, showMine ? '1' : '0');
       } catch {
         /* ignore */
       }

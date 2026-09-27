@@ -97,6 +97,21 @@ open message stores that anyone can publish to and subscribe from.
 - Normal app opens only fetch what changed since last time; a full re-sync runs
   once a week as a safety net.
 
+### Limits, in one place
+
+- **Shared data steady state: about 2 MB per family**, growing roughly 0.1 MB a
+  year. Baby logs older than 90 days are rolled into one small summary per day;
+  deletion markers are dropped after 60 days (and relays are asked to drop them
+  too, NIP-09); live list items are a few hundred records.
+- **Per record**: relays accept up to 64–100 KB; ours are about 0.5 KB.
+- **Per query**: relays return at most ~500 records; the app pages through.
+- **Phone storage**: IndexedDB, at least 1 GB on iOS. (Before this it was
+  localStorage at ~5 MB, which would have filled in about two years.)
+- **Activity feed**: local to each phone, never synced, capped at 500 entries
+  (~100 KB).
+- **Practical bottleneck**: the one-time download when a new phone joins, about
+  5–10 seconds on cellular, and it no longer grows with time.
+
 Trade-offs worth knowing: public relays are run by volunteers and could
 disappear or purge data. Because every phone holds a full copy and re-seeds the
 relays, that only matters if all phones lose their data at the same time. If a
@@ -121,6 +136,8 @@ src/
   store.js         local-first state, last-writer-wins merge, selectors
   baby.js          baby tracker helpers: current state, daily totals, formatting
   activity.js      the activity feed: describes each incoming change in plain words
+  maintenance.js   compacts old baby logs into daily summaries, prunes old deletion markers
+  kv.js            IndexedDB key/value storage (localStorage fallback)
   device.js        stable per-phone id and a friendly device label
   sync.js          relay connections, publish/subscribe, reconcile, cursors
   keys.js          key derivation and encryption from the family code
