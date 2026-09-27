@@ -435,3 +435,8 @@ li:last-child > .act { border-bottom: none; }
 .icon-opt { height: 52px; border-radius: 16px; border: 2px solid transparent; background: var(--surface); display: grid; place-items: center; padding: 0; }
 .icon-opt img { display: block; }
 .icon-opt.selected { border-color: var(--accent); background: var(--accent-soft); }
+
+/* The app's own pictures */
+.glyph { display: inline-block; vertical-align: middle; flex: none; }
+.big-emoji .glyph { display: block; margin: 0 auto; }
+.segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }

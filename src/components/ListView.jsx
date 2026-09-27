@@ -5,6 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon } from './Icons.jsx';
 import { ListIcon } from './ListIcon.jsx';
+import { iconToken } from '../icons.js';
 
 export function ListView({ id, focus }) {
   const { store, session, navigate } = useApp();
@@ -169,7 +170,7 @@ function ListMenuSheet({ list, counts, onClose }) {
   const { store, navigate } = useApp();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(list.name);
-  const [emoji, setEmoji] = useState(list.emoji || '📝');
+  const [emoji, setEmoji] = useState(list.emoji || iconToken('memo'));
 
   if (renaming) {
     const save = (e) => {

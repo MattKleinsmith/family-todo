@@ -181,7 +181,12 @@ export function createSync({
     const known = conn.known.get(entity.id);
     if (known !== undefined && known >= entity.updatedAt) return;
     if (conn.failed.has(`${entity.id}:${entity.updatedAt}`)) return;
-    if (conn.queue.some((e) => e.id === entity.id && e.updatedAt >= entity.updatedAt)) return;
+    // If an older version of this record is still waiting, send only the newest.
+    const queued = conn.queue.findIndex((e) => e.id === entity.id);
+    if (queued >= 0) {
+      if (conn.queue[queued].updatedAt < entity.updatedAt) conn.queue[queued] = entity;
+      return;
+    }
     conn.queue.push(entity);
     drain(conn);
   }

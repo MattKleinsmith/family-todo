@@ -5,6 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { TabBar } from './TabBar.jsx';
 import { GearIcon } from './Icons.jsx';
 import { Bell } from './Bell.jsx';
+import { Glyph } from './Glyph.jsx';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
   DEFAULT_SLEEP_INTERVAL_MIN,
@@ -94,7 +95,7 @@ export function Baby({ focus }) {
         {state.asleep ? (
           <>
             <div class="status-main">
-              <span class="status-emoji">😴</span>
+              <span class="status-emoji"><Glyph name="sleeping" size={32} /></span>
               <div>
                 <div class="status-title">Asleep {formatDuration(now - state.asleep.startAt)}</div>
                 <div class="status-sub">since {formatTime(state.asleep.startAt)}</div>
@@ -103,7 +104,7 @@ export function Baby({ focus }) {
           </>
         ) : (
           <div class="status-main">
-            <span class="status-emoji">☀️</span>
+            <span class="status-emoji"><Glyph name="sun" size={32} /></span>
             <div>
               <div class="status-title">{state.awakeSince ? `Awake ${formatDuration(now - state.awakeSince)}` : 'Awake'}</div>
               <div class="status-sub">
@@ -114,7 +115,7 @@ export function Baby({ focus }) {
           </div>
         )}
         <div class="status-row">
-          <span class="status-emoji small">🍼</span>
+          <span class="status-emoji small"><Glyph name="bottle" size={26} /></span>
           <div>
             <div class="status-line">
               {state.lastFeed ? `Last fed ${formatTime(state.lastFeed.startAt)} (${relative(state.lastFeed.startAt, now)})` : 'No feeds logged yet'}
@@ -148,7 +149,7 @@ export function Baby({ focus }) {
               {g.logs.map((l) => (
                 <li key={l.id} id={`log-${l.id}`} class={'log' + (justAdded === l.id ? ' flash' : '')}>
                   <button class="log-row" onClick={() => setEditing(l.id)}>
-                    <span class="log-emoji">{l.kind === 'feed' ? '🍼' : '😴'}</span>
+                    <span class="log-emoji"><Glyph name={l.kind === 'feed' ? 'bottle' : 'sleeping'} size={26} /></span>
                     <span class="log-body">
                       <span class="log-title">
                         {l.kind === 'feed' ? 'Feed' : l.endAt == null ? 'Sleeping…' : `Slept ${formatDuration(l.endAt - l.startAt)}`}
@@ -178,7 +179,7 @@ export function Baby({ focus }) {
               {older.map((s) => (
                 <li key={s.id} class="log">
                   <div class="log-row">
-                    <span class="log-emoji">📅</span>
+                    <span class="log-emoji"><Glyph name="calendar" size={26} /></span>
                     <span class="log-body">
                       <span class="log-title">{new Date(dayStart(s.day)).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <span class="log-sub">
@@ -196,11 +197,11 @@ export function Baby({ focus }) {
       </div>
 
       <div class="bottom-bar actions">
-        <button class="btn primary big" onClick={fedNow}>🍼 Fed now</button>
+        <button class="btn primary big" onClick={fedNow}><Glyph name="bottle" size={24} /> Fed now</button>
         {state.asleep ? (
-          <button class="btn big wake" onClick={wokeNow}>☀️ Woke up</button>
+          <button class="btn big wake" onClick={wokeNow}><Glyph name="sun" size={24} /> Woke up</button>
         ) : (
-          <button class="btn big sleep" onClick={sleepNow}>😴 Fell asleep</button>
+          <button class="btn big sleep" onClick={sleepNow}><Glyph name="sleeping" size={24} /> Fell asleep</button>
         )}
       </div>
       <TabBar active="baby" />
@@ -233,8 +234,8 @@ function EditLogSheet({ log, onClose }) {
     <Sheet title={log.kind === 'feed' ? 'Edit feed' : 'Edit sleep'} onClose={onClose}>
       <form class="stack" onSubmit={save}>
         <div class="segmented" role="radiogroup" aria-label="Type">
-          <button type="button" role="radio" aria-checked={kind === 'feed'} class={kind === 'feed' ? 'on' : ''} onClick={() => setKind('feed')}>🍼 Feed</button>
-          <button type="button" role="radio" aria-checked={kind === 'sleep'} class={kind === 'sleep' ? 'on' : ''} onClick={() => setKind('sleep')}>😴 Sleep</button>
+          <button type="button" role="radio" aria-checked={kind === 'feed'} class={kind === 'feed' ? 'on' : ''} onClick={() => setKind('feed')}><Glyph name="bottle" size={20} /> Feed</button>
+          <button type="button" role="radio" aria-checked={kind === 'sleep'} class={kind === 'sleep' ? 'on' : ''} onClick={() => setKind('sleep')}><Glyph name="sleeping" size={20} /> Sleep</button>
         </div>
         <div class="field">
           <label for="log-start">{kind === 'sleep' ? 'Fell asleep at' : 'Fed at'}</label>

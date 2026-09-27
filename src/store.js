@@ -20,7 +20,7 @@ export function isNewer(a, b) {
   return stableStringify(a) > stableStringify(b);
 }
 
-const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries' };
+const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries', activity: 'activities' };
 const DAY = 24 * 3600 * 1000;
 
 export function isValidEntity(e) {
@@ -34,7 +34,7 @@ export function isValidEntity(e) {
 }
 
 function emptyState() {
-  return { lists: {}, items: {}, logs: {}, meta: {}, members: {}, summaries: {} };
+  return { lists: {}, items: {}, logs: {}, meta: {}, members: {}, summaries: {}, activities: {} };
 }
 
 /**
@@ -51,6 +51,7 @@ export function createStore({
   now = () => Date.now(),
   actor = () => '',
   pruneAfterMs = 60 * DAY,
+  activityKeepMs = 180 * DAY,
 } = {}) {
   let state = emptyState();
   let loaded = false;
@@ -162,6 +163,8 @@ export function createStore({
     // A deletion marker older than the prune horizon that we don't already hold
     // is one we (or another phone) pruned; taking it back would just churn.
     if (!existing && entity.deleted && entity.updatedAt < now() - pruneAfterMs) return false;
+    // Activity older than the retention window has been pruned; don't take it back.
+    if (entity.type === 'activity' && entity.updatedAt < now() - activityKeepMs) return false;
     b[entity.id] = entity;
     state = { ...state, [BUCKETS[entity.type]]: { ...b } };
     save();
@@ -320,6 +323,10 @@ export function createStore({
     return putLocal({ id, type: 'summary', day, createdAt: now(), deleted: false, ...data });
   }
 
+  function activityBuckets() {
+    return Object.values(state.activities).filter((b) => !b.deleted);
+  }
+
   function summaries() {
     return Object.values(state.summaries)
       .filter((s) => !s.deleted)
@@ -371,6 +378,7 @@ export function createStore({
       ...Object.values(state.meta),
       ...Object.values(state.members),
       ...Object.values(state.summaries),
+      ...Object.values(state.activities),
     ];
   }
 
@@ -424,6 +432,7 @@ export function createStore({
     tombstones,
     setSummary,
     summaries,
+    activityBuckets,
     lists,
     itemsFor,
     logs,

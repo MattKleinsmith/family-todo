@@ -1,7 +1,12 @@
-// The activity feed: a plain-language record of what changed, worked out on
-// this phone by comparing each record with the version it already had.
-// Other people's changes count as unseen until you look; your own are kept
-// too (already seen) and shown only when you ask.
+// The activity feed: a plain-language record of what changed.
+//
+// The phone that makes a change writes the entry (it knows exactly what the
+// record looked like before) and syncs it like any other data, so every phone,
+// including one that joins later, sees the whole history. Entries are grouped
+// into small chunks, one series per phone per day, ACTIVITY_CHUNK entries each,
+// so the relays see a handful of records a day rather than one per tap.
+//
+// What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
 import { iconToText } from './icons.js';
 
@@ -13,7 +18,7 @@ const joinParts = (parts) => (parts.length <= 2 ? parts.join(' and ') : `${parts
 
 /** Describe the change from `prev` (what we had, or null) to `next`. Returns null when nothing worth telling changed. */
 export function describeChange(prev, next, ctx = {}) {
-  if (next.type === 'summary' || next.compacted) return null; // housekeeping, not news
+  if (next.type === 'summary' || next.type === 'activity' || next.compacted) return null; // housekeeping, not news
   const listName = (id) => ctx.listName?.(id) || 'a list';
   const baby = ctx.babyName || 'the baby';
   switch (next.type) {
@@ -90,17 +95,38 @@ export function actorOf(entity) {
   return entity.updatedBy || entity.createdBy || 'Someone';
 }
 
-/**
- * Watches the store for changes that came in from other phones and keeps a
- * capped, persisted list of them with a per-entry "seen" flag.
- */
-export function createActivity({ store, storageKey, storage = globalThis.localStorage, prefs = globalThis.localStorage, since = () => 0, self = () => '' }) {
-  let entries = [];
+export const ACTIVITY_CHUNK = 20;
+const FLUSH_MS = 1200;
+
+const bucketId = (device, day, chunk) => `act:${device}:${day}:${chunk}`;
+const localDay = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const strip = (e) => ({ id: e.id, at: e.at, actor: e.actor, text: e.text, entityType: e.entityType, entityId: e.entityId, listId: e.listId ?? null });
+
+export function createActivity({
+  store,
+  storageKey,
+  storage = globalThis.localStorage,
+  prefs = globalThis.localStorage,
+  device = () => '',
+  since = () => 0,
+  self = () => '',
+  flushMs = FLUSH_MS,
+}) {
   const listeners = new Set();
-  let timer = null;
+  let pending = []; // written here, not yet in a chunk
+  let legacy = []; // other people's entries from the old local-only feed, kept for display
+  let lastSeenAt = null;
+  let flushTimer = null;
+  let saveTimer = null;
   let loaded = false;
-  let pendingSave = false;
-  // The toggle is tiny and per phone; it stays in localStorage (`prefs`).
+  let needsSave = false;
+  let version = 0;
+  let cache = null;
+  let cacheVersion = -1;
+
   const showMineKey = storageKey ? `${storageKey}:showMine` : null;
   let showMine = false;
   try {
@@ -109,68 +135,50 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
     showMine = false;
   }
 
-  function mergeLoaded(raw) {
+  const notify = () => {
+    version++;
+    for (const fn of listeners) fn();
+  };
+  const seenAt = () => (lastSeenAt == null ? since() || 0 : lastSeenAt);
+
+  // ---- local state: seen-up-to time, and the old feed if upgrading ----
+
+  function applyLoaded(raw) {
     let parsed = null;
     try {
       parsed = raw ? JSON.parse(raw) : null;
     } catch {
       parsed = null;
     }
-    if (!Array.isArray(parsed)) return;
-    const have = new Set(entries.map((e) => e.id));
-    entries = [...entries, ...parsed.filter((e) => e && !have.has(e.id))].sort((a, b) => b.at - a.at).slice(0, MAX_ENTRIES);
+    if (Array.isArray(parsed)) {
+      // Upgrading from the local-only feed: share this phone's own history,
+      // keep other people's entries for display, and carry over what was seen.
+      const unseen = parsed.filter((e) => e && !e.seen && !e.mine);
+      lastSeenAt = unseen.length ? Math.min(...unseen.map((e) => e.at)) - 1 : parsed.reduce((m, e) => Math.max(m, e.at || 0), 0);
+      legacy = parsed.filter((e) => e && !e.mine).map(strip);
+      const mine = parsed.filter((e) => e && e.mine).map((e) => ({ ...strip(e), device: device() }));
+      if (mine.length) {
+        pending.push(...mine);
+        scheduleFlush();
+      }
+      needsSave = true;
+    } else if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.lastSeenAt === 'number') lastSeenAt = parsed.lastSeenAt;
+      if (Array.isArray(parsed.legacy)) legacy = parsed.legacy;
+    }
   }
-
-  function finishLoad() {
-    loaded = true;
-    if (pendingSave) save();
-    notify();
-  }
-
-  const ready = (() => {
-    if (!storage || !storageKey) {
-      loaded = true;
-      return Promise.resolve();
-    }
-    let raw;
-    try {
-      raw = storage.getItem(storageKey);
-    } catch {
-      loaded = true;
-      return Promise.resolve();
-    }
-    if (!raw || typeof raw.then !== 'function') {
-      mergeLoaded(raw);
-      loaded = true;
-      return Promise.resolve();
-    }
-    return raw
-      .then((value) => {
-        if (value == null && prefs && prefs.getItem(storageKey)) {
-          mergeLoaded(prefs.getItem(storageKey));
-          pendingSave = true;
-          try {
-            prefs.removeItem(storageKey);
-          } catch {
-            /* ignore */
-          }
-        } else mergeLoaded(value);
-      })
-      .catch(() => {})
-      .then(finishLoad);
-  })();
 
   function save() {
     if (!storage || !storageKey) return;
     if (!loaded) {
-      pendingSave = true;
+      needsSave = true;
       return;
     }
-    pendingSave = false;
-    clearTimeout(timer);
-    timer = setTimeout(() => {
+    needsSave = false;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
       try {
-        const r = storage.setItem(storageKey, JSON.stringify(entries));
+        const r = storage.setItem(storageKey, JSON.stringify({ v: 2, lastSeenAt, legacy }));
         if (r && typeof r.catch === 'function') r.catch(() => {});
       } catch {
         /* ignore */
@@ -178,45 +186,160 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
     }, 100);
   }
 
-  function notify() {
-    for (const fn of listeners) fn();
+  function finishLoad() {
+    loaded = true;
+    if (lastSeenAt == null) {
+      // A phone that just joined has seen nothing, but history from before it
+      // joined isn't news: it's shown, just not counted.
+      lastSeenAt = since() || Date.now();
+      needsSave = true;
+    }
+    if (needsSave) save();
+    notify();
   }
+
+  const ready = (() => {
+    if (!storage || !storageKey) {
+      finishLoad();
+      return Promise.resolve();
+    }
+    let raw;
+    try {
+      raw = storage.getItem(storageKey);
+    } catch {
+      finishLoad();
+      return Promise.resolve();
+    }
+    if (!raw || typeof raw.then !== 'function') {
+      applyLoaded(raw);
+      finishLoad();
+      return Promise.resolve();
+    }
+    return raw
+      .then((value) => {
+        if (value == null && prefs && prefs.getItem(storageKey)) {
+          applyLoaded(prefs.getItem(storageKey));
+          try {
+            prefs.removeItem(storageKey);
+          } catch {
+            /* ignore */
+          }
+        } else applyLoaded(value);
+      })
+      .catch(() => {})
+      .then(finishLoad);
+  })();
+
+  // ---- writing: entries for changes made on this phone ----
 
   const ctx = {
     listName: (id) => store.getEntity('list', id)?.name,
     babyName: () => store.getMeta('baby')?.name,
   };
 
-  function record(prev, next, local) {
-    // Things that existed before this phone joined are history, not news.
-    if (!prev && next.updatedAt <= since()) return;
+  function record(prev, next) {
     const text = describeChange(prev, next, { listName: ctx.listName, babyName: ctx.babyName() });
     if (!text) return;
-    const actor = actorOf(next);
-    const mine = local || (!!self() && actor === self());
-    entries.unshift({
+    pending.push({
       id: `${next.id}:${next.updatedAt}`,
       at: next.updatedAt,
-      actor,
-      mine,
+      actor: actorOf(next),
+      device: device(),
       text,
       entityType: next.type,
       entityId: next.id,
       listId: next.type === 'item' ? next.listId : next.type === 'list' ? next.id : null,
-      seen: mine, // you don't need to be told what you just did
     });
-    if (entries.length > MAX_ENTRIES) entries.length = MAX_ENTRIES;
-    save();
     notify();
+    scheduleFlush();
   }
 
-  const unsubRemote = store.onRemoteChange((prev, next) => record(prev, next, false));
-  const unsubLocal = store.onLocalChange((next, prev) => record(prev || null, next, true));
+  function scheduleFlush() {
+    if (flushTimer) return;
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      Promise.resolve(store.ready).then(flush);
+    }, flushMs);
+  }
+
+  /** Move pending entries into this phone's chunks for their day and publish the chunks that changed. */
+  function flush() {
+    if (!pending.length) return;
+    const dev = device();
+    const batch = pending.sort((a, b) => a.at - b.at);
+    pending = [];
+    const byDay = new Map();
+    for (const e of batch) {
+      const day = localDay(e.at);
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(e);
+    }
+    for (const [day, list] of byDay) {
+      let chunk = 0;
+      while (store.getEntity('activity', bucketId(dev, day, chunk + 1))) chunk++;
+      let current = store.getEntity('activity', bucketId(dev, day, chunk));
+      let entries = current ? [...(current.entries || [])] : [];
+      let dirty = false;
+      const write = () => {
+        if (!dirty) return;
+        store.putLocal({
+          id: bucketId(dev, day, chunk),
+          type: 'activity',
+          device: dev,
+          day,
+          chunk,
+          entries,
+          createdAt: current?.createdAt || Date.now(),
+          deleted: false,
+        });
+        dirty = false;
+      };
+      for (const e of list) {
+        if (entries.some((x) => x.id === e.id)) continue;
+        if (entries.length >= ACTIVITY_CHUNK) {
+          write();
+          chunk++;
+          current = null;
+          entries = [];
+        }
+        entries.push(e);
+        dirty = true;
+      }
+      write();
+    }
+  }
+
+  const unsubLocal = store.onLocalChange((next, prev) => record(prev || null, next));
+  const unsubStore = store.subscribe(() => version++);
+
+  // ---- reading ----
+
+  const isMine = (e) => (e.device ? e.device === device() : !!self() && e.actor === self());
+
+  function entries() {
+    if (cache && cacheVersion === version) return cache;
+    const seen = new Set();
+    const out = [];
+    const cut = seenAt();
+    const add = (e, mineOverride) => {
+      if (!e || !e.id || seen.has(e.id)) return;
+      seen.add(e.id);
+      const mine = mineOverride ?? isMine(e);
+      out.push({ ...e, mine, seen: mine || e.at <= cut });
+    };
+    for (const b of store.activityBuckets()) for (const e of b.entries || []) add(e);
+    for (const e of pending) add(e);
+    for (const e of legacy) add(e, false);
+    out.sort((a, b) => b.at - a.at);
+    cache = out;
+    cacheVersion = version;
+    return out;
+  }
 
   return {
     ready,
-    entries: () => entries,
-    visibleEntries: () => (showMine ? entries : entries.filter((e) => !e.mine)),
+    entries,
+    visibleEntries: () => (showMine ? entries() : entries().filter((e) => !e.mine)),
     showMine: () => showMine,
     setShowMine(v) {
       showMine = !!v;
@@ -227,20 +350,22 @@ export function createActivity({ store, storageKey, storage = globalThis.localSt
       }
       notify();
     },
-    unseenCount: () => entries.reduce((n, e) => n + (e.seen ? 0 : 1), 0),
-    unseenForList: (listId) => entries.reduce((n, e) => n + (!e.seen && e.listId === listId ? 1 : 0), 0),
+    unseenCount: () => entries().reduce((n, e) => n + (e.seen ? 0 : 1), 0),
+    unseenForList: (listId) => entries().reduce((n, e) => n + (!e.seen && e.listId === listId ? 1 : 0), 0),
     markAllSeen() {
-      let changed = false;
-      for (const e of entries) if (!e.seen) (e.seen = true), (changed = true);
-      if (changed) {
-        save();
-        notify();
-      }
+      const latest = entries().reduce((m, e) => Math.max(m, e.at), Date.now());
+      if (latest <= seenAt()) return;
+      lastSeenAt = latest;
+      save();
+      notify();
     },
+    flushNow: flush,
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     stop() {
-      unsubRemote();
+      clearTimeout(flushTimer);
+      flush();
       unsubLocal();
+      unsubStore();
     },
   };
 }

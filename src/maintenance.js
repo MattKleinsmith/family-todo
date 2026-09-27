@@ -10,6 +10,7 @@ import { dTagFor } from './sync.js';
 
 export const KEEP_LOG_DAYS = 90;
 export const KEEP_TOMBSTONE_DAYS = 60;
+export const KEEP_ACTIVITY_DAYS = 180;
 const DAY = 24 * 3600 * 1000;
 
 /** Roll detailed baby logs older than `keepDays` into daily summaries. Returns how many logs were compacted. */
@@ -45,9 +46,22 @@ export function pruneTombstones(store, sync, now = Date.now(), keepDays = KEEP_T
   return stale.length;
 }
 
+/** Drop activity chunks older than `keepDays` here and on the relays. Returns how many chunks. */
+export function pruneActivity(store, sync, now = Date.now(), keepDays = KEEP_ACTIVITY_DAYS) {
+  const cutoff = now - keepDays * DAY;
+  const old = store.activityBuckets().filter((b) => b.updatedAt < cutoff);
+  if (old.length === 0) return 0;
+  const dTags = old.map(dTagFor);
+  for (const b of old) store.removeLocal('activity', b.id);
+  if (sync && sync.publishDeletion) sync.publishDeletion(dTags);
+  return old.length;
+}
+
 export function runMaintenance({ store, sync, now = Date.now() }) {
   const compacted = compactOldLogs(store, now);
   const pruned = pruneTombstones(store, sync, now);
-  if (compacted || pruned) console.info(`Maintenance: compacted ${compacted} logs, pruned ${pruned} deletion markers`);
-  return { compacted, pruned };
+  const activity = pruneActivity(store, sync, now);
+  if (compacted || pruned || activity)
+    console.info(`Maintenance: compacted ${compacted} logs, pruned ${pruned} deletion markers and ${activity} activity chunks`);
+  return { compacted, pruned, activity };
 }
