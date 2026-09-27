@@ -9,6 +9,7 @@ import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
 import { ListView } from './components/ListView.jsx';
 import { Settings } from './components/Settings.jsx';
+import { Baby } from './components/Baby.jsx';
 
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -108,6 +109,7 @@ export function App() {
   let page;
   if (route.name === 'list') page = <ListView id={route.id} />;
   else if (route.name === 'settings') page = <Settings />;
+  else if (route.name === 'baby') page = <Baby />;
   else page = <Home />;
 
   return <AppCtx.Provider value={api}>{page}</AppCtx.Provider>;

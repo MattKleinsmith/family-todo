@@ -20,18 +20,24 @@ export function isNewer(a, b) {
   return stableStringify(a) > stableStringify(b);
 }
 
+const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta' };
+
 export function isValidEntity(e) {
   return (
     e &&
     typeof e === 'object' &&
     typeof e.id === 'string' &&
-    (e.type === 'list' || e.type === 'item') &&
+    Object.prototype.hasOwnProperty.call(BUCKETS, e.type) &&
     typeof e.updatedAt === 'number'
   );
 }
 
+function emptyState() {
+  return { lists: {}, items: {}, logs: {}, meta: {} };
+}
+
 export function createStore({ storageKey, storage = globalThis.localStorage, now = () => Date.now() } = {}) {
-  let state = { lists: {}, items: {} };
+  let state = emptyState();
   const listeners = new Set();
   const localChangeListeners = new Set();
   let saveTimer = null;
@@ -42,7 +48,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
       const raw = storage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.lists && parsed.items) state = parsed;
+        if (parsed && parsed.lists && parsed.items) state = { ...emptyState(), ...parsed };
       }
     } catch (err) {
       console.warn('Could not load saved data', err);
@@ -66,7 +72,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
   }
 
   function bucket(type) {
-    return type === 'list' ? state.lists : state.items;
+    return state[BUCKETS[type]];
   }
 
   /** Merge a record that came from the network. Returns true if it changed local state. */
@@ -76,7 +82,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     const existing = b[entity.id];
     if (existing && !isNewer(entity, existing)) return false;
     b[entity.id] = entity;
-    state = { ...state, [entity.type === 'list' ? 'lists' : 'items']: { ...b } };
+    state = { ...state, [BUCKETS[entity.type]]: { ...b } };
     save();
     notify();
     return true;
@@ -85,7 +91,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
   /** Write a record we produced on this device: stamp it, persist it, and hand it to sync. */
   function putLocal(entity) {
     const stamped = { ...entity, updatedAt: now() };
-    const key = entity.type === 'list' ? 'lists' : 'items';
+    const key = BUCKETS[entity.type];
     state = { ...state, [key]: { ...state[key], [entity.id]: stamped } };
     save();
     notify();
@@ -166,7 +172,48 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     }
   }
 
+  // ---- Baby log: feeds and sleeps ----
+
+  function addLog({ kind, startAt, endAt = null, note = '', createdBy = '' }) {
+    if (kind !== 'feed' && kind !== 'sleep') return null;
+    return putLocal({
+      id: newId(),
+      type: 'log',
+      kind,
+      startAt,
+      endAt,
+      note,
+      createdBy,
+      createdAt: now(),
+      deleted: false,
+    });
+  }
+
+  function updateLog(id, changes) {
+    return patch('log', id, changes);
+  }
+
+  function deleteLog(id) {
+    return patch('log', id, { deleted: true });
+  }
+
+  /** Shared settings such as the baby's name, keyed by a fixed id and synced like everything else. */
+  function getMeta(id) {
+    return state.meta[id] || null;
+  }
+
+  function setMeta(id, changes) {
+    const existing = state.meta[id] || { id, type: 'meta', createdAt: now(), deleted: false };
+    return putLocal({ ...existing, ...changes });
+  }
+
   // ---- Selectors ----
+
+  function logs() {
+    return Object.values(state.logs)
+      .filter((l) => !l.deleted)
+      .sort((a, b) => b.startAt - a.startAt);
+  }
 
   function lists() {
     return Object.values(state.lists)
@@ -185,7 +232,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
   }
 
   function all() {
-    return [...Object.values(state.lists), ...Object.values(state.items)];
+    return [...Object.values(state.lists), ...Object.values(state.items), ...Object.values(state.logs), ...Object.values(state.meta)];
   }
 
   function getEntity(type, id) {
@@ -209,8 +256,14 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     deleteItem,
     clearCompleted,
     uncheckAll,
+    addLog,
+    updateLog,
+    deleteLog,
+    getMeta,
+    setMeta,
     lists,
     itemsFor,
+    logs,
     all,
     getEntity,
   };

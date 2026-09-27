@@ -3,6 +3,7 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
+import { TabBar } from './TabBar.jsx';
 
 export function Home() {
   const { store, navigate } = useApp();
@@ -10,7 +11,7 @@ export function Home() {
   const lists = store.lists();
 
   return (
-    <div class="screen">
+    <div class="screen has-tabs has-actions">
       <header class="topbar">
         <h1>Lists</h1>
         <div class="topbar-actions">
@@ -50,6 +51,7 @@ export function Home() {
       <div class="bottom-bar">
         <button class="btn primary big" onClick={() => setCreating(true)}>+ New list</button>
       </div>
+      <TabBar active="lists" />
 
       {creating && <NewListSheet onClose={() => setCreating(false)} />}
     </div>

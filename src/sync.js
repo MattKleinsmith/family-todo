@@ -13,7 +13,7 @@
 //
 // Per relay we remember (in localStorage) the newest event time we saw and how
 // far our own writes have been acknowledged, so a normal app open only fetches
-// what changed since last time. A full re-sync runs every few days as a safety
+// what changed since last time. A full re-sync runs every two weeks as a safety
 // net against clock skew or a relay that lost data.
 
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure';
@@ -33,7 +33,7 @@ const TAG_PREFIX = 'ft:';
 const PAGE = 500;
 const PUBLISH_SPACING_MS = 25;
 const SINCE_MARGIN_S = 24 * 3600; // re-fetch a day of overlap: cheap, and tolerant of clock skew
-const FULL_SYNC_EVERY_MS = 7 * 24 * 3600 * 1000;
+const FULL_SYNC_EVERY_MS = 14 * 24 * 3600 * 1000;
 
 export function dTagFor(entity) {
   return `${TAG_PREFIX}${entity.type}:${entity.id}`;
