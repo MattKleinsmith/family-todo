@@ -20,7 +20,7 @@ export function isNewer(a, b) {
   return stableStringify(a) > stableStringify(b);
 }
 
-const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta' };
+const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members' };
 
 export function isValidEntity(e) {
   return (
@@ -33,13 +33,14 @@ export function isValidEntity(e) {
 }
 
 function emptyState() {
-  return { lists: {}, items: {}, logs: {}, meta: {} };
+  return { lists: {}, items: {}, logs: {}, meta: {}, members: {} };
 }
 
-export function createStore({ storageKey, storage = globalThis.localStorage, now = () => Date.now() } = {}) {
+export function createStore({ storageKey, storage = globalThis.localStorage, now = () => Date.now(), actor = () => '' } = {}) {
   let state = emptyState();
   const listeners = new Set();
   const localChangeListeners = new Set();
+  const remoteChangeListeners = new Set();
   let saveTimer = null;
 
   function load() {
@@ -85,12 +86,13 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     state = { ...state, [BUCKETS[entity.type]]: { ...b } };
     save();
     notify();
+    for (const fn of remoteChangeListeners) fn(existing || null, entity);
     return true;
   }
 
   /** Write a record we produced on this device: stamp it, persist it, and hand it to sync. */
   function putLocal(entity) {
-    const stamped = { ...entity, updatedAt: now() };
+    const stamped = { ...entity, updatedAt: now(), updatedBy: actor() || entity.updatedBy || entity.createdBy || '' };
     const key = BUCKETS[entity.type];
     state = { ...state, [key]: { ...state[key], [entity.id]: stamped } };
     save();
@@ -207,6 +209,19 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     return putLocal({ ...existing, ...changes });
   }
 
+  // ---- Family members: one record per device that has joined ----
+
+  function setMember(id, changes) {
+    const existing = state.members[id] || { id, type: 'member', createdAt: now(), deleted: false };
+    return putLocal({ ...existing, ...changes });
+  }
+
+  function members() {
+    return Object.values(state.members)
+      .filter((m) => !m.deleted)
+      .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+  }
+
   // ---- Selectors ----
 
   function logs() {
@@ -232,7 +247,13 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
   }
 
   function all() {
-    return [...Object.values(state.lists), ...Object.values(state.items), ...Object.values(state.logs), ...Object.values(state.meta)];
+    return [
+      ...Object.values(state.lists),
+      ...Object.values(state.items),
+      ...Object.values(state.logs),
+      ...Object.values(state.meta),
+      ...Object.values(state.members),
+    ];
   }
 
   function getEntity(type, id) {
@@ -245,6 +266,7 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     get: () => state,
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     onLocalChange: (fn) => (localChangeListeners.add(fn), () => localChangeListeners.delete(fn)),
+    onRemoteChange: (fn) => (remoteChangeListeners.add(fn), () => remoteChangeListeners.delete(fn)),
     applyRemote,
     putLocal,
     createList,
@@ -261,6 +283,8 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
     deleteLog,
     getMeta,
     setMeta,
+    setMember,
+    members,
     lists,
     itemsFor,
     logs,

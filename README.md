@@ -9,6 +9,9 @@ family code once, and every list stays in sync between everyone who has the code
   one is due, a daily timeline with totals, and tap-to-fix times.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
+- An **Activity** feed (the bell) that tells you exactly what the other person changed
+  since you last looked: adds, renames, check-offs, deletions, icon changes, baby logs,
+  and people joining or leaving. No more scanning lists against your memory.
 - Installs to the iPhone home screen as an app (Safari → Share → *Add to Home Screen*).
 
 ## How to deploy (one time)
@@ -51,6 +54,25 @@ Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nud
 the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
 it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
 crosses midnight is split across the two days.
+
+## The activity feed
+
+Each phone already knows what it had before a change arrives, so it can say
+exactly what's different: "Huishi checked off “Eggs” in Groceries", "Huishi
+renamed the list “Groceries” to “Food”", "Huishi logged Augustine falling asleep
+at 10:00 AM". Every record carries who last touched it, so entries are
+attributed. Nothing extra is synced for the feed; it is computed on the phone
+from the records it receives (`src/activity.js`) and kept locally with a
+per-entry "seen" flag. The bell in the header shows how many entries you haven't
+looked at, list cards flag unseen changes, and opening Activity clears them.
+
+Things that existed before a phone joined are treated as history, not news, so
+a new phone doesn't start with hundreds of entries. Your own changes on the same
+phone aren't listed either; the feed is about what *other people* did.
+
+People and devices: each phone publishes a small synced "member" record when it
+joins, changes its name, or leaves. Those appear in the feed and under
+*Settings → Family members*.
 
 ## How syncing works
 
@@ -97,9 +119,11 @@ src/
   app.jsx          boot: session -> keys -> store -> sync, routing
   store.js         local-first state, last-writer-wins merge, selectors
   baby.js          baby tracker helpers: current state, daily totals, formatting
+  activity.js      the activity feed: describes each incoming change in plain words
+  device.js        stable per-phone id and a friendly device label
   sync.js          relay connections, publish/subscribe, reconcile, cursors
   keys.js          key derivation and encryption from the family code
   codes.js         family code generation and normalisation
-  components/      Join, Home, ListView, Baby, TabBar, Settings, Sheet, SyncBadge, EmojiPicker
+  components/      Join, Home, ListView, Baby, Activity, Bell, TabBar, Settings, Sheet, SyncBadge, EmojiPicker, Icons
 e2e/sync.e2e.mjs   live check against the public relays
 ```
