@@ -67,7 +67,7 @@ export function Baby() {
         <h1>{name}</h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="Baby options" onClick={() => setMenu(true)}>⋯</button>
+          <button class="icon-btn" aria-label="Baby settings" onClick={() => setMenu(true)}>⚙︎</button>
         </div>
       </header>
 
@@ -228,7 +228,7 @@ function EditLogSheet({ log, onClose }) {
 }
 
 function BabyMenuSheet({ profile, onClose }) {
-  const { store } = useApp();
+  const { store, navigate } = useApp();
   const [name, setName] = useState(profile.name || '');
   const [feedEvery, setFeedEvery] = useState(profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN);
   const [sleepEvery, setSleepEvery] = useState(profile.sleepIntervalMin || DEFAULT_SLEEP_INTERVAL_MIN);
@@ -263,6 +263,7 @@ function BabyMenuSheet({ profile, onClose }) {
           <p class="hint">Used only for the "next feed" and "nap" hints. Adjust as his rhythm changes.</p>
         </div>
         <button class="btn primary big" type="submit">Save</button>
+        <button class="btn link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>Family code, sync & app settings</button>
       </form>
     </Sheet>
   );
