@@ -229,7 +229,16 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px co
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
 
-.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; }
+.emoji-search-row { display: flex; gap: 10px; align-items: center; }
+.emoji-search-row input { flex: 1; min-width: 0; }
+.emoji-current {
+  flex: none; width: 48px; height: 48px; border-radius: 12px;
+  background: var(--surface-2); display: grid; place-items: center; font-size: 28px;
+}
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px;
+  max-height: 216px; overflow-y: auto; padding: 2px; -webkit-overflow-scrolling: touch;
+}
 .emoji-opt {
   height: 48px; font-size: 24px; border-radius: 12px;
   border: 2px solid transparent; background: var(--surface);

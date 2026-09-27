@@ -3,7 +3,7 @@
 Shared to-do and shopping lists for a household. Open it on any phone, enter the
 family code once, and every list stays in sync between everyone who has the code.
 
-- Grocery list, house to-dos, and "personal" lists that the whole family can still see and edit.
+- Grocery list, house to-dos, a list just for you: any list, any emoji icon, all shared.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
 - Installs to the iPhone home screen as an app (Safari → Share → *Add to Home Screen*).
@@ -69,6 +69,7 @@ npm run dev        # local dev server
 npm test           # unit tests (store merge logic + sync against an in-memory relay)
 npm run e2e        # two simulated phones syncing through the real public relays
 npm run build      # production build into dist/
+npm run build:emoji  # regenerate src/emoji-data.json from the emoji packages
 ```
 
 Stack: [Preact](https://preactjs.com), [Vite](https://vite.dev),

@@ -72,7 +72,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
               value={name}
               onInput={(e) => setName(e.currentTarget.value)}
             />
-            <p class="hint">Shown next to things you add, and used for your personal lists.</p>
+            <p class="hint">Shown next to things you add, so you both know who added what.</p>
           </div>
 
           <button class="btn primary big" type="submit" disabled={!canGo}>

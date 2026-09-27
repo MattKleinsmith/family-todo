@@ -101,13 +101,12 @@ export function createStore({ storageKey, storage = globalThis.localStorage, now
 
   // ---- Convenience API used by the UI ----
 
-  function createList({ name, emoji = '', owner = '', createdBy = '' }) {
+  function createList({ name, emoji = '', createdBy = '' }) {
     return putLocal({
       id: newId(),
       type: 'list',
       name: name.trim(),
       emoji,
-      owner,
       createdBy,
       createdAt: now(),
       deleted: false,

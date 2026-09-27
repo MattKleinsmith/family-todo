@@ -5,7 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 
 export function Home() {
-  const { store, session, navigate } = useApp();
+  const { store, navigate } = useApp();
   const [creating, setCreating] = useState(false);
   const lists = store.lists();
 
@@ -22,7 +22,7 @@ export function Home() {
       {lists.length === 0 ? (
         <div class="empty">
           <p class="big-emoji">🛒</p>
-          <p>No lists yet. Make a grocery list, a house to-do list, or a personal one.</p>
+          <p>No lists yet. Make a grocery list, a house to-do list, or one just for you.</p>
         </div>
       ) : (
         <ul class="cards">
@@ -37,7 +37,6 @@ export function Home() {
                     <span class="card-title">{l.name}</span>
                     <span class="card-sub">
                       {left === 0 ? (items.length ? 'All done' : 'Empty') : `${left} to go`}
-                      {l.owner ? ` · ${l.owner}'s` : ''}
                     </span>
                   </span>
                   <span class="chev">›</span>
@@ -61,17 +60,11 @@ function NewListSheet({ onClose }) {
   const { store, session, navigate } = useApp();
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🛒');
-  const [personal, setPersonal] = useState(false);
 
   const submit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const list = store.createList({
-      name,
-      emoji,
-      owner: personal ? session.name : '',
-      createdBy: session.name,
-    });
+    const list = store.createList({ name, emoji, createdBy: session.name });
     onClose();
     navigate(`/list/${list.id}`);
   };
@@ -84,11 +77,6 @@ function NewListSheet({ onClose }) {
           <input id="listname" type="text" placeholder="Groceries" value={name} onInput={(e) => setName(e.currentTarget.value)} autoFocus />
         </div>
         <EmojiPicker value={emoji} onChange={setEmoji} />
-        <label class="toggle">
-          <input type="checkbox" checked={personal} onChange={(e) => setPersonal(e.currentTarget.checked)} />
-          <span>Personal list ({session.name}'s)</span>
-        </label>
-        <p class="hint">Personal lists are still visible and editable by everyone in the family. It's just a label.</p>
         <button class="btn primary big" type="submit" disabled={!name.trim()}>Create</button>
       </form>
     </Sheet>
