@@ -1,12 +1,20 @@
 import { useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { DEFAULT_RELAYS } from '../sync.js';
+import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 
 export function Settings() {
   const { session, status, setName, leave, navigate } = useApp();
   const [name, setNameInput] = useState(session.name);
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState('');
+
+  const update = async () => {
+    setUpdateMsg('Checking…');
+    const found = await checkForUpdate();
+    setUpdateMsg(found ? 'Update found, installing… the app will reload.' : 'You have the latest version.');
+  };
 
   const joinLink = `${location.origin}${location.pathname}#/join/${encodeURIComponent(session.code)}`;
 
@@ -93,6 +101,21 @@ export function Settings() {
           On iPhone: open this page in Safari, tap the Share button, then "Add to Home Screen". It then opens
           full-screen like a normal app and works offline.
         </p>
+      </section>
+
+      <section class="section">
+        <h2>App version</h2>
+        <p class="hint">
+          {APP_VERSION}
+          {BUILD_TIME ? ` · built ${new Date(BUILD_TIME).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
+        </p>
+        <p class="hint">
+          New versions install on their own whenever you open the app, and it reloads once one is ready. Stuck on an old one? Check here.
+        </p>
+        <div class="row">
+          <button class="btn" onClick={update}>Check for updates</button>
+        </div>
+        {updateMsg && <p class="hint">{updateMsg}</p>}
       </section>
 
       <section class="section">

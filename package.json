@@ -8,8 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "e2e": "node e2e/sync.e2e.mjs",
-    "build:emoji": "node scripts/build-emoji.mjs"
+    "e2e": "node e2e/sync.e2e.mjs"
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
@@ -21,8 +20,6 @@
     "@preact/preset-vite": "^2.9.0",
     "vite": "^7.0.0",
     "vite-plugin-pwa": "^1.0.0",
-    "vitest": "^3.0.0",
-    "unicode-emoji-json": "^0.9.0",
-    "emojilib": "^4.0.3"
+    "vitest": "^3.0.0"
   }
 }

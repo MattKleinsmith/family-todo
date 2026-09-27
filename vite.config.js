@@ -4,13 +4,19 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves project sites under /<repo>/. The deploy workflow sets BASE_PATH.
 const base = process.env.BASE_PATH || '/';
+const version = (process.env.GITHUB_SHA || '').slice(0, 7) || 'dev';
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     preact(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // src/pwa.js registers the worker and polls for updates
       includeAssets: ['icons/*.png', 'icons/*.svg'],
       manifest: {
         name: 'Family To-Do',
@@ -30,6 +36,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
         navigateFallback: base + 'index.html',
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
     }),
   ],
