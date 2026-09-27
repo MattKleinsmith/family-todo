@@ -27,3 +27,10 @@ export function encrypt(obj, convKey) {
 export function decrypt(ciphertext, convKey) {
   return JSON.parse(nip44.decrypt(ciphertext, convKey));
 }
+
+/** Exact length of the NIP-44 ciphertext for a plaintext, without encrypting: base64(version + nonce + padded body + mac). */
+export function ciphertextLength(plaintext) {
+  const bytes = new TextEncoder().encode(plaintext).length;
+  const padded = nip44.utils.calcPaddedLen(bytes);
+  return 4 * Math.ceil((1 + 32 + 2 + padded + 32) / 3);
+}
