@@ -299,6 +299,8 @@ input[type="datetime-local"] {
   animation: rise 0.2s ease-out;
 }
 .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 4px auto 14px; }
+.sheet-handle::before { content: ''; display: block; height: 28px; margin: -12px -60px -12px; } /* bigger grab area */
+.sheet { will-change: transform; overscroll-behavior: contain; }
 .sheet-title { font-size: 20px; font-weight: 700; margin-bottom: 14px; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
