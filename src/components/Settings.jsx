@@ -5,7 +5,9 @@ import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 import { BackIcon } from './Icons.jsx';
 
 export function Settings() {
-  const { session, status, setName, leave, navigate } = useApp();
+  const { session, status, setName, leave, navigate, store } = useApp();
+  const [leaving, setLeaving] = useState(false);
+  const members = store ? store.members() : [];
   const [name, setNameInput] = useState(session.name);
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
@@ -78,6 +80,22 @@ export function Settings() {
       </section>
 
       <section class="section">
+        <h2>Family members</h2>
+        <p class="hint">Every phone that has joined with your code. Joins, leaves and name changes also show in Activity.</p>
+        <ul class="members">
+          {members.map((m) => (
+            <li key={m.id} class={m.leftAt ? 'left' : ''}>
+              <span class="avatar" aria-hidden="true">{(m.name || '?').slice(0, 1).toUpperCase()}</span>
+              <span class="member-body">
+                <span class="member-name">{m.name || 'Unnamed'}{m.leftAt ? ' (left)' : ''}</span>
+                <span class="hint">{m.device || 'device'}{m.joinedAt ? ` · joined ${new Date(m.joinedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="section">
         <h2>Sync</h2>
         <p class="hint">
           Connected to {status.connected} of {status.total} relays.
@@ -125,11 +143,14 @@ export function Settings() {
         <p class="hint">Removes the code and lists from this phone only. Your partner keeps everything, and you can rejoin with the code.</p>
         <button
           class="btn danger"
-          onClick={() => {
-            if (confirm('Leave this family on this phone?')) leave();
+          disabled={leaving}
+          onClick={async () => {
+            if (!confirm('Leave this family on this phone?')) return;
+            setLeaving(true);
+            await leave();
           }}
         >
-          Leave family
+          {leaving ? 'Leaving…' : 'Leave family'}
         </button>
       </section>
       </div>

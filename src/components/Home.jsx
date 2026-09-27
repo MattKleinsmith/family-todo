@@ -5,9 +5,10 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { TabBar } from './TabBar.jsx';
 import { GearIcon, ChevronIcon } from './Icons.jsx';
+import { Bell } from './Bell.jsx';
 
 export function Home() {
-  const { store, navigate } = useApp();
+  const { store, activity, navigate } = useApp();
   const [creating, setCreating] = useState(false);
   const lists = store.lists();
 
@@ -17,6 +18,7 @@ export function Home() {
         <h1>Lists</h1>
         <div class="topbar-actions">
           <SyncBadge />
+          <Bell />
           <button class="icon-btn gear" aria-label="Settings" onClick={() => navigate('/settings')}><GearIcon /></button>
         </div>
       </header>
@@ -32,6 +34,7 @@ export function Home() {
           {lists.map((l) => {
             const items = store.itemsFor(l.id);
             const left = items.filter((i) => !i.done).length;
+            const fresh = activity ? activity.unseenForList(l.id) : 0;
             return (
               <li key={l.id}>
                 <a class="card" href={`#/list/${l.id}`}>
@@ -40,6 +43,7 @@ export function Home() {
                     <span class="card-title">{l.name}</span>
                     <span class="card-sub">
                       {left === 0 ? (items.length ? 'All done' : 'Empty') : `${left} to go`}
+                      {fresh > 0 && <span class="fresh"> · {fresh} new change{fresh === 1 ? '' : 's'}</span>}
                     </span>
                   </span>
                   <span class="chev"><ChevronIcon /></span>
