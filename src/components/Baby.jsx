@@ -68,7 +68,7 @@ export function Baby() {
         <h1>{name}</h1>
         <div class="topbar-actions">
           <SyncBadge />
-          <button class="icon-btn" aria-label="Baby settings" onClick={() => setMenu(true)}><GearIcon /></button>
+          <button class="icon-btn gear" aria-label="Baby settings" onClick={() => setMenu(true)}><GearIcon /></button>
         </div>
       </header>
 
