@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDuration, currentState, dayStats, dayKey, groupByDay, nextFeedAt, ongoingSleep, relative, toInputValue, fromInputValue } from './baby.js';
+import { formatDuration, currentState, dayStats, dayKey, groupByDay, nextFeedAt, nextSleepAt, ongoingSleep, relative, toInputValue, fromInputValue } from './baby.js';
 import { createStore } from './store.js';
 
 const H = 3600_000;
@@ -32,6 +32,10 @@ describe('currentState', () => {
     expect(st.asleep).toBeNull();
     expect(st.awakeSince).toBe(now - 90 * M);
     expect(nextFeedAt(st.lastFeed, 180)).toBe(now + 140 * M);
+    // Nap cycle counts from the start of the last nap (3h ago), not from when it ended.
+    expect(nextSleepAt(st, 180)).toBe(now);
+    expect(nextSleepAt(st, 210)).toBe(now + 30 * M);
+    expect(nextSleepAt(currentState([sleep('s2', now - 20 * M, null)], now), 180)).toBeNull();
   });
   it('picks the earliest of two accidentally open sleeps', () => {
     const logs = [sleep('b', now - 5 * M, null), sleep('a', now - 30 * M, null)];
