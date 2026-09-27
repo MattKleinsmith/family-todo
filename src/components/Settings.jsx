@@ -3,10 +3,16 @@ import { useApp } from '../app.jsx';
 import { DEFAULT_RELAYS } from '../sync.js';
 import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 import { BackIcon } from './Icons.jsx';
+import { getTheme, setTheme } from '../theme.js';
 
 export function Settings() {
   const { session, status, setName, leave, navigate, store } = useApp();
   const [leaving, setLeaving] = useState(false);
+  const [theme, setThemeState] = useState(getTheme);
+  const pickTheme = (t) => {
+    setTheme(t);
+    setThemeState(t);
+  };
   const members = store ? store.members() : [];
   const [name, setNameInput] = useState(session.name);
   const [copied, setCopied] = useState(false);
@@ -77,6 +83,20 @@ export function Settings() {
           <input type="text" value={name} onInput={(e) => setNameInput(e.currentTarget.value)} />
           <button class="btn" type="submit" disabled={!name.trim() || name.trim() === session.name}>Save</button>
         </form>
+      </section>
+
+      <section class="section">
+        <h2>Appearance</h2>
+        <div class="segmented" role="radiogroup" aria-label="Appearance">
+          {[
+            ['light', '☀️ Light'],
+            ['dark', '🌙 Dark'],
+            ['auto', 'Auto'],
+          ].map(([t, label]) => (
+            <button type="button" key={t} role="radio" aria-checked={theme === t} class={theme === t ? 'on' : ''} onClick={() => pickTheme(t)}>{label}</button>
+          ))}
+        </div>
+        <p class="hint">Auto follows your phone's light or dark setting. This is per phone.</p>
       </section>
 
       <section class="section">

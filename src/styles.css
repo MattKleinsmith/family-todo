@@ -25,11 +25,15 @@
   --radius: 22px;
   --radius-sm: 16px;
   --shadow: 0 2px 4px rgba(93, 74, 46, 0.05), 0 10px 26px rgba(93, 74, 46, 0.08);
+  --bubble: rgba(255, 255, 255, 0.55);
+  color-scheme: light;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* Appearance: light by default; data-theme on <html> is set from Settings.
+   'auto' follows the phone, 'light'/'dark' force one. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme="auto"] {
     --bg: #2a2521;
     --surface: #352f2a;
     --surface-2: #413a33;
@@ -50,7 +54,33 @@
     --sun-soft: #5c4d2b;
     --danger: #e9958a;
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px rgba(0, 0, 0, 0.28);
+    --bubble: rgba(255, 255, 255, 0.1);
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #2a2521;
+  --surface: #352f2a;
+  --surface-2: #413a33;
+  --surface-3: #4d453c;
+  --text: #f4ece0;
+  --muted: #b5a691;
+  --border: #4a4239;
+  --accent: #8fbf90;
+  --accent-soft: #3d5140;
+  --accent-text: #1c2a1d;
+  --peach: #e0a27f;
+  --peach-soft: #5a4335;
+  --peach-text: #ffe9da;
+  --sky: #6f7ea6;
+  --night: #a39ede;
+  --night-soft: #3e3a5c;
+  --sun: #e9bd55;
+  --sun-soft: #5c4d2b;
+  --danger: #e9958a;
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px rgba(0, 0, 0, 0.28);
+  --bubble: rgba(255, 255, 255, 0.1);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -280,9 +310,8 @@ input[type="text"]:focus, input[type="datetime-local"]:focus {
 .status-main, .status-row { display: flex; align-items: center; gap: 14px; }
 .status-emoji {
   font-size: 30px; width: 54px; height: 54px; border-radius: 50%; flex: none;
-  background: rgba(255, 255, 255, 0.55); display: grid; place-items: center;
+  background: var(--bubble); display: grid; place-items: center;
 }
-@media (prefers-color-scheme: dark) { .status-emoji { background: rgba(255, 255, 255, 0.1); } }
 .status-emoji.small { font-size: 24px; width: 44px; height: 44px; }
 .status-title { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; }
 .status-line { font-weight: 700; }
