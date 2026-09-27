@@ -49,6 +49,7 @@ export function Settings() {
         <div class="topbar-actions" />
       </header>
 
+      <div class="content">
       <section class="section">
         <h2>Family code</h2>
         <p class="hint">Your partner enters this code (or opens the link) to see and edit the same lists.</p>
@@ -130,6 +131,7 @@ export function Settings() {
           Leave family
         </button>
       </section>
+      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@ export function Home() {
   const lists = store.lists();
 
   return (
-    <div class="screen has-tabs has-actions">
+    <div class="screen has-tabs">
       <header class="topbar">
         <h1>Lists</h1>
         <div class="topbar-actions">
@@ -20,6 +20,7 @@ export function Home() {
         </div>
       </header>
 
+      <div class="content">
       {lists.length === 0 ? (
         <div class="empty">
           <p class="big-emoji">🛒</p>
@@ -47,6 +48,7 @@ export function Home() {
           })}
         </ul>
       )}
+      </div>
 
       <div class="bottom-bar">
         <button class="btn primary big" onClick={() => setCreating(true)}>+ New list</button>

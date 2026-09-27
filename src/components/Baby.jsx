@@ -62,7 +62,7 @@ export function Baby() {
   const groups = groupByDay(logs);
 
   return (
-    <div class="screen has-tabs has-actions">
+    <div class="screen has-tabs">
       <header class="topbar">
         <h1>{name}</h1>
         <div class="topbar-actions">
@@ -71,6 +71,7 @@ export function Baby() {
         </div>
       </header>
 
+      <div class="content">
       <section class={'status ' + (state.asleep ? 'asleep' : 'awake')} aria-live="polite">
         {state.asleep ? (
           <>
@@ -148,6 +149,7 @@ export function Baby() {
           </section>
         );
       })}
+      </div>
 
       <div class="bottom-bar actions">
         <button class="btn primary big" onClick={fedNow}>🍼 Fed now</button>

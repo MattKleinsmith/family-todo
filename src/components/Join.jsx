@@ -33,6 +33,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
 
   return (
     <div class="screen join">
+      <div class="join-inner">
       <div class="join-hero">
         <div class="logo">✓</div>
         <h1>Family To-Do</h1>
@@ -93,6 +94,7 @@ export function Join({ prefillCode = '', alreadyIn = false }) {
           <button class="btn link" type="button" onClick={() => setMode('pick')}>Back</button>
         </form>
       )}
+      </div>
     </div>
   );
 }
