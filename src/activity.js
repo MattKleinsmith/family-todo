@@ -9,6 +9,7 @@
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
 import { iconToText } from './icons.js';
+import { memberKey } from './members.js';
 
 const MAX_ENTRIES = 500;
 
@@ -238,6 +239,9 @@ export function createActivity({
   };
 
   function record(prev, next) {
+    // Re-adding the app makes a new member record for the same person on the
+    // same kind of device. That's a reinstall, not someone joining.
+    if (next.type === 'member' && !prev && store.members().some((m) => m.id !== next.id && memberKey(m) === memberKey(next))) return;
     const text = describeChange(prev, next, { listName: ctx.listName, babyName: ctx.babyName() });
     if (!text) return;
     pending.push({
@@ -331,6 +335,15 @@ export function createActivity({
     for (const e of pending) add(e);
     for (const e of legacy) add(e, false);
     out.sort((a, b) => b.at - a.at);
+    // Hide repeat "joined the family" lines left by earlier reinstalls; keep the first.
+    const joins = new Set();
+    for (let i = out.length - 1; i >= 0; i--) {
+      const e = out[i];
+      if (e.entityType !== 'member' || !/^(re)?joined the family/.test(e.text)) continue;
+      const key = `${(e.actor || '').trim().toLowerCase()}|${e.text.replace(/^rejoined/, 'joined')}`;
+      if (joins.has(key)) out.splice(i, 1);
+      else joins.add(key);
+    }
     cache = out;
     cacheVersion = version;
     return out;

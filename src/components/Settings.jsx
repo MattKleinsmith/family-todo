@@ -5,6 +5,7 @@ import { APP_VERSION, BUILD_TIME, checkForUpdate } from '../pwa.js';
 import { BackIcon } from './Icons.jsx';
 import { getTheme, setTheme } from '../theme.js';
 import { Glyph } from './Glyph.jsx';
+import { dedupeMembers } from '../members.js';
 
 export function Settings() {
   const { session, status, setName, leave, navigate, store, sync, activity } = useApp();
@@ -14,7 +15,7 @@ export function Settings() {
     setTheme(t);
     setThemeState(t);
   };
-  const members = store ? store.members() : [];
+  const members = store ? dedupeMembers(store.members()) : [];
   const [name, setNameInput] = useState(session.name);
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
@@ -104,7 +105,7 @@ export function Settings() {
 
       <section class="section">
         <h2>Family members</h2>
-        <p class="hint">Every phone that has joined with your code. Joins, leaves and name changes also show in Activity.</p>
+        <p class="hint">Everyone who has joined with your code, one row per person per kind of device. Joins, leaves and name changes also show in Activity.</p>
         <ul class="members">
           {members.map((m) => (
             <li key={m.id} class={m.leftAt ? 'left' : ''}>
