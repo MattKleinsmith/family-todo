@@ -218,7 +218,10 @@ input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px co
 /* Tab bar */
 .tabbar {
   flex: none; width: 100vw; max-width: none; margin: 0 calc(50% - 50vw); z-index: 6;
-  height: calc(56px + var(--safe-bottom)); padding-bottom: var(--safe-bottom);
+  height: calc(52px + var(--safe-bottom));
+  /* Center the tabs in the part of the bar above the home indicator: the
+     indicator takes roughly the bottom 22px of the inset, so only pad for that. */
+  padding-bottom: max(calc(var(--safe-bottom) - 22px), 0px);
   display: flex; background: var(--surface); border-top: 1px solid var(--border);
 }
 .tab {
