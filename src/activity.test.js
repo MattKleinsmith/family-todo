@@ -100,6 +100,46 @@ describe('createActivity (synced)', () => {
     expect(B.activity.unseenCount()).toBe(0);
   });
 
+  it('looking at a list or tab counts as seeing its changes, and only those', async () => {
+    const clock = { t: T };
+    const relay = [];
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T - 1, relay, clock });
+    const g = A.store.createList({ name: 'Groceries' });
+    const h = A.store.createList({ name: 'House' });
+    A.store.addItem({ listId: g.id, text: 'Milk' });
+    A.store.addItem({ listId: h.id, text: 'Fix the door' });
+    A.store.addLog({ kind: 'feed', startAt: T });
+    A.store.addChore({ name: 'Mow the lawn', cadence: 'weekly' });
+    await settle();
+    const B = phone({ name: 'Huishi', device: 'dB', joinedAt: T - 2, relay: [], clock });
+    await B.activity.ready;
+    deliver(relay, B);
+    expect(B.activity.unseenCount()).toBe(6);
+    B.activity.markAreaSeen(`list:${g.id}`);
+    expect(B.activity.unseenForList(g.id)).toBe(0);
+    expect(B.activity.unseenForList(h.id)).toBe(2);
+    expect(B.activity.unseenCount()).toBe(4);
+    B.activity.markAreaSeen('baby');
+    B.activity.markAreaSeen('house');
+    expect(B.activity.unseenForArea('baby')).toBe(0);
+    expect(B.activity.unseenForArea('house')).toBe(0);
+    expect(B.activity.unseenCount()).toBe(2);
+    // An entry that arrives after you looked, for a change you had on screen, is already seen.
+    clock.t += 1000;
+    const late = A.store.addItem({ listId: h.id, text: 'Oil the hinge' });
+    B.store.applyRemote(late); // the item itself arrives and is shown…
+    B.activity.markAreaSeen(`list:${h.id}`, late.updatedAt);
+    await settle();
+    deliver(relay, B); // …and its activity entry turns up a moment later
+    expect(B.activity.unseenForList(h.id)).toBe(0);
+    // A later change to the list you looked at is new again.
+    clock.t += 60_000;
+    A.store.addItem({ listId: g.id, text: 'Eggs' });
+    await settle();
+    deliver(relay, B);
+    expect(B.activity.unseenForList(g.id)).toBe(1);
+  });
+
   it('a phone that joins later sees the whole history, already marked as seen', async () => {
     const clock = { t: T };
     const relay = [];

@@ -7,6 +7,7 @@ import { GearIcon } from './Icons.jsx';
 import { Bell } from './Bell.jsx';
 import { Glyph } from './Glyph.jsx';
 import { swipeDelete } from './SwipeAction.jsx';
+import { newestOf, useMarkSeen } from './useSeen.js';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
   DEFAULT_NAP_AFTER_FEED_MIN,
@@ -33,6 +34,7 @@ export function Baby({ focus }) {
   const [editing, setEditing] = useState(null);
   const [menu, setMenu] = useState(false);
   const [justAdded, setJustAdded] = useState(null);
+  useMarkSeen('baby', newestOf([...Object.values(store.get().logs), store.getMeta('baby')]));
 
   // Durations on screen need to keep moving.
   useEffect(() => {
