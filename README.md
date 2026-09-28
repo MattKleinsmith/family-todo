@@ -48,9 +48,11 @@ not guessable in practice.
 Two buttons, always at the bottom of the Baby tab: **Fed now** and **Fell asleep**
 (which turns into **Woke up** while a nap is running). Either parent taps; both
 phones update within a second. The status card shows how long he has been asleep
-or awake, when he last ate, and an estimate of the next feed and nap based on the
-cycle length set in the tab's menu (default 3 hours; also where you set his name).
-Both cycles count from the start of the last feed or nap to the start of the next.
+or awake, when he last ate, and estimates of the next feed and nap, both counted
+from when the last feed started: next feed after the feed cycle (default 3 hours),
+nap after a shorter gap (default 2 hours). Both are set in the tab's menu, along
+with his name. Once he has napped after a feed, no nap is shown as due until the
+next feed.
 
 Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nudges for
 the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete

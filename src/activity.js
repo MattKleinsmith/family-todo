@@ -74,11 +74,13 @@ export function describeChange(prev, next, ctx = {}) {
       const parts = [];
       const p = prev || {};
       if ((next.name || '') !== (p.name || '')) parts.push(next.name ? `named the baby ${next.name}` : 'cleared the baby’s name');
-      const every = (m) => (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
+      const every = (m) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
       // Unset intervals mean the default, so saving the defaults for the first time isn't a change.
       const DEFAULT = 180;
       if ((next.feedIntervalMin || DEFAULT) !== (p.feedIntervalMin || DEFAULT)) parts.push(`set feeds to about every ${every(next.feedIntervalMin || DEFAULT)}`);
-      if ((next.sleepIntervalMin || DEFAULT) !== (p.sleepIntervalMin || DEFAULT)) parts.push(`set naps to about every ${every(next.sleepIntervalMin || DEFAULT)}`);
+      const NAP_DEFAULT = 120;
+      if ((next.napAfterFeedMin || NAP_DEFAULT) !== (p.napAfterFeedMin || NAP_DEFAULT))
+        parts.push(`set naps to about ${every(next.napAfterFeedMin || NAP_DEFAULT)} after a feed`);
       return parts.length ? joinParts(parts) : null;
     }
     case 'member': {
