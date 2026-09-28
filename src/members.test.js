@@ -21,3 +21,22 @@ describe('dedupeMembers', () => {
     expect(memberKey({ name: ' Hui ', device: 'iPhone' })).toBe(memberKey({ name: 'hui', device: 'iPhone' }));
   });
 });
+
+describe('familyNames', () => {
+  it('lists each current person once, earliest first, however many phones they use', async () => {
+    const { familyNames, sameName } = await import('./members.js');
+    const ms = [
+      m('a', 'Matthew', 'iPhone', 1),
+      m('b', 'Huishi', 'iPhone', 2),
+      m('c', 'matthew ', 'Mac', 3),
+      m('d', 'Grandma', 'iPad', 4, 10), // left
+      m('e', 'Huishi', 'iPad', 5, 9), // one of Huishi's installs left; she's still here
+    ];
+    expect(familyNames(ms)).toEqual(['Matthew', 'Huishi']);
+    expect(familyNames(ms, ['Theo'])).toEqual(['Matthew', 'Huishi', 'Theo']);
+    expect(familyNames(ms, ['HUISHI'])).toEqual(['Matthew', 'Huishi']);
+    expect(familyNames([m('d', 'Grandma', 'iPad', 4, 10)], ['Grandma'])).toEqual(['Grandma']);
+    expect(sameName(' Matthew', 'matthew')).toBe(true);
+    expect(sameName(null, 'x')).toBe(false);
+  });
+});

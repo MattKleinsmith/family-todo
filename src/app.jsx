@@ -9,6 +9,7 @@ import { deviceId, describeDevice } from './device.js';
 import { createKV, requestPersistence } from './kv.js';
 import { runMaintenance } from './maintenance.js';
 import { iconToken } from './icons.js';
+import { sameName } from './members.js';
 import { useRoute, navigate } from './router.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
@@ -183,7 +184,15 @@ export function App() {
         const s = { ...session, name: name.trim() };
         saveSession(s);
         setSession(s);
-        if (family) family.store.setMember(deviceId(), { name: s.name });
+        if (family) {
+          const { store } = family;
+          const old = session.name;
+          // Chores that were yours stay yours, unless another phone still goes by the old name.
+          const oldStillUsed = store.members().some((m) => m.id !== deviceId() && !m.leftAt && sameName(m.name, old));
+          if (!sameName(old, s.name) && !oldStillUsed)
+            for (const c of store.chores()) if (sameName(c.owner, old)) store.updateChore(c.id, { owner: s.name });
+          store.setMember(deviceId(), { name: s.name });
+        }
       },
       async leave() {
         // Tell the others, give the relays a moment to take it, then forget the family on this phone.

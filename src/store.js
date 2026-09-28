@@ -367,10 +367,10 @@ export function createStore({
 
   // ---- House chores: daily, weekly and monthly, with their recent completions ----
 
-  function addChore({ name, cadence = 'weekly', icon = '', createdBy = '' }) {
+  function addChore({ name, cadence = 'weekly', icon = '', owner = null, createdBy = '' }) {
     const n = (name || '').trim();
     if (!n) return null;
-    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, done: [], createdBy, createdAt: stamp(), deleted: false });
+    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, done: [], createdBy, createdAt: stamp(), deleted: false });
   }
 
   /**
