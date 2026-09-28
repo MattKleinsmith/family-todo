@@ -9,6 +9,7 @@ import { Glyph } from './Glyph.jsx';
 import { Bell } from './Bell.jsx';
 import { GearIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { swipeDelete } from './SwipeAction.jsx';
 import {
   CADENCES,
   CADENCE_LABEL,
@@ -188,7 +189,11 @@ function Summary({ chores, now }) {
 }
 
 function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
-  const { store } = useApp();
+  const { store, deleted } = useApp();
+  const remove = (chore) => {
+    store.deleteChore(chore.id);
+    deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false }));
+  };
   const listRef = useRef(null);
   const grip = gripProps(() => ({ container: listRef.current, onDrop: (ids, moved) => store.moveTo('chore', moved, ids) }));
   const doneCount = rows.filter((x) => x.status.done).length;
@@ -200,7 +205,7 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
       </div>
       <ul class="items" ref={listRef}>
         {rows.map((x) => (
-          <ChoreRow key={x.chore.id} {...x} now={now} flash={flash === x.chore.id} grip={rows.length > 1 ? grip : null} onToggle={() => onToggle(x)} onEdit={() => onEdit(x.chore.id)} />
+          <ChoreRow key={x.chore.id} {...x} now={now} flash={flash === x.chore.id} grip={rows.length > 1 ? grip : null} onToggle={() => onToggle(x)} onEdit={() => onEdit(x.chore.id)} onDelete={() => remove(x.chore)} />
         ))}
         <li class="add-row">
           <button class="add-chore" onClick={onAdd}>
@@ -212,7 +217,8 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
   );
 }
 
-function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit }) {
+function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete }) {
+  const swipe = swipeDelete(onDelete);
   const level = status.state === 'overdue' ? (status.missed >= 2 ? 'late' : 'behind') : '';
   let sub;
   if (status.done) sub = <>Done {whenLabel(status.done.at, now)}{status.done.by ? ` · ${status.done.by}` : ''}</>;
@@ -226,7 +232,7 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit }) {
   else sub = <>{dueLabel(status)}{status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}</>;
 
   return (
-    <li id={`chore-${chore.id}`} data-id={chore.id} class={'item chore' + (status.done ? ' is-done' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
+    <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
       <button class="check" aria-label={status.done ? `Mark ${chore.name} not done` : `Mark ${chore.name} done`} aria-pressed={!!status.done} onClick={onToggle}>
         <span class="check-mark">{status.done ? '✓' : ''}</span>
       </button>
@@ -238,6 +244,7 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit }) {
         <span class="item-by chore-sub">{sub}</span>
       </button>
       {grip && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
+      {swipe.action}
     </li>
   );
 }
@@ -290,7 +297,7 @@ const dateInput = (ts) => {
 };
 
 function ChoreSheet({ chore, onClose }) {
-  const { store, session } = useApp();
+  const { store, session, deleted } = useApp();
   const [name, setName] = useState(chore.name);
   const [cadence, setCadence] = useState(chore.cadence);
   const [icon, setIcon] = useState(chore.icon || DEFAULT_ICON[chore.cadence]);
@@ -368,7 +375,7 @@ function ChoreSheet({ chore, onClose }) {
         </div>
         <EmojiPicker value={icon} onChange={pickIcon} />
         <button class="btn primary big" type="submit">Done</button>
-        <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); }}>Delete chore</button>
+        <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false })); }}>Delete chore</button>
       </form>
     </Sheet>
   );

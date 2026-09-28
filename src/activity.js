@@ -27,6 +27,7 @@ export function describeChange(prev, next, ctx = {}) {
       const where = `in ${listName(next.listId)}`;
       if (!prev) return next.deleted ? null : `added ${q(next.text)} ${where}`;
       if (next.deleted && !prev.deleted) return `removed ${q(prev.text)} from ${listName(next.listId)}`;
+      if (prev.deleted && !next.deleted) return `put back ${q(next.text)} in ${listName(next.listId)}`;
       if (next.deleted) return null;
       const parts = [];
       if (next.text !== prev.text) parts.push(`renamed ${q(prev.text)} to ${q(next.text)}`);
@@ -40,6 +41,7 @@ export function describeChange(prev, next, ctx = {}) {
       const label = (l) => `${l.emoji ? iconToText(l.emoji) + ' ' : ''}${l.name}`;
       if (!prev) return next.deleted ? null : `created the list ${label(next)}`;
       if (next.deleted && !prev.deleted) return `deleted the list ${label(prev)}`;
+      if (prev.deleted && !next.deleted) return `put back the list ${label(next)}`;
       if (next.deleted) return null;
       const parts = [];
       if (next.name !== prev.name) parts.push(`renamed the list ${q(prev.name)} to ${q(next.name)}`);
@@ -56,6 +58,7 @@ export function describeChange(prev, next, ctx = {}) {
         return `logged ${baby} sleeping ${formatTime(next.startAt)} – ${formatTime(next.endAt)} (${formatDuration(next.endAt - next.startAt)})`;
       }
       if (next.deleted && !prev.deleted) return `removed the ${formatTime(prev.startAt)} ${kind(prev)}`;
+      if (prev.deleted && !next.deleted) return `put back the ${formatTime(next.startAt)} ${kind(next)}`;
       if (next.deleted) return null;
       const parts = [];
       if (next.kind !== prev.kind) parts.push(`changed the ${formatTime(prev.startAt)} ${kind(prev)} to a ${kind(next)}`);
@@ -87,6 +90,7 @@ export function describeChange(prev, next, ctx = {}) {
       const cadence = (c) => ({ daily: 'daily', weekly: 'weekly', monthly: 'monthly' })[c.cadence] || 'weekly';
       if (!prev) return next.deleted || next.starter ? null : `added the ${cadence(next)} chore ${q(next.name)}`;
       if (next.deleted && !prev.deleted) return `removed the chore ${q(prev.name)}`;
+      if (prev.deleted && !next.deleted) return `put back the chore ${q(next.name)}`;
       if (next.deleted) return null;
       const parts = [];
       const had = new Set((prev.done || []).map((d) => d.at));

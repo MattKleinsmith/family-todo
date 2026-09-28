@@ -6,6 +6,7 @@ import { TabBar } from './TabBar.jsx';
 import { GearIcon } from './Icons.jsx';
 import { Bell } from './Bell.jsx';
 import { Glyph } from './Glyph.jsx';
+import { swipeDelete } from './SwipeAction.jsx';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
   DEFAULT_NAP_AFTER_FEED_MIN,
@@ -27,7 +28,7 @@ const INTERVALS = [120, 150, 180, 210, 240];
 const NAP_AFTER = [60, 90, 120, 150, 180];
 
 export function Baby({ focus }) {
-  const { store, session, navigate } = useApp();
+  const { store, session, navigate, deleted } = useApp();
   const [, tick] = useReducer((x) => x + 1, 0);
   const [editing, setEditing] = useState(null);
   const [menu, setMenu] = useState(false);
@@ -147,8 +148,13 @@ export function Baby({ focus }) {
               </span>
             </div>
             <ul class="items">
-              {g.logs.map((l) => (
-                <li key={l.id} id={`log-${l.id}`} class={'log' + (justAdded === l.id ? ' flash' : '')}>
+              {g.logs.map((l) => {
+                const swipe = swipeDelete(() => {
+                  store.deleteLog(l.id);
+                  deleted(l.kind === 'feed' ? `Deleted the ${formatTime(l.startAt)} feed` : `Deleted the ${formatTime(l.startAt)} sleep`, () => store.updateLog(l.id, { deleted: false }));
+                });
+                return (
+                <li key={l.id} id={`log-${l.id}`} class={'log swipe-row' + (justAdded === l.id ? ' flash' : '')} {...swipe.row}>
                   <button class="log-row" onClick={() => setEditing(l.id)}>
                     <span class="log-emoji"><Glyph name={l.kind === 'feed' ? 'bottle' : 'sleeping'} size={26} /></span>
                     <span class="log-body">
@@ -163,8 +169,10 @@ export function Baby({ focus }) {
                       </span>
                     </span>
                   </button>
+                  {swipe.action}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </section>
         );
@@ -214,7 +222,7 @@ export function Baby({ focus }) {
 }
 
 function EditLogSheet({ log, onClose }) {
-  const { store } = useApp();
+  const { store, deleted } = useApp();
   const [kind, setKind] = useState(log.kind);
   const [startAt, setStartAt] = useState(log.startAt);
   const [endAt, setEndAt] = useState(log.endAt);
@@ -269,7 +277,7 @@ function EditLogSheet({ log, onClose }) {
           {log.createdBy && <p class="hint">Logged by {log.createdBy}</p>}
         </div>
         <button class="btn primary big" type="submit">Save</button>
-        <button class="btn danger big" type="button" onClick={() => { store.deleteLog(log.id); onClose(); }}>Delete</button>
+        <button class="btn danger big" type="button" onClick={() => { store.deleteLog(log.id); onClose(); deleted(`Deleted the ${formatTime(log.startAt)} ${log.kind === 'feed' ? 'feed' : 'sleep'}`, () => store.updateLog(log.id, { deleted: false })); }}>Delete</button>
       </form>
     </Sheet>
   );

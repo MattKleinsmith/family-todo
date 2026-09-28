@@ -21,6 +21,8 @@ describe('describeChange', () => {
     expect(describeChange(item(), item({ updatedBy: 'x' }), ctx)).toBeNull();
     expect(describeChange(item(), item({ text: 'Oat milk', done: true, listId: 'h' }), ctx)).toBe('renamed “Milk” to “Oat milk”, checked off “Oat milk” and moved “Oat milk” to House in House');
     expect(describeChange(null, item({ deleted: true }), ctx)).toBeNull();
+    expect(describeChange(item({ deleted: true }), item(), ctx)).toBe('put back “Milk” in Groceries');
+    expect(describeChange(list({ deleted: true }), list(), ctx)).toBe('put back the list 🛒 Groceries');
   });
   it('lists', () => {
     expect(describeChange(null, list(), ctx)).toBe('created the list 🛒 Groceries');

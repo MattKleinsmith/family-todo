@@ -20,6 +20,7 @@
   --sun: #f6c85f;
   --sun-soft: #fdf0c9;
   --danger: #d9776b;
+  --swipe-red: #d4473a;
   --ok: #6f9d72;
   --warn: #d99a4b;
   --radius: 22px;
@@ -53,6 +54,8 @@
     --sun: #e9bd55;
     --sun-soft: #5c4d2b;
     --danger: #e9958a;
+  --swipe-red: #c7473b;
+    --swipe-red: #c7473b;
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px rgba(0, 0, 0, 0.28);
     --bubble: rgba(255, 255, 255, 0.1);
     color-scheme: dark;
@@ -124,6 +127,7 @@ h1, h2, p { margin: 0; }
 .content {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch; padding: 0 16px 24px;
+  overflow-x: hidden; /* a row swiped open pokes out to the right */
 }
 .screen.center {
   align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 16px;
@@ -530,3 +534,39 @@ li:last-child > .act { border-bottom: none; }
 .icon-btn.small { width: 36px; height: 36px; color: var(--muted); font-size: 15px; }
 .past-day input { flex: 1; min-width: 0; }
 .past-day .btn { flex: none; padding: 0 18px; }
+
+/* Swipe a row left to delete, like iOS */
+.swipe-row { position: relative; touch-action: pan-y; }
+.swipe-action {
+  position: absolute; top: 0; bottom: 0; left: 100%; width: 0;
+  padding: 0; border: none; background: none; display: flex; overflow: hidden;
+  touch-action: manipulation;
+}
+.swipe-row:not([data-swipe]) .swipe-action { visibility: hidden; }
+.swipe-fill {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--swipe-red); color: #fff; font-weight: 700; font-size: 16px; white-space: nowrap;
+}
+/* Past the point where letting go deletes, the label rides along with the row, as on iOS. */
+.swipe-row[data-swipe="armed"] .swipe-fill { justify-content: flex-start; padding-left: 26px; }
+.card-row .swipe-action { padding-left: 10px; }
+.card-row .swipe-fill { border-radius: var(--radius); }
+.log.swipe-row, .item.swipe-row { background: var(--surface); }
+
+/* Undo bar */
+.toast {
+  position: fixed; left: 16px; right: 16px; z-index: 30; max-width: 608px; margin: 0 auto;
+  bottom: calc(92px + var(--safe-bottom));
+  display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 18px; min-height: 52px;
+  background: var(--text); color: var(--bg); border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(63, 53, 41, 0.28);
+  animation: rise 0.18s ease-out;
+}
+#app:has(.tabbar) .toast { bottom: calc(68px + var(--safe-bottom)); }
+#app:has(.bottom-bar) .toast { bottom: calc(146px + var(--safe-bottom)); }
+.toast-text { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-undo { border: none; background: none; color: var(--accent-soft); font-weight: 800; padding: 10px 12px; min-height: 40px; }
+.toast-close { border: none; background: none; color: inherit; opacity: 0.6; width: 40px; height: 40px; font-size: 14px; }
+/* Grouped lists have 4px of padding inside the rounded box; the button fills it. */
+.items > .swipe-row:first-child .swipe-action { top: -4px; }
+.items > .swipe-row:last-child .swipe-action { bottom: -4px; }

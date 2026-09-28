@@ -10,9 +10,10 @@ import { Bell } from './Bell.jsx';
 import { ListIcon } from './ListIcon.jsx';
 import { Glyph } from './Glyph.jsx';
 import { iconToken } from '../icons.js';
+import { swipeDelete } from './SwipeAction.jsx';
 
 export function Home() {
-  const { store, activity, navigate } = useApp();
+  const { store, activity, navigate, deleted } = useApp();
   const [creating, setCreating] = useState(false);
   const lists = store.lists();
   const cardsRef = useRef(null);
@@ -41,8 +42,18 @@ export function Home() {
             const items = store.itemsFor(l.id);
             const left = items.filter((i) => !i.done).length;
             const fresh = activity ? activity.unseenForList(l.id) : 0;
+            const swipe = swipeDelete(
+              () => {
+                const what = items.length ? `“${l.name}” and its ${items.length} item${items.length === 1 ? '' : 's'}` : `“${l.name}”`;
+                if (!confirm(`Delete ${what}?`)) return;
+                const itemIds = items.map((i) => i.id);
+                store.deleteList(l.id);
+                deleted(`Deleted “${l.name}”`, () => store.restoreList(l.id, itemIds));
+              },
+              { confirm: true },
+            );
             return (
-              <li key={l.id} data-id={l.id} class="card-row">
+              <li key={l.id} data-id={l.id} class="card-row swipe-row" {...swipe.row}>
                 <a class="card" href={`#/list/${l.id}`}>
                   <span class="card-emoji"><ListIcon value={l.emoji} size={28} /></span>
                   <span class="card-body">
@@ -54,6 +65,7 @@ export function Home() {
                   </span>
                   <span class="grip" role="button" aria-label={`Drag to reorder ${l.name}`} {...grip}><GripIcon /></span>
                 </a>
+                {swipe.action}
               </li>
             );
           })}

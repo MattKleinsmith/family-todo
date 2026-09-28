@@ -4,6 +4,8 @@
 // pane auto-scrolls near its edges. On release, `onDrop(newIds, movedId)`
 // gets the new order; nothing changes if the row ends where it started.
 
+import { closeOpenRow } from './swipe.js';
+
 const EDGE = 64; // px from the pane's top/bottom where auto-scroll kicks in
 const MAX_SPEED = 14; // px per frame
 
@@ -14,6 +16,7 @@ export function startDrag(event, { container, rowSelector = '[data-id]', onDrop 
   if (!row || !container) return;
   event.preventDefault();
   event.stopPropagation();
+  closeOpenRow(false);
 
   const rows = [...container.querySelectorAll(rowSelector)];
   const from = rows.indexOf(row);

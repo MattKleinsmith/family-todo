@@ -8,9 +8,10 @@ import { gripProps } from '../drag.js';
 import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
+import { swipeDelete } from './SwipeAction.jsx';
 
 export function ListView({ id, focus }) {
-  const { store, session, navigate } = useApp();
+  const { store, session, navigate, deleted } = useApp();
   const list = store.get().lists[id];
   const [text, setText] = useState('');
   const [editing, setEditing] = useState(null); // item id
@@ -53,6 +54,11 @@ export function ListView({ id, focus }) {
   const open = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
+  const remove = (item) => {
+    store.deleteItem(item.id);
+    deleted(`Deleted “${item.text}”`, () => store.updateItem(item.id, { deleted: false }));
+  };
+
   const add = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -85,7 +91,7 @@ export function ListView({ id, focus }) {
       {open.length > 0 && (
         <ul class="items" ref={openRef}>
           {open.map((item) => (
-            <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+            <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} onDelete={() => remove(item)} />
           ))}
         </ul>
       )}
@@ -114,7 +120,7 @@ export function ListView({ id, focus }) {
           {showDone && (
             <ul class="items done">
               {done.map((item) => (
-                <ItemRow key={item.id} item={item} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+                <ItemRow key={item.id} item={item} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} onDelete={() => remove(item)} />
               ))}
             </ul>
           )}
@@ -131,9 +137,10 @@ export function ListView({ id, focus }) {
   );
 }
 
-function ItemRow({ item, flash, grip, onToggle, onEdit }) {
+function ItemRow({ item, flash, grip, onToggle, onEdit, onDelete }) {
+  const swipe = swipeDelete(onDelete);
   return (
-    <li id={`item-${item.id}`} data-id={item.id} class={'item' + (item.done ? ' is-done' : '') + (flash ? ' flash' : '')}>
+    <li id={`item-${item.id}`} data-id={item.id} class={'item swipe-row' + (item.done ? ' is-done' : '') + (flash ? ' flash' : '')} {...swipe.row}>
       <button class="check" aria-label={item.done ? 'Mark not done' : 'Mark done'} aria-pressed={item.done} onClick={onToggle}>
         <span class="check-mark">{item.done ? '✓' : ''}</span>
       </button>
@@ -146,12 +153,13 @@ function ItemRow({ item, flash, grip, onToggle, onEdit }) {
           <GripIcon />
         </span>
       )}
+      {swipe.action}
     </li>
   );
 }
 
 function EditItemSheet({ item, onClose }) {
-  const { store } = useApp();
+  const { store, deleted } = useApp();
   const [text, setText] = useState(item.text);
   const save = (e) => {
     e.preventDefault();
@@ -171,6 +179,7 @@ function EditItemSheet({ item, onClose }) {
           type="button"
           onClick={() => {
             store.deleteItem(item.id);
+            deleted(`Deleted “${item.text}”`, () => store.updateItem(item.id, { deleted: false }));
             onClose();
           }}
         >
@@ -182,7 +191,7 @@ function EditItemSheet({ item, onClose }) {
 }
 
 function ListMenuSheet({ list, counts, onClose }) {
-  const { store, navigate } = useApp();
+  const { store, navigate, deleted } = useApp();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(list.name);
   const [emoji, setEmoji] = useState(list.emoji || iconToken('memo'));
@@ -235,9 +244,11 @@ function ListMenuSheet({ list, counts, onClose }) {
           class="btn danger big"
           onClick={() => {
             if (confirm(`Delete "${list.name}" and everything in it?`)) {
+              const itemIds = store.itemsFor(list.id).map((i) => i.id);
               store.deleteList(list.id);
               onClose();
               navigate('/');
+              deleted(`Deleted “${list.name}”`, () => store.restoreList(list.id, itemIds));
             }
           }}
         >
