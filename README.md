@@ -11,6 +11,9 @@ family code once, and every list stays in sync between everyone who has the code
   counters, mowing, the cat litter, draining the water heater), with an overdue
   flag when a whole day, week or month went by without one.
 - Drag the grip on any list or item to reorder; the order syncs.
+- Swipe any row left to delete it, like iOS: a short swipe shows a red Delete
+  button, a long swipe deletes straight away (whole lists ask first). Every
+  delete shows an Undo bar for a few seconds.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
 - An **Activity** feed (the bell) that tells you exactly what the other person changed

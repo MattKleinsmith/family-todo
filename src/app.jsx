@@ -17,6 +17,7 @@ import { Settings } from './components/Settings.jsx';
 import { Baby } from './components/Baby.jsx';
 import { Activity } from './components/Activity.jsx';
 import { House } from './components/House.jsx';
+import { Toast } from './components/Toast.jsx';
 
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -29,6 +30,17 @@ export function App() {
   const [status, setStatus] = useState({ connected: 0, total: 0, lastSyncAt: null, online: false });
   const [error, setError] = useState(null);
   const route = useRoute();
+  const [toast, setToast] = useState(null); // { id, text, undo }
+  const toastTimer = useRef(null);
+  const showToast = (text, undo = null) => {
+    clearTimeout(toastTimer.current);
+    setToast({ id: Date.now(), text, undo });
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  };
+  const dismissToast = () => {
+    clearTimeout(toastTimer.current);
+    setToast(null);
+  };
 
   // Boot (or re-boot) the store + sync whenever the family code changes.
   useEffect(() => {
@@ -157,6 +169,10 @@ export function App() {
       sync: family?.sync,
       activity: family?.activity,
       navigate,
+      /** Tell the user something was deleted, and let them take it back for a few seconds. */
+      deleted(text, undo) {
+        showToast(text, undo);
+      },
       join({ code, name, create = false }) {
         const s = { code, name: name.trim(), joinedAt: Date.now(), announceJoin: true, ...(create ? { createDefaults: true } : {}) };
         saveSession(s);
@@ -218,5 +234,18 @@ export function App() {
   else if (route.name === 'activity') page = <Activity />;
   else page = <Home />;
 
-  return <AppCtx.Provider value={api}>{page}</AppCtx.Provider>;
+  return (
+    <AppCtx.Provider value={api}>
+      {page}
+      <Toast
+        toast={toast}
+        onDismiss={dismissToast}
+        onUndo={() => {
+          const undo = toast && toast.undo;
+          dismissToast();
+          if (undo) undo();
+        }}
+      />
+    </AppCtx.Provider>
+  );
 }

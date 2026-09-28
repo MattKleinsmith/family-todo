@@ -154,3 +154,19 @@ describe('flushSave', () => {
     store.flushSave(); // nothing pending: no-op
   });
 });
+
+describe('restoreList', () => {
+  it('brings back a deleted list and the items deleted with it', () => {
+    const store = createStore({ storage: null });
+    const list = store.createList({ name: 'Groceries' });
+    const milk = store.addItem({ listId: list.id, text: 'Milk' });
+    const eggs = store.addItem({ listId: list.id, text: 'Eggs' });
+    store.deleteItem(eggs.id); // removed earlier, on its own
+    const ids = store.itemsFor(list.id).map((i) => i.id);
+    store.deleteList(list.id);
+    expect(store.lists()).toEqual([]);
+    store.restoreList(list.id, ids);
+    expect(store.lists().map((l) => l.name)).toEqual(['Groceries']);
+    expect(store.itemsFor(list.id).map((i) => i.id)).toEqual([milk.id]);
+  });
+});

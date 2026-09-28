@@ -254,6 +254,12 @@ export function createStore({
     return patch('list', id, changes);
   }
 
+  /** Undo deleteList: bring back the list and the items that went with it. */
+  function restoreList(id, itemIds = []) {
+    for (const itemId of itemIds) if (state.items[itemId]?.deleted) patch('item', itemId, { deleted: false });
+    return patch('list', id, { deleted: false });
+  }
+
   function deleteList(id) {
     const items = Object.values(state.items).filter((i) => i.listId === id && !i.deleted);
     for (const item of items) patch('item', item.id, { deleted: true });
@@ -544,6 +550,7 @@ export function createStore({
     createList,
     updateList,
     deleteList,
+    restoreList,
     addItem,
     updateItem,
     toggleItem,
