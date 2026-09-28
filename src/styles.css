@@ -92,6 +92,14 @@ html, body { height: 100%; overflow: hidden; }
   position: fixed; top: 0; left: 0; right: 0; height: 100%;
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--bg);
+  /* Keep the app on its own compositing layer for its whole life. iOS Safari
+     otherwise creates the layer the first time the app is moved for the
+     keyboard, and that new layer is blank for a frame (a flash of the page
+     colour). The keyboard handler only ever changes this translate. */
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 body {
   margin: 0;
