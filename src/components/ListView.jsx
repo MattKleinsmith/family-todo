@@ -5,6 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 
@@ -57,7 +58,7 @@ export function ListView({ id, focus }) {
     if (!text.trim()) return;
     const added = store.addItem({ listId: id, text, createdBy: session.name });
     setText('');
-    inputRef.current && inputRef.current.focus();
+    inputRef.current && inputRef.current.focus({ preventScroll: true });
     if (added) requestAnimationFrame(() => document.getElementById(`item-${added.id}`)?.scrollIntoView({ block: 'nearest' }));
   };
 
@@ -99,6 +100,7 @@ export function ListView({ id, focus }) {
           value={text}
           enterkeyhint="done"
           autocomplete="off"
+          onTouchEnd={focusWithoutScrolling}
           onInput={(e) => setText(e.currentTarget.value)}
         />
         <button class="btn primary" type="submit" disabled={!text.trim()} aria-label="Add">Add</button>
