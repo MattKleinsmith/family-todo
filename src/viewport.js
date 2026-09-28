@@ -1,25 +1,35 @@
 // Size the app to the *visible* viewport. On iOS the on-screen keyboard does
-// not shrink the layout viewport; it covers the bottom of it and Safari then
-// scrolls the page to reveal the focused input, which drags everything else
-// off screen. By pinning #app to the visual viewport's height and offset, the
-// header stays put, the list scrolls inside, and the add bar sits right on
-// top of the keyboard.
+// not shrink the layout viewport; it covers the bottom of it, and Safari pans
+// the page to reveal the focused input. Pinning #app to the visual viewport's
+// height and offset keeps the header put, lets the list scroll inside, and
+// keeps the add box above the keyboard.
+//
+// This runs synchronously in the viewport events rather than a frame later:
+// a one-frame lag leaves the app out of place while Safari moves the page,
+// which shows as a flash. It also no longer calls scrollTo(0, 0), which
+// fought Safari's own pan and caused an extra jump.
 export function setupViewport() {
   const vv = window.visualViewport;
   const app = document.getElementById('app');
   if (!vv || !app) return;
-  let raf = 0;
+  let lastH = -1;
+  let lastTop = -1;
   const apply = () => {
-    raf = 0;
-    app.style.height = `${Math.round(vv.height)}px`;
-    app.style.transform = `translateY(${Math.round(vv.offsetTop)}px)`;
-    if (window.scrollY) window.scrollTo(0, 0);
+    const h = Math.round(vv.height);
+    const top = Math.round(vv.offsetTop);
+    if (h !== lastH) {
+      app.style.height = `${h}px`;
+      lastH = h;
+    }
+    if (top !== lastTop) {
+      app.style.transform = top ? `translate3d(0, ${top}px, 0)` : '';
+      lastTop = top;
+    }
+    // While the keyboard is up, the home-indicator strip is hidden behind it.
+    document.documentElement.toggleAttribute('data-keyboard', window.innerHeight - vv.height > 120);
   };
-  const schedule = () => {
-    if (!raf) raf = requestAnimationFrame(apply);
-  };
-  vv.addEventListener('resize', schedule);
-  vv.addEventListener('scroll', schedule);
-  window.addEventListener('orientationchange', schedule);
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+  window.addEventListener('orientationchange', () => requestAnimationFrame(apply));
   apply();
 }
