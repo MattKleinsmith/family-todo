@@ -76,16 +76,33 @@ export function ListView({ id, focus }) {
 
       <div class="content">
       {items.length === 0 && (
-        <div class="empty">
-          <p>Nothing here yet. Add something below.</p>
+        <div class="empty small">
+          <p>Nothing here yet. Add your first item.</p>
         </div>
       )}
 
-      <ul class="items" ref={openRef}>
-        {open.map((item) => (
-          <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
-        ))}
-      </ul>
+      {open.length > 0 && (
+        <ul class="items" ref={openRef}>
+          {open.map((item) => (
+            <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+          ))}
+        </ul>
+      )}
+
+      {/* Right under the list, so the keyboard moves things as little as possible;
+          on a long list it sticks to the bottom of the visible area. */}
+      <form class="add-bar inline" onSubmit={add}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Add an item…"
+          value={text}
+          enterkeyhint="done"
+          autocomplete="off"
+          onInput={(e) => setText(e.currentTarget.value)}
+        />
+        <button class="btn primary" type="submit" disabled={!text.trim()} aria-label="Add">Add</button>
+      </form>
 
       {done.length > 0 && (
         <>
@@ -103,18 +120,6 @@ export function ListView({ id, focus }) {
       )}
       </div>
 
-      <form class="add-bar" onSubmit={add}>
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Add an item…"
-          value={text}
-          enterkeyhint="done"
-          autocomplete="off"
-          onInput={(e) => setText(e.currentTarget.value)}
-        />
-        <button class="btn primary" type="submit" disabled={!text.trim()} aria-label="Add">Add</button>
-      </form>
 
       {editing && store.get().items[editing] && (
         <EditItemSheet item={store.get().items[editing]} onClose={() => setEditing(null)} />
