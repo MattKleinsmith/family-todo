@@ -8,7 +8,7 @@ import { Bell } from './Bell.jsx';
 import { Glyph } from './Glyph.jsx';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
-  DEFAULT_SLEEP_INTERVAL_MIN,
+  DEFAULT_NAP_AFTER_FEED_MIN,
   currentState,
   dayLabel,
   dayStart,
@@ -18,12 +18,13 @@ import {
   fromInputValue,
   groupByDay,
   nextFeedAt,
-  nextSleepAt,
+  nextNapAt,
   relative,
   toInputValue,
 } from '../baby.js';
 
 const INTERVALS = [120, 150, 180, 210, 240];
+const NAP_AFTER = [60, 90, 120, 150, 180];
 
 export function Baby({ focus }) {
   const { store, session, navigate } = useApp();
@@ -55,7 +56,7 @@ export function Baby({ focus }) {
   const profile = store.getMeta('baby') || {};
   const name = profile.name || 'Baby';
   const feedEvery = profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN;
-  const sleepEvery = profile.sleepIntervalMin || DEFAULT_SLEEP_INTERVAL_MIN;
+  const napAfter = profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN;
   const state = currentState(logs, now);
 
   const flash = (log) => {
@@ -74,7 +75,7 @@ export function Baby({ focus }) {
   };
 
   const feedDue = nextFeedAt(state.lastFeed, feedEvery);
-  const sleepDue = nextSleepAt(state, sleepEvery);
+  const sleepDue = nextNapAt(state, napAfter);
   const groups = groupByDay(logs);
   const older = store.summaries();
   const [showOlder, setShowOlder] = useState(false);
@@ -278,13 +279,13 @@ function BabyMenuSheet({ profile, onClose }) {
   const { store, navigate } = useApp();
   const [name, setName] = useState(profile.name || '');
   const [feedEvery, setFeedEvery] = useState(profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN);
-  const [sleepEvery, setSleepEvery] = useState(profile.sleepIntervalMin || DEFAULT_SLEEP_INTERVAL_MIN);
+  const [napAfter, setNapAfter] = useState(profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN);
   const save = (e) => {
     e.preventDefault();
-    store.setMeta('baby', { name: name.trim(), feedIntervalMin: feedEvery, sleepIntervalMin: sleepEvery });
+    store.setMeta('baby', { name: name.trim(), feedIntervalMin: feedEvery, napAfterFeedMin: napAfter });
     onClose();
   };
-  const label = (m) => (m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
+  const label = (m) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
   return (
     <Sheet title="Baby settings" onClose={onClose}>
       <form class="stack" onSubmit={save}>
@@ -301,13 +302,13 @@ function BabyMenuSheet({ profile, onClose }) {
           </div>
         </div>
         <div class="field">
-          <label>Naps about every</label>
+          <label>Nap about this long after a feed starts</label>
           <div class="chips" role="radiogroup">
-            {INTERVALS.map((m) => (
-              <button type="button" key={m} role="radio" aria-checked={sleepEvery === m} class={'chip' + (sleepEvery === m ? ' on' : '')} onClick={() => setSleepEvery(m)}>{label(m)}</button>
+            {NAP_AFTER.map((m) => (
+              <button type="button" key={m} role="radio" aria-checked={napAfter === m} class={'chip' + (napAfter === m ? ' on' : '')} onClick={() => setNapAfter(m)}>{label(m)}</button>
             ))}
           </div>
-          <p class="hint">Used only for the "next feed" and "next nap" hints. Both count from the start of the last one. Adjust as his rhythm changes.</p>
+          <p class="hint">Used only for the "next feed" and "next nap" hints, both counted from when the last feed started. Adjust as his rhythm changes.</p>
         </div>
         <button class="btn primary big" type="submit">Save</button>
         <button class="btn link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>Family code, sync & app settings</button>
