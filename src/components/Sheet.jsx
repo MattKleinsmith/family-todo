@@ -23,10 +23,25 @@ export function Sheet({ title, onClose, children }) {
     const el = sheetRef.current;
     if (!el) return;
 
+    /** True if the touch is inside something scrolled away from its top (the sheet itself or an inner list like the icon grid). */
+    const inScrolledArea = (target) => {
+      for (let n = target; n && n !== el.parentNode; n = n.parentNode) {
+        if (n.nodeType !== 1) continue;
+        if (n.scrollTop > 0) {
+          const oy = getComputedStyle(n).overflowY;
+          if (n === el || oy === 'auto' || oy === 'scroll') return true;
+        }
+        if (n === el) break;
+      }
+      return false;
+    };
+
     const onStart = (e) => {
       if (e.touches.length !== 1) return;
       const fromHandle = !!e.target.closest('.sheet-handle, .sheet-title');
-      if (!fromHandle && el.scrollTop > 0) return;
+      // A pull only closes the sheet if everything under the finger is at its
+      // top; otherwise the finger is scrolling that area back up.
+      if (!fromHandle && inScrolledArea(e.target)) return;
       drag.current = { startY: e.touches[0].clientY, startT: performance.now(), dy: 0, active: false };
     };
 
