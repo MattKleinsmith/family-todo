@@ -12,9 +12,16 @@
 // data. Using several relays gives redundancy if one goes away.
 //
 // Per relay we remember (in localStorage) the newest event time we saw and how
-// far our own writes have been acknowledged, so a normal app open only fetches
-// what changed since last time. A full re-sync runs every two weeks as a safety
-// net against clock skew or a relay that lost data.
+// far that relay has confirmed holding our records, so a normal app open only
+// fetches what changed since last time (plus a 10-minute overlap for clock
+// differences between phones) and re-sends nothing the relay already has.
+//
+// Every two weeks each relay gets a health check: relays that support NIP-45
+// COUNT are asked how many of our records they hold, and only a relay that is
+// short (or can't count) gets a full re-download and re-upload.
+//
+// Relays that say "slow down" get it: we pause, space our writes further apart,
+// and ease back once they're accepting again.
 
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure';
 import { encrypt, decrypt, ciphertextLength } from './keys.js';
@@ -32,7 +39,9 @@ const KIND = 30078;
 const TAG_PREFIX = 'ft:';
 const PAGE = 500;
 const PUBLISH_SPACING_MS = 25;
-const SINCE_MARGIN_S = 24 * 3600; // re-fetch a day of overlap: cheap, and tolerant of clock skew
+const MAX_SPACING_MS = 500;
+const SINCE_MARGIN_S = 10 * 60; // overlap on reopen, to tolerate clocks that disagree a little
+const COUNT_TIMEOUT_MS = 4000;
 const FULL_SYNC_EVERY_MS = 14 * 24 * 3600 * 1000;
 
 export function dTagFor(entity) {
@@ -62,9 +71,11 @@ export function createSync({
   storage = globalThis.localStorage,
   now = () => Date.now(),
   fullSyncEveryMs = FULL_SYNC_EVERY_MS,
+  sinceMarginS = SINCE_MARGIN_S,
+  throttleBaseMs = 5000,
 }) {
   const conns = new Map();
-  const signedCache = new Map(); // `${id}:${updatedAt}:${minute}` -> signed event
+  const signedCache = new Map(); // `${id}:${updatedAt}` -> signed event
   let stopped = true;
   let lastSyncAt = null;
   let subCounter = 0;
@@ -124,7 +135,7 @@ export function createSync({
   }
 
   function cursor(url) {
-    if (!cursors[url]) cursors[url] = { newest: 0, ackedUpTo: 0, fullSyncAt: 0 };
+    if (!cursors[url]) cursors[url] = { newest: 0, ackedUpTo: 0, fullSyncAt: 0, syncedAt: 0 };
     return cursors[url];
   }
 
@@ -138,7 +149,15 @@ export function createSync({
     return relays.map((url) => {
       const c = conns.get(url);
       const open = !!(c && c.ws && c.ws.readyState === 1);
-      return { url, connected: open, connecting: !!(c && c.ws && c.ws.readyState === 0), known: c ? c.known.size : 0 };
+      return {
+        url,
+        connected: open,
+        connecting: !!(c && c.ws && c.ws.readyState === 0),
+        known: c ? c.known.size : 0,
+        throttled: c ? c.throttled : 0,
+        slowedDown: !!(c && c.spacing > PUBLISH_SPACING_MS),
+        lastCount: c ? c.lastCount : null,
+      };
     });
   }
 
@@ -208,14 +227,19 @@ export function createSync({
     const step = () => {
       if (stopped || !conn.ws || conn.ws.readyState !== 1 || conn.queue.length === 0) {
         conn.draining = false;
-        maybeAdvanceAck(conn);
+        scheduleAck();
+        return;
+      }
+      const wait = conn.pauseUntil - now();
+      if (wait > 0) {
+        setTimeout(step, wait); // the relay asked us to slow down
         return;
       }
       const entity = conn.queue.shift();
       const ev = eventFor(entity);
       conn.pending.set(ev.id, entity);
       send(conn, ['EVENT', ev]);
-      setTimeout(step, PUBLISH_SPACING_MS);
+      setTimeout(step, conn.spacing);
     };
     step();
   }
@@ -246,19 +270,46 @@ export function createSync({
     }
   }
 
-  /** Once a reconcile round has fully drained with no failures, remember how far this relay is caught up. */
-  function maybeAdvanceAck(conn) {
-    if (conn.reconcileMax === null) return;
-    if (conn.queue.length > 0 || conn.pending.size > 0 || conn.draining) return;
-    if (!conn.reconcileFailed) {
-      const c = cursor(conn.url);
-      if (conn.reconcileMax > c.ackedUpTo) {
-        c.ackedUpTo = conn.reconcileMax;
-        saveCursors();
-      }
+  /**
+   * How far each relay is caught up: the latest time T such that the relay has
+   * confirmed holding (or served us) every one of our records changed up to T.
+   * Records it permanently refused count as done, so one bad record can't pin
+   * the cursor. Recomputed shortly after confirmations arrive.
+   */
+  let ackTimer = null;
+  function scheduleAck() {
+    if (ackTimer) return;
+    ackTimer = setTimeout(() => {
+      ackTimer = null;
+      for (const conn of conns.values()) advanceAck(conn);
+      saveCursors();
+    }, 300);
+  }
+
+  /**
+   * While a relay is caught up and live, we've seen everything it has up to
+   * now. Anything published later is stamped later (give or take clock
+   * differences, covered by the reopen overlap), so the next reopen only needs
+   * to look back from this moment.
+   */
+  function touchSynced(conn) {
+    if (conn.live && conn.ws && conn.ws.readyState === 1) cursor(conn.url).syncedAt = Math.floor(now() / 1000);
+  }
+
+  function advanceAck(conn) {
+    touchSynced(conn);
+    const c = cursor(conn.url);
+    let pendingMin = Infinity;
+    let max = c.ackedUpTo;
+    for (const e of store.all()) {
+      if (e.updatedAt <= c.ackedUpTo) continue;
+      const k = conn.known.get(e.id);
+      if ((k !== undefined && k >= e.updatedAt) || conn.failed.has(`${e.id}:${e.updatedAt}`)) {
+        if (e.updatedAt > max) max = e.updatedAt;
+      } else if (e.updatedAt < pendingMin) pendingMin = e.updatedAt;
     }
-    conn.reconcileMax = null;
-    conn.reconcileFailed = false;
+    const next = pendingMin === Infinity ? max : pendingMin - 1;
+    if (next > c.ackedUpTo) c.ackedUpTo = next;
   }
 
   // ---- Receiving ----
@@ -286,27 +337,29 @@ export function createSync({
     noteCreated(entity.id, ev.created_at);
     store.applyRemote(entity);
     noteRelayHas(conn, entity);
+    scheduleAck();
     lastSyncAt = now();
   }
 
   function reconcile(conn) {
     const c = cursor(conn.url);
+    // We've now seen everything this relay had, and from here on the live
+    // subscription delivers whatever is published. So the "seen up to" time
+    // keeps moving while we're connected (see touchSynced).
+    conn.live = true;
+    touchSynced(conn);
     const floor = conn.fullMode ? 0 : c.ackedUpTo;
-    let max = c.ackedUpTo;
     for (const entity of store.all()) {
-      if (entity.updatedAt > max) max = entity.updatedAt;
       if (entity.updatedAt > floor) queuePublish(conn, entity);
     }
     if (conn.fullMode) {
       c.fullSyncAt = now();
       conn.fullMode = false;
     }
-    conn.reconcileMax = max;
-    conn.reconcileFailed = false;
     saveCursors();
     lastSyncAt = now();
     emitStatus();
-    if (!conn.draining) maybeAdvanceAck(conn);
+    scheduleAck();
   }
 
   // ---- Connection lifecycle ----
@@ -363,20 +416,75 @@ export function createSync({
       if (!entity) return;
       if (ok) {
         noteRelayHas(conn, entity);
+        touchSynced(conn);
         lastSyncAt = now();
+        // After a good run, ease back towards full speed.
+        if (++conn.okStreak >= 10) {
+          conn.okStreak = 0;
+          conn.spacing = Math.max(PUBLISH_SPACING_MS, Math.floor(conn.spacing / 2));
+          conn.throttle = 0;
+        }
         emitStatus();
-      } else if (/rate|slow|too many/i.test(reason || '')) {
-        conn.reconcileFailed = true;
-        setTimeout(() => queuePublish(conn, entity), 3000);
+      } else if (/rate|slow|too many|limit/i.test(reason || '')) {
+        // Back off: pause this relay, double the pause each time (up to 2 min),
+        // and space further writes out. Put the event back at the front.
+        conn.okStreak = 0;
+        conn.throttle = Math.min(Math.max(conn.throttle * 2, throttleBaseMs), 120_000);
+        conn.pauseUntil = now() + conn.throttle;
+        conn.spacing = Math.min(conn.spacing * 2, MAX_SPACING_MS);
+        conn.throttled++;
+        if (!conn.queue.some((e) => e.id === entity.id)) conn.queue.unshift(entity);
+        drain(conn);
+      } else if (/duplicate|replaced|have newer/i.test(reason || '')) {
+        // The relay already has this version or a newer one.
+        noteRelayHas(conn, entity);
       } else {
-        conn.reconcileFailed = true;
         conn.failed.add(`${entity.id}:${entity.updatedAt}`);
         console.warn('Relay rejected event', conn.url, reason);
       }
-      if (!conn.draining) maybeAdvanceAck(conn);
+      scheduleAck();
+    } else if (type === 'COUNT') {
+      const [, id, body] = msg;
+      if (conn.countCheck && conn.countCheck.id === id) finishCountCheck(conn, body && typeof body.count === 'number' ? body.count : null);
+    } else if (type === 'CLOSED') {
+      if (conn.countCheck && conn.countCheck.id === msg[1]) finishCountCheck(conn, null);
     } else if (type === 'NOTICE') {
+      // Relays that don't know COUNT answer with a NOTICE; treat that as "can't count".
+      if (conn.countCheck) finishCountCheck(conn, null);
       console.info('Relay notice', conn.url, msg[1]);
     }
+  }
+
+  /** Health check before a periodic full re-sync: skip the download if the relay holds at least as many records as we do. */
+  function startCountCheck(conn) {
+    const id = `c${++subCounter}`;
+    conn.countCheck = { id, timer: setTimeout(() => finishCountCheck(conn, null), COUNT_TIMEOUT_MS) };
+    send(conn, ['COUNT', id, { kinds: [KIND], authors: [keys.pk] }]);
+  }
+
+  function finishCountCheck(conn, count) {
+    const check = conn.countCheck;
+    if (!check) return;
+    clearTimeout(check.timer);
+    conn.countCheck = null;
+    const c = cursor(conn.url);
+    conn.lastCount = count;
+    if (count !== null && count >= store.all().length) {
+      c.fullSyncAt = now();
+      saveCursors();
+      startBackfill(conn, false);
+    } else {
+      startBackfill(conn, true);
+    }
+  }
+
+  function startBackfill(conn, full) {
+    const c = cursor(conn.url);
+    conn.fullMode = full;
+    const from = Math.max(c.newest || 0, c.syncedAt || 0);
+    const filter = full ? { limit: PAGE } : { since: Math.max(0, from - sinceMarginS), limit: PAGE };
+    conn.liveSub = subscribe(conn, filter);
+    if (full) conn.fullSyncs++;
   }
 
   function connect(url) {
@@ -393,8 +501,14 @@ export function createSync({
         subs: new Map(),
         liveSub: null,
         fullMode: false,
-        reconcileMax: null,
-        reconcileFailed: false,
+        countCheck: null,
+        lastCount: null,
+        spacing: PUBLISH_SPACING_MS,
+        throttle: 0,
+        pauseUntil: 0,
+        okStreak: 0,
+        throttled: 0,
+        fullSyncs: 0,
         backoff: 1000,
         timer: null,
       };
@@ -411,22 +525,22 @@ export function createSync({
     }
     conn.ws = ws;
     ws.onopen = () => {
+      conn.live = false;
       conn.backoff = 1000;
       conn.subs.clear();
       conn.queue.length = 0;
       conn.pending.clear();
       conn.draining = false;
-      conn.reconcileMax = null;
       const c = cursor(url);
-      const needFull = !c.fullSyncAt || now() - c.fullSyncAt > fullSyncEveryMs || !c.newest;
-      conn.fullMode = needFull;
-      const filter = needFull ? { limit: PAGE } : { since: Math.max(0, c.newest - SINCE_MARGIN_S), limit: PAGE };
-      conn.liveSub = subscribe(conn, filter);
+      if (!c.newest || !c.fullSyncAt) startBackfill(conn, true); // first time with this relay
+      else if (now() - c.fullSyncAt > fullSyncEveryMs) startCountCheck(conn); // periodic health check
+      else startBackfill(conn, false);
       emitStatus();
     };
     ws.onmessage = (m) => onMessage(conn, m.data);
     ws.onerror = () => {};
     ws.onclose = () => {
+      conn.live = false;
       conn.ws = null;
       emitStatus();
       scheduleReconnect(conn);
@@ -453,12 +567,19 @@ export function createSync({
     if (typeof document === 'undefined' || document.visibilityState === 'visible') reconnectAll();
   };
 
+  let heartbeat = null;
   let unsubscribeLocal = null;
   function start() {
     if (!stopped) return;
     stopped = false;
     cursors = loadCursors();
     unsubscribeLocal = store.onLocalChange(publish);
+    // Keep the "seen up to" time moving while connected, so an idle phone that
+    // gets closed (or killed in the background) doesn't re-fetch on reopen.
+    heartbeat = setInterval(() => {
+      for (const conn of conns.values()) touchSynced(conn);
+      saveCursors();
+    }, 60_000);
     for (const url of relays) connect(url);
     if (typeof window !== 'undefined') {
       window.addEventListener('online', reconnectAll);
@@ -478,8 +599,13 @@ export function createSync({
       window.removeEventListener('pageshow', reconnectAll);
       document.removeEventListener('visibilitychange', onVisible);
     }
+    clearTimeout(ackTimer);
+    ackTimer = null;
+    clearInterval(heartbeat);
     for (const conn of conns.values()) {
+      advanceAck(conn); // keep confirmations that arrived just before closing
       clearTimeout(conn.timer);
+      if (conn.countCheck) clearTimeout(conn.countCheck.timer);
       if (conn.ws) {
         conn.ws.onclose = null;
         conn.ws.close();
@@ -488,8 +614,10 @@ export function createSync({
     }
     conns.clear();
     clearTimeout(cursorTimer);
+    clearTimeout(statsTimer);
     try {
       storage && storage.setItem(cursorKey, JSON.stringify(cursors));
+      storage && storage.setItem(statsKey, JSON.stringify(stats));
     } catch {
       /* ignore */
     }
