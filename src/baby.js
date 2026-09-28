@@ -126,3 +126,17 @@ export function groupByDay(logs) {
   }
   return groups;
 }
+
+/**
+ * How to show the time until something is due, for the big countdowns at the
+ * top of the baby tab: `lead` sits above `value` in small type, `note` below.
+ * `state` is 'later', 'soon' (within 15 minutes), 'due' (now) or 'late'.
+ */
+export function countdown(target, now = Date.now()) {
+  if (target == null) return null;
+  const diff = target - now;
+  const at = formatTime(target);
+  if (diff >= MIN) return { lead: 'in', value: formatDuration(diff), note: `~${at}`, state: diff <= 15 * MIN ? 'soon' : 'later' };
+  if (diff > -MIN) return { lead: 'due', value: 'Now', note: `~${at}`, state: 'due' };
+  return { lead: 'overdue by', value: formatDuration(-diff), note: `was due ${at}`, state: 'late' };
+}
