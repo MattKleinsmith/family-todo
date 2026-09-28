@@ -76,7 +76,9 @@ missed period ("Missed last week"), red for two or more ("Missed 3 weeks"). The
 summary card lists what's overdue, and the House tab shows a badge with the count
 from any screen. A chore isn't held against you for the period it was added in.
 
-Tap a chore to rename it, change how often it comes around, pick an icon, see who
+Tap a chore to give it to someone ("Whose job": anyone, or one person in the family;
+it shows as a name tag on the row, "You" on their own phone), rename it, change how
+often it comes around, pick an icon, see who
 did it when, remove a completion, or mark it done on an earlier day ("I mowed on
 Saturday but forgot to tap"). New families, and families upgrading to this version,
 start with: wipe the counters and do the dishes (daily), mow the lawn and change the

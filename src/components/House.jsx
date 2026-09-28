@@ -10,6 +10,7 @@ import { Bell } from './Bell.jsx';
 import { GearIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
 import { swipeDelete } from './SwipeAction.jsx';
+import { familyNames, sameName } from '../members.js';
 import {
   CADENCES,
   CADENCE_LABEL,
@@ -150,7 +151,7 @@ function Summary({ chores, now }) {
   if (overdue.length) {
     glyph = 'broom';
     title = `${overdue.length} overdue`;
-    sub = overdue.map((x) => x.chore.name).join(', ');
+    sub = overdue.map((x) => (x.chore.owner ? `${x.chore.name} (${x.chore.owner})` : x.chore.name)).join(', ');
   } else if (allDone) {
     glyph = 'sparkles';
     title = 'All caught up';
@@ -218,7 +219,9 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
 }
 
 function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete }) {
+  const { session } = useApp();
   const swipe = swipeDelete(onDelete);
+  const mine = sameName(chore.owner, session.name);
   const level = status.state === 'overdue' ? (status.missed >= 2 ? 'late' : 'behind') : '';
   let sub;
   if (status.done) sub = <>Done {whenLabel(status.done.at, now)}{status.done.by ? ` · ${status.done.by}` : ''}</>;
@@ -240,12 +243,40 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
         <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>
         <span class="chore-lines">
           <span class="chore-name">{chore.name}</span>
-          <span class="item-by chore-sub">{sub}</span>
+          <span class="item-by chore-sub">
+            {chore.owner && <span class={'owner-pill' + (mine ? ' mine' : '')} aria-label={mine ? 'Yours:' : `${chore.owner}’s:`}>{mine ? 'You' : chore.owner}</span>}
+            {sub}
+          </span>
         </span>
       </button>
       {grip && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
       {swipe.action}
     </li>
+  );
+}
+
+/** Who looks after a chore: anyone, or one person in the family. */
+function OwnerPicker({ value, onChange }) {
+  const { store, session } = useApp();
+  const people = familyNames(store.members(), [session.name]);
+  // Someone who has since left still shows while they own it, so it can be changed.
+  if (value && !people.some((p) => sameName(p, value))) people.push(value);
+  const chip = (label, v) => {
+    const on = v ? sameName(v, value) : !value;
+    return (
+      <button type="button" key={label} role="radio" aria-checked={on} class={'chip' + (on ? ' on' : '')} onClick={() => onChange(v)}>
+        {label}
+      </button>
+    );
+  };
+  return (
+    <div class="field">
+      <label>Whose job</label>
+      <div class="chips" role="radiogroup" aria-label="Whose job">
+        {chip('Anyone', null)}
+        {people.map((p) => chip(sameName(p, session.name) ? `${p} (you)` : p, p))}
+      </div>
+    </div>
   );
 }
 
@@ -264,10 +295,11 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
   const [name, setName] = useState('');
   const [cadence, setCadence] = useState(initial);
   const [icon, setIcon] = useState(null); // null: follow the cadence's default
+  const [owner, setOwner] = useState(null); // null: anyone
 
   const submit = (e) => {
     e.preventDefault();
-    const c = store.addChore({ name, cadence, icon: icon || DEFAULT_ICON[cadence], createdBy: session.name });
+    const c = store.addChore({ name, cadence, icon: icon || DEFAULT_ICON[cadence], owner, createdBy: session.name });
     if (!c) return;
     onClose();
     onCreated(c);
@@ -284,6 +316,7 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
           <label>How often</label>
           <CadencePicker value={cadence} onChange={setCadence} />
         </div>
+        <OwnerPicker value={owner} onChange={setOwner} />
         <EmojiPicker value={icon || DEFAULT_ICON[cadence]} onChange={setIcon} />
         <button class="btn primary big" type="submit" disabled={!name.trim()}>Add chore</button>
       </form>
@@ -310,6 +343,10 @@ function ChoreSheet({ chore, onClose }) {
   const pickCadence = (k) => {
     setCadence(k);
     if (k !== chore.cadence) change({ cadence: k });
+  };
+  const pickOwner = (v) => {
+    const same = v ? sameName(v, chore.owner) : !chore.owner;
+    if (!same) change({ owner: v });
   };
   const pickIcon = (v) => {
     setIcon(v);
@@ -373,6 +410,7 @@ function ChoreSheet({ chore, onClose }) {
           </div>
           <p class="hint">Forgot to tick it off? Pick the day it was done.</p>
         </div>
+        <OwnerPicker value={chore.owner || null} onChange={pickOwner} />
         <EmojiPicker value={icon} onChange={pickIcon} />
         <button class="btn primary big" type="submit">Done</button>
         <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false })); }}>Delete chore</button>

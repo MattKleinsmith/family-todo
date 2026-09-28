@@ -9,7 +9,7 @@
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
 import { iconToText } from './icons.js';
-import { memberKey } from './members.js';
+import { memberKey, sameName } from './members.js';
 
 const MAX_ENTRIES = 500;
 
@@ -88,7 +88,7 @@ export function describeChange(prev, next, ctx = {}) {
     }
     case 'chore': {
       const cadence = (c) => ({ daily: 'daily', weekly: 'weekly', monthly: 'monthly' })[c.cadence] || 'weekly';
-      if (!prev) return next.deleted || next.starter ? null : `added the ${cadence(next)} chore ${q(next.name)}`;
+      if (!prev) return next.deleted || next.starter ? null : `added the ${cadence(next)} chore ${q(next.name)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.deleted && !prev.deleted) return `removed the chore ${q(prev.name)}`;
       if (prev.deleted && !next.deleted) return `put back the chore ${q(next.name)}`;
       if (next.deleted) return null;
@@ -107,6 +107,14 @@ export function describeChange(prev, next, ctx = {}) {
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
       if (next.name !== prev.name) parts.push(`renamed the chore ${q(prev.name)} to ${q(next.name)}`);
       if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadence(next)}`);
+      if ((next.owner || '') !== (prev.owner || ''))
+        parts.push(
+          !next.owner
+            ? `made ${q(next.name)} anyone’s job`
+            : sameName(next.owner, next.updatedBy)
+              ? `took on ${q(next.name)}`
+              : `gave ${q(next.name)} to ${next.owner}`,
+        );
       if ((next.icon || '') !== (prev.icon || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.icon ? iconToText(next.icon) : 'none'}`);
       if (next.order !== prev.order && !next.renumbered) parts.push(`reordered the chore ${q(next.name)}`);
       return parts.length ? joinParts(parts) : null;

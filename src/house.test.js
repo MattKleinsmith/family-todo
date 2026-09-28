@@ -168,6 +168,10 @@ describe('chore activity', () => {
     expect(describeChange(c(), c({ name: 'Mow' }))).toBe('renamed the chore “Mow the lawn” to “Mow”');
     expect(describeChange(c(), c({ deleted: true }))).toBe('removed the chore “Mow the lawn”');
     expect(describeChange(c(), c({ order: 5 }))).toBe('reordered the chore “Mow the lawn”');
+    expect(describeChange(c(), c({ owner: 'Huishi' }))).toBe('gave “Mow the lawn” to Huishi');
+    expect(describeChange(c(), c({ owner: 'Matthew', updatedBy: 'Matthew' }))).toBe('took on “Mow the lawn”');
+    expect(describeChange(c({ owner: 'Huishi' }), c({ owner: null }))).toBe('made “Mow the lawn” anyone’s job');
+    expect(describeChange(null, c({ owner: 'Matthew' }))).toBe('added the weekly chore “Mow the lawn” for Matthew');
   });
   it('dropping the oldest completion to make room is not news', () => {
     const old = Array.from({ length: 20 }, (_, i) => ({ at: MON - (i + 1) * 86400_000 }));
