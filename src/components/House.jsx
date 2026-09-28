@@ -298,11 +298,28 @@ function ChoreSheet({ chore, onClose }) {
   const history = doneList(chore);
   const today = dateInput(Date.now());
 
-  const save = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    store.updateChore(chore.id, { name: name.trim(), cadence, icon });
+  // Changes save as they're made, so closing the sheet any way at all keeps them.
+  const change = (changes) => store.updateChore(chore.id, changes);
+  const pickCadence = (k) => {
+    setCadence(k);
+    if (k !== chore.cadence) change({ cadence: k });
+  };
+  const pickIcon = (v) => {
+    setIcon(v);
+    if (v !== chore.icon) change({ icon: v });
+  };
+  const commitName = () => {
+    const n = name.trim();
+    if (n && n !== chore.name) change({ name: n });
+    else if (!n) setName(chore.name);
+  };
+  const close = () => {
+    commitName();
     onClose();
+  };
+  const submit = (e) => {
+    e.preventDefault();
+    close();
   };
 
   const logPast = () => {
@@ -315,15 +332,15 @@ function ChoreSheet({ chore, onClose }) {
   };
 
   return (
-    <Sheet title="Chore" onClose={onClose}>
-      <form class="stack" onSubmit={save}>
+    <Sheet title="Chore" onClose={close}>
+      <form class="stack" onSubmit={submit}>
         <div class="field">
           <label for="chore-edit-name">Name</label>
-          <input id="chore-edit-name" type="text" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+          <input id="chore-edit-name" type="text" value={name} enterkeyhint="done" onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} />
         </div>
         <div class="field">
           <label>How often</label>
-          <CadencePicker value={cadence} onChange={setCadence} />
+          <CadencePicker value={cadence} onChange={pickCadence} />
           <p class="hint">{cadence === 'weekly' ? 'Weeks run Monday to Sunday.' : cadence === 'monthly' ? 'Any day in the month counts.' : 'Resets every morning.'} If a whole {cadence === 'daily' ? 'day' : cadence === 'weekly' ? 'week' : 'month'} goes by without it, it’s flagged as overdue.</p>
         </div>
         <div class="field">
@@ -349,8 +366,8 @@ function ChoreSheet({ chore, onClose }) {
           </div>
           <p class="hint">Forgot to tick it off? Pick the day it was done.</p>
         </div>
-        <EmojiPicker value={icon} onChange={setIcon} />
-        <button class="btn primary big" type="submit" disabled={!name.trim()}>Save</button>
+        <EmojiPicker value={icon} onChange={pickIcon} />
+        <button class="btn primary big" type="submit">Done</button>
         <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); }}>Delete chore</button>
       </form>
     </Sheet>

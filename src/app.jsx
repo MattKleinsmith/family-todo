@@ -40,6 +40,7 @@ export function App() {
     let sync = null;
     let feed = null;
     let timers = [];
+    let onHide = null;
     (async () => {
       try {
         const keys = await deriveKeys(session.code);
@@ -70,6 +71,16 @@ export function App() {
           if (sync && sync.status().online) runMaintenance({ store, sync });
         };
         timers = [setTimeout(tidy, 20_000), setInterval(tidy, 6 * 3600 * 1000)];
+        // The app can be swiped away at any moment: write out anything still waiting.
+        const flushAll = () => {
+          activity.flushNow();
+          store.flushSave();
+        };
+        onHide = (e) => {
+          if (e.type === 'pagehide' || document.visibilityState === 'hidden') flushAll();
+        };
+        document.addEventListener('visibilitychange', onHide);
+        window.addEventListener('pagehide', onHide);
         // Make sure this phone is listed as a member of the family.
         const me = store.getEntity('member', deviceId());
         const current = sessionRef.current;
@@ -108,6 +119,10 @@ export function App() {
     return () => {
       cancelled = true;
       for (const t of timers) clearTimeout(t), clearInterval(t);
+      if (onHide) {
+        document.removeEventListener('visibilitychange', onHide);
+        window.removeEventListener('pagehide', onHide);
+      }
       if (feed) feed.stop();
       if (sync) sync.stop();
     };

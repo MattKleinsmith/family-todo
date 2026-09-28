@@ -140,3 +140,17 @@ describe('back-to-back writes', () => {
     expect(b.updatedAt).toBeGreaterThan(a.updatedAt);
   });
 });
+
+describe('flushSave', () => {
+  it('writes pending changes right away instead of after the debounce', async () => {
+    const m = new Map();
+    const storage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+    const store = createStore({ storageKey: 'data', storage });
+    await store.ready;
+    store.createList({ name: 'Groceries' });
+    expect(m.get('data')).toBeUndefined();
+    store.flushSave();
+    expect(JSON.parse(m.get('data')).lists).not.toEqual({});
+    store.flushSave(); // nothing pending: no-op
+  });
+});

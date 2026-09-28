@@ -151,6 +151,7 @@ export function createStore({
     pendingSave = false;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
+      saveTimer = null;
       try {
         const r = storage.setItem(storageKey, JSON.stringify(state));
         if (r && typeof r.catch === 'function') r.catch((err) => console.warn('Could not save data', err));
@@ -158,6 +159,19 @@ export function createStore({
         console.warn('Could not save data', err);
       }
     }, 50);
+  }
+
+  /** Write now instead of after the short debounce, e.g. because the app is being closed. */
+  function flushSave() {
+    if (!storage || !storageKey || !loaded || !saveTimer) return;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    try {
+      const r = storage.setItem(storageKey, JSON.stringify(state));
+      if (r && typeof r.catch === 'function') r.catch((err) => console.warn('Could not save data', err));
+    } catch (err) {
+      console.warn('Could not save data', err);
+    }
   }
 
   function notify() {
@@ -520,6 +534,7 @@ export function createStore({
 
   return {
     ready,
+    flushSave,
     get: () => state,
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     onLocalChange: (fn) => (localChangeListeners.add(fn), () => localChangeListeners.delete(fn)),
