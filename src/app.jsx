@@ -16,6 +16,7 @@ import { ListView } from './components/ListView.jsx';
 import { Settings } from './components/Settings.jsx';
 import { Baby } from './components/Baby.jsx';
 import { Activity } from './components/Activity.jsx';
+import { House } from './components/House.jsx';
 
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -198,6 +199,7 @@ export function App() {
   if (route.name === 'list') page = <ListView id={route.id} focus={route.focus} />;
   else if (route.name === 'settings') page = <Settings />;
   else if (route.name === 'baby') page = <Baby focus={route.focus} />;
+  else if (route.name === 'house') page = <House focus={route.focus} />;
   else if (route.name === 'activity') page = <Activity />;
   else page = <Home />;
 
