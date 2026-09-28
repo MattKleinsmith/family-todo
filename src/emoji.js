@@ -2,13 +2,17 @@
 
 const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
 const pictographic = /\p{Extended_Pictographic}/u;
+const flag = /[\u{1F1E6}-\u{1F1FF}]/u;
+// Keycaps (1️⃣, #️⃣, *️⃣) are a plain digit or symbol plus the combining keycap mark.
+const keycap = /^[0-9#*]\uFE0F?\u20E3$/u;
 
 /** First emoji in a string (so pasting or typing on the emoji keyboard just works), or null. */
 export function extractEmoji(input) {
   if (!input) return null;
   const graphemes = segmenter ? [...segmenter.segment(input)].map((s) => s.segment) : Array.from(input);
   for (const g of graphemes) {
-    if (pictographic.test(g) || /[\u{1F1E6}-\u{1F1FF}]/u.test(g)) return g;
+    if (pictographic.test(g) || flag.test(g)) return g;
+    if (keycap.test(g)) return g.includes('\uFE0F') ? g : g.replace('\u20E3', '\uFE0F\u20E3');
   }
   return null;
 }
