@@ -237,11 +237,11 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
         <span class="check-mark">{status.done ? '✓' : ''}</span>
       </button>
       <button class="item-text chore-text" onClick={onEdit}>
-        <span class="chore-name">
-          <span class="chore-icon"><ListIcon value={chore.icon} size={22} /></span>
-          {chore.name}
+        <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>
+        <span class="chore-lines">
+          <span class="chore-name">{chore.name}</span>
+          <span class="item-by chore-sub">{sub}</span>
         </span>
-        <span class="item-by chore-sub">{sub}</span>
       </button>
       {grip && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
       {swipe.action}
