@@ -16,9 +16,10 @@ export function TabBar({ active }) {
   );
   return (
     <nav class="tabbar" aria-label="Sections">
-      {tab('lists', '#/', 'memo', 'Lists')}
+      {/* Most frequent first: the baby's rhythm, then recurring chores, then one-off lists. */}
       {tab('baby', '#/baby', 'baby', 'Baby')}
       {tab('house', '#/house', 'house', 'House', overdue)}
+      {tab('lists', '#/', 'memo', 'Lists')}
     </nav>
   );
 }
