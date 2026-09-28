@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { finalizeEvent } from 'nostr-tools/pure';
 import { createStore } from './store.js';
-import { createSync, dTagFor } from './sync.js';
+import { createSync, dTagFor, SYNC_SCHEMA } from './sync.js';
 import { deriveKeys, encrypt } from './keys.js';
 
 // ---- A tiny in-memory Nostr relay with replaceable-event semantics ----
@@ -165,6 +165,49 @@ describe('sync', () => {
     b.sync.stop();
   });
 
+  it('an upgrade that adds a record type reads everything once more', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    const a = phone(fake, keys);
+    a.store.addChore({ name: 'Mow the lawn', cadence: 'weekly' });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 1 && fake.relays.get(URLS[1]).events.size === 1);
+    // A phone whose older build already moved its cursors past that record.
+    const storage = memoryStorage();
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    const old = Object.fromEntries(URLS.map((u) => [u, { newest: future, ackedUpTo: future, fullSyncAt: Date.now(), syncedAt: future }]));
+    storage.setItem(`ft:sync:${keys.pk}`, JSON.stringify(old));
+    const b = phone(fake, keys, storage);
+    await waitFor(() => b.store.chores().length === 1);
+    expect(storage.getItem(`ft:sync:${keys.pk}`)).toBeNull();
+    a.sync.stop();
+    b.sync.stop();
+  });
+
+  it('a phone that sets up the starter chores before syncing does not undo the other phone', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    const starters = [{ id: 'starter-mow', name: 'Mow the lawn', cadence: 'weekly', icon: '' }];
+    const a = phone(fake, keys);
+    a.store.seedChores(starters, 1000);
+    a.store.markChore('starter-mow', { at: Date.now(), by: 'Matthew' });
+    await waitFor(() => [...fake.relays.values()].every((r) => r.events.size === 2));
+    // B seeds while offline, then connects: its seed reaches the relays after A's edit.
+    const storage = memoryStorage();
+    const store = createStore({ storageKey: 'data', storage });
+    store.seedChores(starters, 1000);
+    const sync = createSync({ keys, store, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage });
+    sync.start();
+    await waitFor(() => store.getEntity('chore', 'starter-mow').done.length === 1);
+    await sleep(300);
+    expect(a.store.getEntity('chore', 'starter-mow').done.map((d) => d.by)).toEqual(['Matthew']);
+    // And a third phone joining later gets A's version too.
+    const c = phone(fake, keys);
+    await waitFor(() => c.store.getEntity('chore', 'starter-mow')?.done.length === 1);
+    a.sync.stop();
+    sync.stop();
+    c.sync.stop();
+  });
+
   it('after a restart it fetches incrementally and does not republish everything', async () => {
     const keys = await keysPromise;
     const fake = makeFakeRelays(URLS);
@@ -175,7 +218,7 @@ describe('sync', () => {
     await waitFor(() => fake.relays.get(URLS[0]).events.size === 5);
     await sleep(80); // let the ack cursor advance
     a.sync.stop();
-    const cursors = JSON.parse(storage.getItem(`ft:sync:${keys.pk}`));
+    const cursors = JSON.parse(storage.getItem(`ft:sync:v${SYNC_SCHEMA}:${keys.pk}`));
     expect(cursors[URLS[0]].newest).toBeGreaterThan(0);
     expect(cursors[URLS[0]].ackedUpTo).toBeGreaterThan(0);
     expect(cursors[URLS[0]].fullSyncAt).toBeGreaterThan(0);

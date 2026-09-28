@@ -20,7 +20,7 @@ export function isNewer(a, b) {
   return stableStringify(a) > stableStringify(b);
 }
 
-const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries', activity: 'activities' };
+const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries', activity: 'activities', chore: 'chores' };
 const DAY = 24 * 3600 * 1000;
 
 /** Position used for manual ordering. Records never moved fall back to when they were created. */
@@ -29,6 +29,8 @@ export function sortKey(e) {
 }
 
 const ORDER_STEP = 1000;
+const CHORE_HISTORY = 20;
+const SEED_STAMP = 1;
 const MIN_GAP = 1e-3;
 
 export function isValidEntity(e) {
@@ -42,7 +44,7 @@ export function isValidEntity(e) {
 }
 
 function emptyState() {
-  return { lists: {}, items: {}, logs: {}, meta: {}, members: {}, summaries: {}, activities: {} };
+  return { lists: {}, items: {}, logs: {}, meta: {}, members: {}, summaries: {}, activities: {}, chores: {} };
 }
 
 /**
@@ -197,6 +199,23 @@ export function createStore({
     return stamped;
   }
 
+  /**
+   * Put a default record (like a starter chore) that must never beat a real
+   * one: it carries the oldest possible timestamp, so any version another phone
+   * has already written, edited or deleted wins the merge. Skipped if the
+   * record is already here.
+   */
+  function seedLocal(entity) {
+    const key = BUCKETS[entity.type];
+    if (!key || state[key][entity.id]) return state[key]?.[entity.id] || null;
+    const seeded = { ...entity, updatedAt: SEED_STAMP, updatedBy: '' };
+    state = { ...state, [key]: { ...state[key], [entity.id]: seeded } };
+    save();
+    notify();
+    for (const fn of localChangeListeners) fn(seeded, null);
+    return seeded;
+  }
+
   function patch(type, id, changes) {
     const existing = bucket(type)[id];
     if (!existing) return null;
@@ -320,10 +339,63 @@ export function createStore({
   /** Deletion markers last changed before `before`. */
   function tombstones(before) {
     const out = [];
-    for (const type of ['item', 'list', 'log']) {
+    for (const type of ['item', 'list', 'log', 'chore']) {
       for (const e of Object.values(bucket(type))) if (e.deleted && e.updatedAt < before) out.push(e);
     }
     return out;
+  }
+
+  // ---- House chores: daily, weekly and monthly, with their recent completions ----
+
+  function addChore({ name, cadence = 'weekly', icon = '', createdBy = '' }) {
+    const n = (name || '').trim();
+    if (!n) return null;
+    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, done: [], createdBy, createdAt: stamp(), deleted: false });
+  }
+
+  /**
+   * The starter chores, with fixed ids and contents, so phones that set them
+   * up independently hold identical records; seedLocal makes sure they never
+   * overwrite what someone has already done with them.
+   */
+  function seedChores(starters, createdAt) {
+    starters.forEach((c, i) =>
+      seedLocal({ id: c.id, type: 'chore', name: c.name, cadence: c.cadence, icon: c.icon, done: [], createdBy: '', createdAt: createdAt + i, deleted: false, starter: true }),
+    );
+    seedLocal({ id: 'house', type: 'meta', seeded: true, createdAt, deleted: false });
+  }
+
+  function updateChore(id, changes) {
+    return patch('chore', id, changes);
+  }
+
+  function deleteChore(id) {
+    return patch('chore', id, { deleted: true });
+  }
+
+  /** Record a completion at `at`. Only the most recent HISTORY_LIMIT are kept. */
+  function markChore(id, { at = now(), by = '' } = {}) {
+    const c = state.chores[id];
+    if (!c) return null;
+    const done = [{ at, by }, ...(c.done || []).filter((d) => d.at !== at)].sort((a, b) => b.at - a.at).slice(0, CHORE_HISTORY);
+    return patch('chore', id, { done });
+  }
+
+  function unmarkChore(id, at) {
+    const c = state.chores[id];
+    if (!c) return null;
+    return patch('chore', id, { done: (c.done || []).filter((d) => d.at !== at) });
+  }
+
+  function chores() {
+    return Object.values(state.chores)
+      .filter((c) => !c.deleted)
+      .sort(byKey);
+  }
+
+  /** True once this phone holds any chore record at all, deleted ones included. */
+  function hasAnyChores() {
+    return Object.keys(state.chores).length > 0;
   }
 
   // ---- Daily summaries of compacted baby logs ----
@@ -420,6 +492,7 @@ export function createStore({
       ...Object.values(state.members),
       ...Object.values(state.summaries),
       ...Object.values(state.activities),
+      ...Object.values(state.chores),
     ];
   }
 
@@ -474,6 +547,15 @@ export function createStore({
     setSummary,
     summaries,
     activityBuckets,
+    seedLocal,
+    addChore,
+    seedChores,
+    updateChore,
+    deleteChore,
+    markChore,
+    unmarkChore,
+    chores,
+    hasAnyChores,
     lists,
     itemsFor,
     moveTo,

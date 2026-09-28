@@ -7,6 +7,9 @@ family code once, and every list stays in sync between everyone who has the code
 - A **Baby** tab that tracks when he slept and when he ate: one tap to log a feed
   or a nap, a status card that shows asleep/awake time, last feed and when the next
   one is due, a daily timeline with totals, and tap-to-fix times.
+- A **House** tab for chores that come around every day, week or month (dishes,
+  counters, mowing, the cat litter, draining the water heater), with an overdue
+  flag when a whole day, week or month went by without one.
 - Drag the grip on any list or item to reorder; the order syncs.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
@@ -58,6 +61,23 @@ Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nud
 the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
 it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
 crosses midnight is split across the two days.
+
+## The house tracker
+
+Chores are grouped into **Every day**, **Every week** and **Every month**. Tap the
+circle when one is done; it counts for the current day, week (Monday to Sunday) or
+calendar month, then comes back around. Tap it again to undo.
+
+If the previous period went by without it, the chore is flagged: amber for one
+missed period ("Missed last week"), red for two or more ("Missed 3 weeks"). The
+summary card lists what's overdue, and the House tab shows a badge with the count
+from any screen. A chore isn't held against you for the period it was added in.
+
+Tap a chore to rename it, change how often it comes around, pick an icon, see who
+did it when, remove a completion, or mark it done on an earlier day ("I mowed on
+Saturday but forgot to tap"). New families, and families upgrading to this version,
+start with: wipe the counters and do the dishes (daily), mow the lawn and change the
+cat litter (weekly), drain a gallon from the water heater (monthly).
 
 ## The activity feed
 
@@ -150,6 +170,7 @@ src/
   app.jsx          boot: session -> keys -> store -> sync, routing
   store.js         local-first state, last-writer-wins merge, selectors
   baby.js          baby tracker helpers: current state, daily totals, formatting
+  house.js         house tracker helpers: day/week/month periods, done/due/overdue
   activity.js      the activity feed: describes each incoming change in plain words
   maintenance.js   compacts old baby logs into daily summaries, prunes old deletion markers
   kv.js            IndexedDB key/value storage (localStorage fallback)
@@ -157,6 +178,6 @@ src/
   sync.js          relay connections, publish/subscribe, reconcile, cursors
   keys.js          key derivation and encryption from the family code
   codes.js         family code generation and normalisation
-  components/      Join, Home, ListView, Baby, Activity, Bell, TabBar, Settings, Sheet, SyncBadge, EmojiPicker, Icons
+  components/      Join, Home, ListView, Baby, House, Activity, Bell, TabBar, Settings, Sheet, SyncBadge, EmojiPicker, Icons
 e2e/sync.e2e.mjs   live check against the public relays
 ```

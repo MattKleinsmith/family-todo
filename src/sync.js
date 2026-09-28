@@ -43,6 +43,8 @@ const MAX_SPACING_MS = 500;
 const SINCE_MARGIN_S = 10 * 60; // overlap on reopen, to tolerate clocks that disagree a little
 const COUNT_TIMEOUT_MS = 4000;
 const FULL_SYNC_EVERY_MS = 14 * 24 * 3600 * 1000;
+// Bump when a build adds a record type (see cursorKey).
+export const SYNC_SCHEMA = 2;
 
 export function dTagFor(entity) {
   return `${TAG_PREFIX}${entity.type}:${entity.id}`;
@@ -78,8 +80,17 @@ export function createSync({
   const signedCache = new Map(); // `${id}:${updatedAt}` -> signed event
   let stopped = true;
   let lastSyncAt = null;
+  let caughtUp = false;
   let subCounter = 0;
-  const cursorKey = `ft:sync:${keys.pk}`;
+  // Versioned: a phone running an older build drops record types it doesn't
+  // know yet but still moves its cursors past them, so a build that adds a
+  // type reads everything once more under a new key.
+  const cursorKey = `ft:sync:v${SYNC_SCHEMA}:${keys.pk}`;
+  try {
+    for (let v = 1; v < SYNC_SCHEMA; v++) storage && storage.removeItem(v === 1 ? `ft:sync:${keys.pk}` : `ft:sync:v${v}:${keys.pk}`);
+  } catch {
+    /* ignore */
+  }
   let cursors = loadCursors();
 
   // Lifetime traffic from this phone to the relays, for the debug panel.
@@ -142,7 +153,8 @@ export function createSync({
   function status() {
     let connected = 0;
     for (const c of conns.values()) if (c.ws && c.ws.readyState === 1) connected++;
-    return { connected, total: relays.length, lastSyncAt, online: connected > 0 };
+    // caughtUp: some relay has sent everything it holds since this session started.
+    return { connected, total: relays.length, lastSyncAt, online: connected > 0, caughtUp };
   }
 
   function relayStates() {
@@ -347,6 +359,7 @@ export function createSync({
     // subscription delivers whatever is published. So the "seen up to" time
     // keeps moving while we're connected (see touchSynced).
     conn.live = true;
+    caughtUp = true;
     touchSynced(conn);
     const floor = conn.fullMode ? 0 : c.ackedUpTo;
     for (const entity of store.all()) {

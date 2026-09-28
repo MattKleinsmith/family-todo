@@ -22,7 +22,11 @@ export function targetFor(entry, store) {
       return `#/baby${log && !log.deleted ? `?focus=${log.id}` : ''}`;
     }
     case 'meta':
-      return '#/baby';
+      return entry.entityId === 'baby' ? '#/baby' : null;
+    case 'chore': {
+      const chore = store.getEntity('chore', entry.entityId);
+      return `#/house${chore && !chore.deleted ? `?focus=${chore.id}` : ''}`;
+    }
     case 'member':
       return '#/settings';
     default:

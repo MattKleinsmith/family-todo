@@ -83,6 +83,30 @@ export function describeChange(prev, next, ctx = {}) {
         parts.push(`set naps to about ${every(next.napAfterFeedMin || NAP_DEFAULT)} after a feed`);
       return parts.length ? joinParts(parts) : null;
     }
+    case 'chore': {
+      const cadence = (c) => ({ daily: 'daily', weekly: 'weekly', monthly: 'monthly' })[c.cadence] || 'weekly';
+      if (!prev) return next.deleted || next.starter ? null : `added the ${cadence(next)} chore ${q(next.name)}`;
+      if (next.deleted && !prev.deleted) return `removed the chore ${q(prev.name)}`;
+      if (next.deleted) return null;
+      const parts = [];
+      const had = new Set((prev.done || []).map((d) => d.at));
+      const has = new Set((next.done || []).map((d) => d.at));
+      const added = (next.done || []).filter((d) => !had.has(d.at)).sort((a, b) => b.at - a.at);
+      const removed = (prev.done || []).filter((d) => !has.has(d.at));
+      for (const d of added) {
+        // Ticked off now, or filled in afterwards for an earlier day.
+        if (next.updatedAt - d.at < 3600_000) parts.push(`checked off ${q(next.name)}`);
+        else parts.push(`marked ${q(next.name)} done on ${new Date(d.at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`);
+      }
+      // Only the history cap trimming the oldest entry isn't news.
+      const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
+      if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
+      if (next.name !== prev.name) parts.push(`renamed the chore ${q(prev.name)} to ${q(next.name)}`);
+      if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadence(next)}`);
+      if ((next.icon || '') !== (prev.icon || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.icon ? iconToText(next.icon) : 'none'}`);
+      if (next.order !== prev.order && !next.renumbered) parts.push(`reordered the chore ${q(next.name)}`);
+      return parts.length ? joinParts(parts) : null;
+    }
     case 'member': {
       const dev = next.device ? ` on ${/^[aeiou]/i.test(next.device) ? 'an' : 'a'} ${next.device}` : '';
       if (!prev) return next.leftAt || next.backfilled ? null : `joined the family${dev}`;
