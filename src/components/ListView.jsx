@@ -3,7 +3,8 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
-import { BackIcon, DotsIcon } from './Icons.jsx';
+import { BackIcon, DotsIcon, GripIcon } from './Icons.jsx';
+import { gripProps } from '../drag.js';
 import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 
@@ -16,6 +17,8 @@ export function ListView({ id, focus }) {
   const [showDone, setShowDone] = useState(true);
   const [flash, setFlash] = useState(null);
   const inputRef = useRef(null);
+  const openRef = useRef(null);
+  const grip = gripProps(() => ({ container: openRef.current, onDrop: (ids, moved) => store.moveTo('item', moved, ids) }));
 
   // Arriving from the activity feed: scroll to the item in question and highlight it briefly.
   useEffect(() => {
@@ -78,9 +81,9 @@ export function ListView({ id, focus }) {
         </div>
       )}
 
-      <ul class="items">
+      <ul class="items" ref={openRef}>
         {open.map((item) => (
-          <ItemRow key={item.id} item={item} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
+          <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} />
         ))}
       </ul>
 
@@ -121,9 +124,9 @@ export function ListView({ id, focus }) {
   );
 }
 
-function ItemRow({ item, flash, onToggle, onEdit }) {
+function ItemRow({ item, flash, grip, onToggle, onEdit }) {
   return (
-    <li id={`item-${item.id}`} class={'item' + (item.done ? ' is-done' : '') + (flash ? ' flash' : '')}>
+    <li id={`item-${item.id}`} data-id={item.id} class={'item' + (item.done ? ' is-done' : '') + (flash ? ' flash' : '')}>
       <button class="check" aria-label={item.done ? 'Mark not done' : 'Mark done'} aria-pressed={item.done} onClick={onToggle}>
         <span class="check-mark">{item.done ? '✓' : ''}</span>
       </button>
@@ -131,6 +134,11 @@ function ItemRow({ item, flash, onToggle, onEdit }) {
         <span>{item.text}</span>
         {item.createdBy && <span class="item-by">{item.createdBy}</span>}
       </button>
+      {grip && (
+        <span class="grip" role="button" aria-label={`Drag to reorder ${item.text}`} {...grip}>
+          <GripIcon />
+        </span>
+      )}
     </li>
   );
 }

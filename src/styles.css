@@ -440,3 +440,19 @@ li:last-child > .act { border-bottom: none; }
 .glyph { display: inline-block; vertical-align: middle; flex: none; }
 .big-emoji .glyph { display: block; margin: 0 auto; }
 .segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* Drag to reorder */
+.grip {
+  flex: none; width: 44px; align-self: stretch; display: grid; place-items: center;
+  color: var(--surface-3); touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
+}
+.grip svg { width: 22px; height: 22px; display: block; }
+.card .grip { margin: -14px -12px -14px 0; color: var(--muted); opacity: 0.55; }
+.item .grip { color: var(--muted); opacity: 0.5; }
+.dragging { position: relative; z-index: 10; }
+.dragging.card-row .card, .items .item.dragging {
+  box-shadow: 0 16px 36px rgba(93, 74, 46, 0.22); background: var(--surface);
+}
+.items .item.dragging { border-radius: var(--radius-sm); }
+.dragging .grip { cursor: grabbing; opacity: 1; }
+.items { position: relative; }

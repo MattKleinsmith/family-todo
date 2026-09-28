@@ -23,6 +23,14 @@ export function isNewer(a, b) {
 const BUCKETS = { list: 'lists', item: 'items', log: 'logs', meta: 'meta', member: 'members', summary: 'summaries', activity: 'activities' };
 const DAY = 24 * 3600 * 1000;
 
+/** Position used for manual ordering. Records never moved fall back to when they were created. */
+export function sortKey(e) {
+  return typeof e.order === 'number' && Number.isFinite(e.order) ? e.order : e.createdAt || 0;
+}
+
+const ORDER_STEP = 1000;
+const MIN_GAP = 1e-3;
+
 export function isValidEntity(e) {
   return (
     e &&
@@ -55,6 +63,10 @@ export function createStore({
 } = {}) {
   let state = emptyState();
   let loaded = false;
+  // Timestamps for our own writes never repeat or go backwards, so records
+  // created back to back (like the starter lists) keep their order.
+  let lastStamp = 0;
+  const stamp = () => (lastStamp = Math.max(now(), lastStamp + 1));
   let pendingSave = false;
   const listeners = new Set();
   const localChangeListeners = new Set();
@@ -176,7 +188,7 @@ export function createStore({
   /** Write a record we produced on this device: stamp it, persist it, and hand it to sync. */
   function putLocal(entity) {
     const prev = bucket(entity.type)[entity.id] || null;
-    const stamped = { ...entity, updatedAt: now(), updatedBy: actor() || entity.updatedBy || entity.createdBy || '' };
+    const stamped = { ...entity, updatedAt: stamp(), updatedBy: actor() || entity.updatedBy || entity.createdBy || '' };
     const key = BUCKETS[entity.type];
     state = { ...state, [key]: { ...state[key], [entity.id]: stamped } };
     save();
@@ -200,7 +212,7 @@ export function createStore({
       name: name.trim(),
       emoji,
       createdBy,
-      createdAt: now(),
+      createdAt: stamp(),
       deleted: false,
     });
   }
@@ -226,7 +238,7 @@ export function createStore({
       done: false,
       doneAt: null,
       createdBy,
-      createdAt: now(),
+      createdAt: stamp(),
       deleted: false,
     });
   }
@@ -239,7 +251,7 @@ export function createStore({
     const item = state.items[id];
     if (!item) return null;
     const done = !item.done;
-    return patch('item', id, { done, doneAt: done ? now() : null });
+    return patch('item', id, { done, doneAt: done ? stamp() : null });
   }
 
   function deleteItem(id) {
@@ -270,7 +282,7 @@ export function createStore({
       endAt,
       note,
       createdBy,
-      createdAt: now(),
+      createdAt: stamp(),
       deleted: false,
     });
   }
@@ -289,7 +301,7 @@ export function createStore({
   }
 
   function setMeta(id, changes) {
-    const existing = state.meta[id] || { id, type: 'meta', createdAt: now(), deleted: false };
+    const existing = state.meta[id] || { id, type: 'meta', createdAt: stamp(), deleted: false };
     return putLocal({ ...existing, ...changes });
   }
 
@@ -320,7 +332,7 @@ export function createStore({
     const id = `day:${day}`;
     const existing = state.summaries[id];
     if (existing) return existing;
-    return putLocal({ id, type: 'summary', day, createdAt: now(), deleted: false, ...data });
+    return putLocal({ id, type: 'summary', day, createdAt: stamp(), deleted: false, ...data });
   }
 
   function activityBuckets() {
@@ -336,7 +348,7 @@ export function createStore({
   // ---- Family members: one record per device that has joined ----
 
   function setMember(id, changes) {
-    const existing = state.members[id] || { id, type: 'member', createdAt: now(), deleted: false };
+    const existing = state.members[id] || { id, type: 'member', createdAt: stamp(), deleted: false };
     return putLocal({ ...existing, ...changes });
   }
 
@@ -354,10 +366,12 @@ export function createStore({
       .sort((a, b) => b.startAt - a.startAt);
   }
 
+  const byKey = (a, b) => sortKey(a) - sortKey(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
   function lists() {
     return Object.values(state.lists)
       .filter((l) => !l.deleted)
-      .sort((a, b) => a.createdAt - b.createdAt);
+      .sort(byKey);
   }
 
   function itemsFor(listId) {
@@ -366,8 +380,35 @@ export function createStore({
       .sort((a, b) => {
         if (a.done !== b.done) return a.done ? 1 : -1;
         if (a.done) return (b.doneAt || 0) - (a.doneAt || 0);
-        return a.createdAt - b.createdAt;
+        return byKey(a, b);
       });
+  }
+
+  /**
+   * Put `id` where it sits in `ids` (the full new order of its siblings, after
+   * a drag). Only the moved record changes: it gets a position halfway between
+   * its new neighbours. If those are too close to split, the siblings are
+   * renumbered (marked `renumbered` so the activity feed stays quiet).
+   */
+  function moveTo(type, id, ids) {
+    const get = (x) => bucket(type)[x];
+    const i = ids.indexOf(id);
+    if (i < 0 || !get(id)) return null;
+    const prev = i > 0 ? get(ids[i - 1]) : null;
+    const next = i < ids.length - 1 ? get(ids[i + 1]) : null;
+    if (!prev && !next) return null;
+    let order;
+    if (!prev) order = sortKey(next) - ORDER_STEP;
+    else if (!next) order = sortKey(prev) + ORDER_STEP;
+    else if (sortKey(next) - sortKey(prev) > MIN_GAP) order = (sortKey(prev) + sortKey(next)) / 2;
+    if (order !== undefined) return patch(type, id, { order, renumbered: false });
+    const base = sortKey(get(ids[0]));
+    ids.forEach((x, j) => {
+      if (x === id) return;
+      const want = base + j * ORDER_STEP;
+      if (get(x) && sortKey(get(x)) !== want) patch(type, x, { order: want, renumbered: true });
+    });
+    return patch(type, id, { order: base + i * ORDER_STEP, renumbered: false });
   }
 
   function all() {
@@ -435,6 +476,7 @@ export function createStore({
     activityBuckets,
     lists,
     itemsFor,
+    moveTo,
     logs,
     all,
     getEntity,

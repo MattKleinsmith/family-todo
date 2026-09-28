@@ -57,7 +57,8 @@ function makeFakeRelays(urls, opts = {}) {
         const d = ev.tags.find((t) => t[0] === 'd')?.[1];
         const key = `${ev.pubkey}:${ev.kind}:${d}`;
         const existing = this.relay.events.get(key);
-        if (existing && existing.created_at > ev.created_at) {
+        // Real relays keep the newer created_at, and on a tie the lower id.
+        if (existing && (existing.created_at > ev.created_at || (opts.tieBreakById && existing.created_at === ev.created_at && existing.id < ev.id))) {
           this.deliver(['OK', ev.id, false, 'replaced: have newer event']);
           return;
         }
@@ -213,5 +214,31 @@ describe('sync', () => {
     expect(list.id).toBeTruthy();
     a.sync.stop();
     b.sync.stop();
+  });
+});
+
+describe('same-second edits', () => {
+  it('a quick second edit still reaches the other phone (relays tie-break by id within a second)', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS, { tieBreakById: true });
+    const frozen = 1_800_000_000_000; // every event would land in the same second
+    const a = createStore({});
+    const sa = createSync({ keys, store: a, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage(), now: () => frozen });
+    const b = createStore({});
+    const sb = createSync({ keys, store: b, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage(), now: () => frozen });
+    sa.start();
+    sb.start();
+    await waitFor(() => sa.status().connected === URLS.length && sb.status().connected === URLS.length);
+    const list = a.createList({ name: 'L' });
+    const it1 = a.addItem({ listId: list.id, text: 'Coffee' });
+    await waitFor(() => b.getEntity('item', it1.id));
+    // Each further edit lands on the relays within the same second as the first.
+    for (let i = 0; i < 5; i++) {
+      a.updateItem(it1.id, { text: `Coffee v${i}` });
+      await sleep(15);
+    }
+    await waitFor(() => b.getEntity('item', it1.id)?.text === 'Coffee v4', 2000);
+    sa.stop();
+    sb.stop();
   });
 });

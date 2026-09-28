@@ -179,3 +179,12 @@ describe('reinstalls', () => {
     expect(A.activity.entries().filter((e) => /joined the family/.test(e.text)).map((e) => e.text)).toContain('joined the family on a Mac');
   });
 });
+
+describe('reorder wording', () => {
+  it('describes moves but not renumbering', () => {
+    expect(describeChange(item({ order: 1 }), item({ order: 2 }), ctx)).toBe('reordered “Milk” in Groceries');
+    expect(describeChange(item({ order: 1 }), item({ order: 2, renumbered: true }), ctx)).toBeNull();
+    expect(describeChange(list({ order: 1 }), list({ order: 2 }), ctx)).toBe('reordered the list “Groceries”');
+    expect(describeChange(list({ order: 1 }), list({ order: 2, renumbered: true }), ctx)).toBeNull();
+  });
+});

@@ -146,15 +146,26 @@ export function createSync({
     onStatus(status());
   }
 
+  // Relays keep one event per record and compare them by created_at, which is
+  // in whole seconds; on a tie they keep the lower event id, which may be the
+  // older version. So every new version of a record gets a created_at strictly
+  // later than any we've published or seen for it.
+  const lastCreated = new Map(); // record id -> newest created_at seen or sent
+
+  function noteCreated(id, createdAt) {
+    if (!(lastCreated.get(id) >= createdAt)) lastCreated.set(id, createdAt);
+  }
+
   function eventFor(entity) {
-    const nowMs = now();
-    const key = `${entity.id}:${entity.updatedAt}:${Math.floor(nowMs / 60000)}`;
+    const key = `${entity.id}:${entity.updatedAt}`;
     let ev = signedCache.get(key);
     if (!ev) {
+      const createdAt = Math.max(Math.floor(now() / 1000), (lastCreated.get(entity.id) ?? 0) + 1);
+      noteCreated(entity.id, createdAt);
       ev = finalizeEvent(
         {
           kind: KIND,
-          created_at: Math.floor(nowMs / 1000),
+          created_at: createdAt,
           tags: [['d', dTagFor(entity)]],
           content: encrypt(entity, keys.convKey),
         },
@@ -272,6 +283,7 @@ export function createSync({
       return; // not ours / corrupted
     }
     if (!isValidEntity(entity) || dTagFor(entity) !== d) return;
+    noteCreated(entity.id, ev.created_at);
     store.applyRemote(entity);
     noteRelayHas(conn, entity);
     lastSyncAt = now();
