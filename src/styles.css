@@ -580,3 +580,22 @@ li:last-child > .act { border-bottom: none; }
 }
 .owner-pill.mine { background: var(--accent-soft); color: var(--accent); }
 .is-done.chore .owner-pill { opacity: 0.7; }
+
+/* Baby: the next nap and next feed lead the card */
+.baby-status { gap: 12px; }
+.next-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.next-tile {
+  background: var(--bubble); border-radius: var(--radius-sm); padding: 12px 14px 12px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+.next-head { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 800; color: var(--muted); }
+.next-lead { margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--muted); line-height: 1.1; }
+.next-value { font-size: min(32px, 8vw); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.next-tile.quiet .next-value { margin-top: 8px; color: var(--muted); }
+.next-note { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.next-tile.soon .next-value, .next-tile.due .next-value { color: var(--warn); }
+.next-tile.late .next-value, .next-tile.late .next-lead { color: var(--danger); }
+.next-tile.due, .next-tile.late { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--warn) 55%, transparent); }
+.next-tile.late { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--danger) 55%, transparent); }
+.status-now { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); padding: 0 4px; line-height: 1.35; }
+.status-now .glyph { flex: none; }

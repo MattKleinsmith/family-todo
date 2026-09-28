@@ -21,6 +21,7 @@ import {
   groupByDay,
   nextFeedAt,
   nextNapAt,
+  countdown,
   relative,
   toInputValue,
 } from '../baby.js';
@@ -95,41 +96,33 @@ export function Baby({ focus }) {
       </header>
 
       <div class="content">
-      <section class={'status ' + (state.asleep ? 'asleep' : 'awake')} aria-live="polite">
-        {state.asleep ? (
-          <>
-            <div class="status-main">
-              <span class="status-emoji"><Glyph name="sleeping" size={32} /></span>
-              <div>
-                <div class="status-title">Asleep {formatDuration(now - state.asleep.startAt)}</div>
-                <div class="status-sub">since {formatTime(state.asleep.startAt)}</div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div class="status-main">
-            <span class="status-emoji"><Glyph name="sun" size={32} /></span>
-            <div>
-              <div class="status-title">{state.awakeSince ? `Awake ${formatDuration(now - state.awakeSince)}` : 'Awake'}</div>
-              <div class="status-sub">
-                {state.awakeSince ? `up since ${formatTime(state.awakeSince)}` : 'no sleep logged yet'}
-                {sleepDue ? (sleepDue <= now ? ` · nap due (${relative(sleepDue, now)})` : ` · next nap ~${formatTime(sleepDue)} (${relative(sleepDue, now)})`) : ''}
-              </div>
-            </div>
-          </div>
-        )}
-        <div class="status-row">
-          <span class="status-emoji small"><Glyph name="bottle" size={26} /></span>
-          <div>
-            <div class="status-line">
-              {state.lastFeed ? `Last fed ${formatTime(state.lastFeed.startAt)} (${relative(state.lastFeed.startAt, now)})` : 'No feeds logged yet'}
-            </div>
-            {feedDue && (
-              <div class={'status-sub' + (feedDue <= now ? ' due' : '')}>
-                {feedDue <= now ? `Feed due · ${relative(feedDue, now)}` : `Next feed ~${formatTime(feedDue)} (${relative(feedDue, now)})`}
-              </div>
-            )}
-          </div>
+      <section class={'status baby-status ' + (state.asleep ? 'asleep' : 'awake')} aria-live="polite">
+        {/* What's coming up leads; how things stand now is the small print. */}
+        <div class="next-tiles">
+          {state.asleep ? (
+            <NextTile glyph="sleeping" title="Napping" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} />
+          ) : sleepDue ? (
+            <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} />
+          ) : (
+            <NextTile glyph="sleeping" title="Next nap" value="—" note={state.lastFeed ? 'napped since the last feed' : 'log a feed to see'} quiet />
+          )}
+          {feedDue ? (
+            <NextTile glyph="bottle" title="Next feed" {...countdown(feedDue, now)} />
+          ) : (
+            <NextTile glyph="bottle" title="Next feed" value="—" note="no feeds logged yet" quiet />
+          )}
+        </div>
+        <div class="status-now">
+          <Glyph name={state.asleep ? 'sleeping' : 'sun'} size={18} />
+          <span>
+            {[
+              // While he's asleep the nap tile already says so.
+              state.asleep ? null : state.awakeSince ? `Awake ${formatDuration(now - state.awakeSince)} (since ${formatTime(state.awakeSince)})` : 'Awake · no sleep logged yet',
+              state.lastFeed ? `${state.asleep ? 'Last' : 'last'} fed ${formatTime(state.lastFeed.startAt)} (${relative(state.lastFeed.startAt, now)})` : state.asleep ? 'No feeds logged yet' : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
         </div>
       </section>
 
@@ -219,6 +212,18 @@ export function Baby({ focus }) {
 
       {editing && store.getEntity('log', editing) && <EditLogSheet log={store.getEntity('log', editing)} onClose={() => setEditing(null)} />}
       {menu && <BabyMenuSheet profile={profile} onClose={() => setMenu(false)} />}
+    </div>
+  );
+}
+
+/** One of the two big countdowns at the top: next nap, next feed. */
+function NextTile({ glyph, title, lead = '', value, note = '', state = 'later', quiet = false }) {
+  return (
+    <div class={'next-tile ' + state + (quiet ? ' quiet' : '')}>
+      <div class="next-head"><Glyph name={glyph} size={20} /> {title}</div>
+      {lead && <div class="next-lead">{lead}</div>}
+      <div class="next-value">{value}</div>
+      {note && <div class="next-note">{note}</div>}
     </div>
   );
 }

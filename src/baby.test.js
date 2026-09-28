@@ -105,3 +105,16 @@ describe('store baby logs', () => {
     expect(s.getMeta('baby')).toBeNull();
   });
 });
+
+describe('countdown', () => {
+  it('counts down, then flags due and overdue', async () => {
+    const { countdown, formatTime } = await import('./baby.js');
+    const now = new Date(2026, 8, 28, 14, 0).getTime();
+    const at = (m) => now + m * 60_000;
+    expect(countdown(null, now)).toBeNull();
+    expect(countdown(at(80), now)).toEqual({ lead: 'in', value: '1h 20m', note: `~${formatTime(at(80))}`, state: 'later' });
+    expect(countdown(at(12), now)).toMatchObject({ lead: 'in', value: '12m', state: 'soon' });
+    expect(countdown(at(0.5), now)).toMatchObject({ lead: 'due', value: 'Now', state: 'due' });
+    expect(countdown(at(-25), now)).toEqual({ lead: 'overdue by', value: '25m', note: `was due ${formatTime(at(-25))}`, state: 'late' });
+  });
+});
