@@ -1,10 +1,11 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { TabBar } from './TabBar.jsx';
-import { GearIcon, ChevronIcon } from './Icons.jsx';
+import { GearIcon, GripIcon } from './Icons.jsx';
+import { gripProps } from '../drag.js';
 import { Bell } from './Bell.jsx';
 import { ListIcon } from './ListIcon.jsx';
 import { Glyph } from './Glyph.jsx';
@@ -14,6 +15,8 @@ export function Home() {
   const { store, activity, navigate } = useApp();
   const [creating, setCreating] = useState(false);
   const lists = store.lists();
+  const cardsRef = useRef(null);
+  const grip = gripProps(() => ({ container: cardsRef.current, onDrop: (ids, moved) => store.moveTo('list', moved, ids) }));
 
   return (
     <div class="screen has-tabs">
@@ -33,13 +36,13 @@ export function Home() {
           <p>No lists yet. Make a grocery list, a house to-do list, or one just for you.</p>
         </div>
       ) : (
-        <ul class="cards">
+        <ul class="cards" ref={cardsRef}>
           {lists.map((l) => {
             const items = store.itemsFor(l.id);
             const left = items.filter((i) => !i.done).length;
             const fresh = activity ? activity.unseenForList(l.id) : 0;
             return (
-              <li key={l.id}>
+              <li key={l.id} data-id={l.id} class="card-row">
                 <a class="card" href={`#/list/${l.id}`}>
                   <span class="card-emoji"><ListIcon value={l.emoji} size={28} /></span>
                   <span class="card-body">
@@ -49,7 +52,7 @@ export function Home() {
                       {fresh > 0 && <span class="fresh"> · {fresh} new change{fresh === 1 ? '' : 's'}</span>}
                     </span>
                   </span>
-                  <span class="chev"><ChevronIcon /></span>
+                  <span class="grip" role="button" aria-label={`Drag to reorder ${l.name}`} {...grip}><GripIcon /></span>
                 </a>
               </li>
             );

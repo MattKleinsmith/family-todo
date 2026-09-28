@@ -32,6 +32,7 @@ export function describeChange(prev, next, ctx = {}) {
       if (next.text !== prev.text) parts.push(`renamed ${q(prev.text)} to ${q(next.text)}`);
       if (next.done !== prev.done) parts.push(`${next.done ? 'checked off' : 'unchecked'} ${q(next.text)}`);
       if (next.listId !== prev.listId) parts.push(`moved ${q(next.text)} to ${listName(next.listId)}`);
+      else if (next.order !== prev.order && !next.renumbered) parts.push(`reordered ${q(next.text)}`);
       if (parts.length === 0) return null;
       return `${joinParts(parts)} ${where}`;
     }
@@ -43,6 +44,7 @@ export function describeChange(prev, next, ctx = {}) {
       const parts = [];
       if (next.name !== prev.name) parts.push(`renamed the list ${q(prev.name)} to ${q(next.name)}`);
       if ((next.emoji || '') !== (prev.emoji || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.emoji ? iconToText(next.emoji) : 'none'}`);
+      if (next.order !== prev.order && !next.renumbered) parts.push(`reordered the list ${q(next.name)}`);
       return parts.length ? joinParts(parts) : null;
     }
     case 'log': {

@@ -83,3 +83,60 @@ describe('store', () => {
     expect(seen).toEqual(['list']);
   });
 });
+
+describe('reordering', () => {
+  it('moves one record between its new neighbours and keeps the rest untouched', () => {
+    let t = 1000;
+    const s = createStore({ now: () => t++ });
+    const L = s.createList({ name: 'L' });
+    const [a, b, c, d] = ['a', 'b', 'c', 'd'].map((x) => s.addItem({ listId: L.id, text: x }));
+    const before = { ...s.get().items };
+    s.moveTo('item', d.id, [a.id, d.id, b.id, c.id]);
+    expect(s.itemsFor(L.id).map((i) => i.text)).toEqual(['a', 'd', 'b', 'c']);
+    for (const x of [a, b, c]) expect(s.get().items[x.id]).toBe(before[x.id]); // only d changed
+    s.moveTo('item', a.id, [d.id, b.id, c.id, a.id]);
+    expect(s.itemsFor(L.id).map((i) => i.text)).toEqual(['d', 'b', 'c', 'a']);
+    s.moveTo('item', c.id, [c.id, d.id, b.id, a.id]);
+    expect(s.itemsFor(L.id).map((i) => i.text)).toEqual(['c', 'd', 'b', 'a']);
+  });
+
+  it('survives repeated moves into the same gap by renumbering', () => {
+    let t = 1000;
+    const s = createStore({ now: () => t++ });
+    const L = s.createList({ name: 'L' });
+    const items = Array.from({ length: 5 }, (_, i) => s.addItem({ listId: L.id, text: `i${i}` }));
+    // Keep dropping the last item between the first two: the gap halves every time.
+    for (let n = 0; n < 60; n++) {
+      const ids = s.itemsFor(L.id).map((i) => i.id);
+      const last = ids.pop();
+      ids.splice(1, 0, last);
+      s.moveTo('item', last, ids);
+      expect(s.itemsFor(L.id).map((i) => i.id)).toEqual(ids);
+    }
+    expect(items).toHaveLength(5);
+  });
+
+  it('orders lists too, and done items stay at the bottom', () => {
+    let t = 1000;
+    const s = createStore({ now: () => t++ });
+    const [x, y, z] = ['x', 'y', 'z'].map((name) => s.createList({ name }));
+    s.moveTo('list', z.id, [z.id, x.id, y.id]);
+    expect(s.lists().map((l) => l.name)).toEqual(['z', 'x', 'y']);
+    const a = s.addItem({ listId: x.id, text: 'a' });
+    const b = s.addItem({ listId: x.id, text: 'b' });
+    s.toggleItem(a.id);
+    expect(s.itemsFor(x.id).map((i) => i.text)).toEqual(['b', 'a']);
+  });
+});
+
+describe('back-to-back writes', () => {
+  it('keeps creation order even within the same millisecond', () => {
+    const s = createStore({ now: () => 5000 }); // a frozen clock
+    for (const name of ['Groceries', 'House', 'Todos', 'Baby', 'Garden']) s.createList({ name });
+    expect(s.lists().map((l) => l.name)).toEqual(['Groceries', 'House', 'Todos', 'Baby', 'Garden']);
+    const L = s.lists()[0];
+    const a = s.addItem({ listId: L.id, text: 'a' });
+    const b = s.updateItem(a.id, { text: 'b' });
+    expect(b.updatedAt).toBeGreaterThan(a.updatedAt);
+  });
+});

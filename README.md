@@ -7,6 +7,7 @@ family code once, and every list stays in sync between everyone who has the code
 - A **Baby** tab that tracks when he slept and when he ate: one tap to log a feed
   or a nap, a status card that shows asleep/awake time, last feed and when the next
   one is due, a daily timeline with totals, and tap-to-fix times.
+- Drag the grip on any list or item to reorder; the order syncs.
 - Works offline; changes sync when you're back online.
 - No accounts, no server to run, nothing to pay for.
 - An **Activity** feed (the bell) that tells you exactly what the other person changed
