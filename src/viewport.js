@@ -22,7 +22,9 @@ export function setupViewport() {
       lastH = h;
     }
     if (top !== lastTop) {
-      app.style.transform = top ? `translate3d(0, ${top}px, 0)` : '';
+      // Always a translate, never removed, so the app's layer is never torn
+      // down and rebuilt (which is what flashes on iOS).
+      app.style.transform = `translate3d(0, ${top}px, 0)`;
       lastTop = top;
     }
     // While the keyboard is up, the home-indicator strip is hidden behind it.
