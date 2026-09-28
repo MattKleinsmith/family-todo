@@ -11,6 +11,7 @@ import { GearIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { familyNames, sameName } from '../members.js';
+import { newestOf, useMarkSeen } from './useSeen.js';
 import {
   CADENCES,
   CADENCE_LABEL,
@@ -54,6 +55,7 @@ export function House({ focus }) {
   const [adding, setAdding] = useState(null); // cadence
   const [flash, setFlash] = useState(null);
   useStarterChores();
+  useMarkSeen('house', newestOf(Object.values(store.get().chores)));
 
   // Days and weeks roll over while the app is open.
   useEffect(() => {

@@ -9,6 +9,7 @@ import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
+import { newestOf, useMarkSeen } from './useSeen.js';
 
 export function ListView({ id, focus }) {
   const { store, session, navigate, deleted } = useApp();
@@ -21,6 +22,8 @@ export function ListView({ id, focus }) {
   const inputRef = useRef(null);
   const openRef = useRef(null);
   const grip = gripProps(() => ({ container: openRef.current, onDrop: (ids, moved) => store.moveTo('item', moved, ids) }));
+  // Deleted items count too: seeing that they're gone is seeing the change.
+  useMarkSeen(`list:${id}`, newestOf([list, ...Object.values(store.get().items).filter((i) => i.listId === id)]));
 
   // Arriving from the activity feed: scroll to the item in question and highlight it briefly.
   useEffect(() => {

@@ -132,6 +132,14 @@ export function describeChange(prev, next, ctx = {}) {
   }
 }
 
+/** Which screen shows the thing an entry is about, so looking at that screen counts as seeing it. */
+export function areaOf(e) {
+  if (e.listId) return `list:${e.listId}`;
+  if (e.entityType === 'chore') return 'house';
+  if (e.entityType === 'log' || (e.entityType === 'meta' && e.entityId === 'baby')) return 'baby';
+  return null;
+}
+
 export function actorOf(entity) {
   return entity.updatedBy || entity.createdBy || 'Someone';
 }
@@ -160,6 +168,7 @@ export function createActivity({
   let pending = []; // written here, not yet in a chunk
   let legacy = []; // other people's entries from the old local-only feed, kept for display
   let lastSeenAt = null;
+  let areaSeen = {}; // area -> seen up to, from looking at that list or tab
   let flushTimer = null;
   let saveTimer = null;
   let loaded = false;
@@ -206,6 +215,7 @@ export function createActivity({
     } else if (parsed && typeof parsed === 'object') {
       if (typeof parsed.lastSeenAt === 'number') lastSeenAt = parsed.lastSeenAt;
       if (Array.isArray(parsed.legacy)) legacy = parsed.legacy;
+      if (parsed.areaSeen && typeof parsed.areaSeen === 'object') areaSeen = parsed.areaSeen;
     }
   }
 
@@ -219,7 +229,9 @@ export function createActivity({
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
-        const r = storage.setItem(storageKey, JSON.stringify({ v: 2, lastSeenAt, legacy }));
+        // Anything the overall "seen up to" already covers needn't be kept per area.
+        for (const [k, t] of Object.entries(areaSeen)) if (t <= (lastSeenAt || 0)) delete areaSeen[k];
+        const r = storage.setItem(storageKey, JSON.stringify({ v: 2, lastSeenAt, legacy, areaSeen }));
         if (r && typeof r.catch === 'function') r.catch(() => {});
       } catch {
         /* ignore */
@@ -369,7 +381,8 @@ export function createActivity({
       if (!e || !e.id || seen.has(e.id)) return;
       seen.add(e.id);
       const mine = mineOverride ?? isMine(e);
-      out.push({ ...e, mine, seen: mine || e.at <= cut });
+      const area = areaOf(e);
+      out.push({ ...e, mine, seen: mine || e.at <= cut || (area != null && e.at <= (areaSeen[area] || 0)) });
     };
     for (const b of store.activityBuckets()) for (const e of b.entries || []) add(e);
     for (const e of pending) add(e);
@@ -405,6 +418,21 @@ export function createActivity({
     },
     unseenCount: () => entries().reduce((n, e) => n + (e.seen ? 0 : 1), 0),
     unseenForList: (listId) => entries().reduce((n, e) => n + (!e.seen && e.listId === listId ? 1 : 0), 0),
+    unseenForArea: (area) => entries().reduce((n, e) => n + (!e.seen && areaOf(e) === area ? 1 : 0), 0),
+    /**
+     * You're looking at this list or tab: everything shown there counts as
+     * seen. `shownUpTo` is the newest change on screen, so an entry that only
+     * arrives after you've looked (entries trail their change by a moment)
+     * still counts as seen.
+     */
+    markAreaSeen(area, shownUpTo = 0) {
+      if (!area) return;
+      const latest = entries().reduce((m, e) => (areaOf(e) === area ? Math.max(m, e.at) : m), shownUpTo);
+      if (latest <= Math.max(seenAt(), areaSeen[area] || 0)) return;
+      areaSeen = { ...areaSeen, [area]: latest };
+      save();
+      notify();
+    },
     markAllSeen() {
       const latest = entries().reduce((m, e) => Math.max(m, e.at), Date.now());
       if (latest <= seenAt()) return;
