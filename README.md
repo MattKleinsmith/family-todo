@@ -113,6 +113,15 @@ open message stores that anyone can publish to and subscribe from.
   roughly 1 MB per relay at steady state.
 - **Practical bottleneck**: the one-time download when a new phone joins, about
   5–10 seconds on cellular, and it no longer grows with time.
+- **Opening the app** downloads only what changed since that phone last synced,
+  plus a 10-minute overlap for clocks that disagree. Measured against the real
+  relays with 161 records and nothing changed: about 0.5 KB, down from 386 KB.
+  Nothing a relay has confirmed is re-sent.
+- **Fortnightly health check**: relays that support NIP-45 COUNT are asked how
+  many records they hold; only a relay that is short, or can't count, gets a
+  full re-download and re-upload.
+- **Relays that say "slow down"** get paused (5 s doubling to 2 min) and sent to
+  more slowly (up to one write per 0.5 s), easing back after 10 accepted writes.
 
 Trade-offs worth knowing: public relays are run by volunteers and could
 disappear or purge data. Because every phone holds a full copy and re-seeds the

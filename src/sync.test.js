@@ -9,7 +9,7 @@ import { deriveKeys, encrypt } from './keys.js';
 function makeFakeRelays(urls, opts = {}) {
   const relays = new Map();
   for (const url of urls) {
-    relays.set(url, { events: new Map(), sockets: new Set(), log: [] });
+    relays.set(url, { events: new Map(), sockets: new Set(), log: [], limited: 0 });
   }
   const matches = (ev, f) =>
     (!f.kinds || f.kinds.includes(ev.kind)) &&
@@ -50,10 +50,22 @@ function makeFakeRelays(urls, opts = {}) {
         const limited = filter.limit ? found.slice(0, filter.limit) : found;
         for (const ev of limited) this.deliver(['EVENT', id, ev]);
         this.deliver(['EOSE', id]);
+      } else if (type === 'COUNT') {
+        if (opts.noCount) {
+          this.deliver(['NOTICE', 'ERROR: bad msg: unknown cmd']);
+          return;
+        }
+        const [, id, filter] = msg;
+        this.deliver(['COUNT', id, { count: [...this.relay.events.values()].filter((ev) => matches(ev, filter)).length }]);
       } else if (type === 'CLOSE') {
         this.subs.delete(msg[1]);
       } else if (type === 'EVENT') {
         const ev = msg[1];
+        if (opts.rateLimit && this.relay.limited < opts.rateLimit) {
+          this.relay.limited++;
+          this.deliver(['OK', ev.id, false, 'rate-limited: you are noting too much']);
+          return;
+        }
         const d = ev.tags.find((t) => t[0] === 'd')?.[1];
         const key = `${ev.pubkey}:${ev.kind}:${d}`;
         const existing = this.relay.events.get(key);
@@ -240,5 +252,151 @@ describe('same-second edits', () => {
     await waitFor(() => b.getEntity('item', it1.id)?.text === 'Coffee v4', 2000);
     sa.stop();
     sb.stop();
+  });
+});
+
+describe('bandwidth', () => {
+  const HOUR = 3600_000;
+  it('a reopen downloads nothing old and re-sends nothing the relay already confirmed', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    const storage = memoryStorage();
+    let clock = 1_800_000_000_000;
+    const store = createStore({ now: () => clock });
+    const opts = { keys, store, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage, now: () => clock };
+    let s = createSync(opts);
+    s.start();
+    await waitFor(() => s.status().connected === URLS.length);
+    await sleep(30);
+    const L = store.createList({ name: 'L' });
+    for (let i = 0; i < 30; i++) store.addItem({ listId: L.id, text: `i${i}` }); // published live, after the first sync
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 31);
+    clock += HOUR;
+    store.addItem({ listId: L.id, text: 'one recent change' });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 32);
+    await sleep(400); // confirmations → ack cursor
+    clock += 30 * 60_000; // the app sits open and idle for a while, then closes
+    s.stop();
+    clock += 2 * HOUR; // reopen later; nothing changed since
+    for (const r of fake.relays.values()) r.log.length = 0;
+    s = createSync(opts);
+    s.resetStats();
+    s.start();
+    await waitFor(() => s.status().connected === URLS.length);
+    await sleep(200);
+    const st = s.stats();
+    // Nothing from before the last sync comes down again.
+    expect(st.recvEvents).toBe(0);
+    for (const r of fake.relays.values()) expect(r.log.filter((m) => m[0] === 'EVENT')).toHaveLength(0);
+    s.stop();
+    // And again: still nothing.
+    clock += HOUR;
+    s = createSync(opts);
+    s.resetStats();
+    s.start();
+    await waitFor(() => s.status().connected === URLS.length);
+    await sleep(200);
+    expect(s.stats().recvEvents).toBe(0);
+    s.stop();
+  });
+
+  it('a change made on another phone after the last sync is picked up on reopen', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    let clock = 1_800_000_000_000;
+    const aStore = createStore({ now: () => clock });
+    const aOpts = { keys, store: aStore, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage(), now: () => clock };
+    let a = createSync(aOpts);
+    a.start();
+    await waitFor(() => a.status().connected === URLS.length);
+    const L = aStore.createList({ name: 'L' });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 1);
+    await sleep(100);
+    a.stop();
+    clock += HOUR;
+    // Phone B (clock two minutes slow) adds something while A is closed.
+    const bStore = createStore({ now: () => clock - 120_000 });
+    const b = createSync({ keys, store: bStore, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage(), now: () => clock - 120_000 });
+    b.start();
+    await waitFor(() => bStore.lists().length === 1);
+    bStore.addItem({ listId: L.id, text: 'from B' });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 2);
+    b.stop();
+    clock += HOUR;
+    a = createSync(aOpts);
+    a.start();
+    await waitFor(() => aStore.itemsFor(L.id).length === 1);
+    a.stop();
+  });
+
+  it('backs off a relay that rate-limits, and still delivers everything', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays([URLS[0]], { rateLimit: 5 });
+    const store = createStore({});
+    const s = createSync({ keys, store, relays: [URLS[0]], WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage(), throttleBaseMs: 40 });
+    s.start();
+    await waitFor(() => s.status().connected === 1);
+    const L = store.createList({ name: 'L' });
+    for (let i = 0; i < 10; i++) store.addItem({ listId: L.id, text: `i${i}` });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 11, 12000);
+    const st = s.relayStates()[0];
+    expect(st.throttled).toBeGreaterThan(0);
+    // After being told to slow down it didn't hammer the relay: sends ≈ records + the refused ones.
+    const sends = fake.relays.get(URLS[0]).log.filter((m) => m[0] === 'EVENT').length;
+    expect(sends).toBeLessThanOrEqual(11 + 5 + 2);
+    s.stop();
+  }, 20000);
+
+  it('periodic health check: counts first, re-downloads only a relay that is short', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    const storage = memoryStorage();
+    let clock = 1_800_000_000_000;
+    const store = createStore({ now: () => clock });
+    const opts = { keys, store, relays: URLS, WebSocketImpl: fake.FakeWebSocket, storage, now: () => clock, fullSyncEveryMs: HOUR };
+    let s = createSync(opts);
+    s.start();
+    await waitFor(() => s.status().connected === URLS.length);
+    const L = store.createList({ name: 'L' });
+    for (let i = 0; i < 5; i++) store.addItem({ listId: L.id, text: `i${i}` });
+    await waitFor(() => [...fake.relays.values()].every((r) => r.events.size === 6));
+    await sleep(400);
+    s.stop();
+    // Relay B loses its data. Time passes past the health-check interval.
+    fake.relays.get(URLS[1]).events.clear();
+    clock += 2 * HOUR;
+    for (const r of fake.relays.values()) r.log.length = 0;
+    s = createSync(opts);
+    s.start();
+    await waitFor(() => fake.relays.get(URLS[1]).events.size === 6); // healed
+    await sleep(100);
+    const reqs = (u) => fake.relays.get(u).log.filter((m) => m[0] === 'REQ');
+    expect(reqs(URLS[0])[0][2].since).toBeGreaterThan(0); // healthy: incremental only
+    expect(reqs(URLS[1])[0][2].since).toBeUndefined(); // short: full re-download
+    expect(fake.relays.get(URLS[0]).log.filter((m) => m[0] === 'EVENT')).toHaveLength(0);
+    s.stop();
+  });
+
+  it('a relay that cannot count gets the full re-sync', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays([URLS[0]], { noCount: true });
+    const storage = memoryStorage();
+    let clock = 1_800_000_000_000;
+    const store = createStore({ now: () => clock });
+    const opts = { keys, store, relays: [URLS[0]], WebSocketImpl: fake.FakeWebSocket, storage, now: () => clock, fullSyncEveryMs: HOUR };
+    let s = createSync(opts);
+    s.start();
+    await waitFor(() => s.status().connected === 1);
+    store.createList({ name: 'L' });
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 1);
+    await sleep(400);
+    s.stop();
+    clock += 2 * HOUR;
+    fake.relays.get(URLS[0]).log.length = 0;
+    s = createSync(opts);
+    s.start();
+    await waitFor(() => fake.relays.get(URLS[0]).log.some((m) => m[0] === 'REQ'));
+    expect(fake.relays.get(URLS[0]).log.find((m) => m[0] === 'REQ')[2].since).toBeUndefined();
+    s.stop();
   });
 });

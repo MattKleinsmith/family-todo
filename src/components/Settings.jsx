@@ -258,7 +258,9 @@ function DebugSection({ store, sync, activity, status }) {
         {relays.map((r) => (
           <li key={r.url}>
             <span class={'dot ' + (r.connected ? 'ok' : r.connecting ? 'warn' : 'off')} /> {r.url.replace('wss://', '')}
-            {r.connected ? ` · ${r.known} records seen` : r.connecting ? ' · connecting' : ' · reconnecting'}
+            {r.connected ? ` · ${r.known} records confirmed` : r.connecting ? ' · connecting' : ' · reconnecting'}
+            {r.lastCount != null ? ` · holds ${r.lastCount}` : ''}
+            {r.throttled ? ` · asked us to slow down ${r.throttled}×` : ''}
           </li>
         ))}
       </ul>
@@ -273,7 +275,10 @@ function DebugSection({ store, sync, activity, status }) {
         </table>
       )}
       <p class="hint">
-        Counting since {stats && stats.since ? new Date(stats.since).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}, across all relays. Received includes the full download on first sync and the fortnightly re-sync.
+        Counting since {stats && stats.since ? new Date(stats.since).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}, across all relays.
+        Opening the app fetches only what changed since this phone last synced (with a 10-minute overlap), and re-sends nothing a relay has confirmed.
+        Every two weeks each relay is asked how many records it holds; only one that is short, or can't say, gets a full re-download.
+        Sent is higher than received partly because relays echo our own writes back.
         {status.lastSyncAt ? ` Last sync ${new Date(status.lastSyncAt).toLocaleTimeString()}.` : ''}
       </p>
       <div class="row">
