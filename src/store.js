@@ -490,7 +490,8 @@ export function createStore({
     const c = state.chores[id];
     if (!c) return null;
     // A chore done several times a period keeps proportionally more history.
-    const keep = CHORE_HISTORY * Math.min(4, Math.max(1, Math.round(Number(c.times) || 1)));
+    const times = Math.min(99, Math.max(1, Math.round(Number(c.times) || 1)));
+    const keep = Math.min(CHORE_HISTORY * times, 200);
     const done = [{ at, by }, ...(c.done || []).filter((d) => d.at !== at)].sort((a, b) => b.at - a.at).slice(0, keep);
     return patch('chore', id, { done });
   }

@@ -19,7 +19,13 @@ export const CADENCE_TEXT = {
 };
 export const cadenceText = (cadence) => CADENCE_TEXT[cadence] || CADENCE_TEXT.weekly;
 export const HISTORY_LIMIT = 20;
-export const MAX_TIMES = 4;
+export const MAX_TIMES = 99;
+/** The quick choices; any other number up to MAX_TIMES can be typed in. */
+export const QUICK_TIMES = [1, 2, 3, 4];
+/** How many completions a chore keeps: enough for a good few periods, bounded so each record stays small. */
+export function historyLimit(chore) {
+  return Math.min(HISTORY_LIMIT * timesOf(chore), 200);
+}
 
 /** How many times a chore is meant to be done each period (1 unless set). */
 export function timesOf(chore) {

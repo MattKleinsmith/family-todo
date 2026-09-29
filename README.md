@@ -78,7 +78,8 @@ circle when one is done; it counts for the current day, week (Monday to Sunday),
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 
 Some chores happen more than once a period, like washing the bottles twice a day.
-Set **How many times** (once to 4×) and the circle splits into that many segments:
+Set **How many times** (once, 2×, 3×, 4×, or type any number up to 99 under
+**Other…**) and the circle splits into that many segments (a smooth ring past 8):
 each tap fills one ("1 of 2 · last 8:10 AM · Huishi"), the last turns it into a
 check, and tapping a finished chore takes the last one back. Each partial tick
 also offers Undo.
