@@ -16,6 +16,9 @@ import {
   CADENCES,
   CADENCE_LABEL,
   DEFAULT_ICON,
+  MAX_TIMES,
+  periodWord,
+  timesOf,
   STARTER_CHORES,
   choreStatus,
   doneList,
@@ -49,7 +52,7 @@ function useStarterChores() {
 }
 
 export function House({ focus }) {
-  const { store, session, navigate } = useApp();
+  const { store, session, navigate, deleted: showUndo } = useApp();
   const [, tick] = useReducer((x) => x + 1, 0);
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(null); // cadence
@@ -80,12 +83,17 @@ export function House({ focus }) {
   const chores = store.chores().map((c) => ({ chore: c, status: choreStatus(c, now) }));
   const byCadence = Object.fromEntries(CADENCES.map((k) => [k, chores.filter((x) => x.status.cadence === k)]));
 
+  // Tap to tick off one more time; once it's all done, a tap takes the last one back.
   const toggle = ({ chore, status }) => {
-    if (status.done) store.unmarkChore(chore.id, status.done.at);
-    else {
-      store.markChore(chore.id, { at: Date.now(), by: session.name });
-      highlight(chore.id);
+    if (status.done) {
+      store.unmarkChore(chore.id, status.done.at);
+      return;
     }
+    const at = Date.now();
+    store.markChore(chore.id, { at, by: session.name });
+    highlight(chore.id);
+    if (status.target > 1 && status.count + 1 < status.target)
+      showUndo(`${chore.name}: ${status.count + 1} of ${status.target} ${periodWord(status.cadence)}`, () => store.unmarkChore(chore.id, at));
   };
 
   return (
@@ -225,8 +233,18 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
   const swipe = swipeDelete(onDelete);
   const mine = sameName(chore.owner, session.name);
   const level = status.state === 'overdue' ? (status.missed >= 2 ? 'late' : 'behind') : '';
+  const multi = status.target > 1;
+  const by = (d) => (d.by ? ` · ${d.by}` : '');
   let sub;
-  if (status.done) sub = <>Done {whenLabel(status.done.at, now)}{status.done.by ? ` · ${status.done.by}` : ''}</>;
+  if (status.done && multi) sub = <>Done {status.target}× · last {whenLabel(status.done.at, now)}{by(status.done)}</>;
+  else if (status.done) sub = <>Done {whenLabel(status.done.at, now)}{by(status.done)}</>;
+  else if (status.latest)
+    sub = (
+      <>
+        {/* The section header already says every day, week or month. */}
+        <b class="progress">{status.count} of {status.target}</b> · last {whenLabel(status.latest.at, now)}{by(status.latest)}
+      </>
+    );
   else if (status.state === 'overdue')
     sub = (
       <>
@@ -238,8 +256,13 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
 
   return (
     <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
-      <button class="check" aria-label={status.done ? `Mark ${chore.name} not done` : `Mark ${chore.name} done`} aria-pressed={!!status.done} onClick={onToggle}>
-        <span class="check-mark">{status.done ? '✓' : ''}</span>
+      <button
+        class={'check' + (multi && !status.done ? ' multi' : '')}
+        aria-label={status.done ? `Take back the last ${chore.name}` : multi ? `Mark ${chore.name} done (${status.count} of ${status.target} so far)` : `Mark ${chore.name} done`}
+        aria-pressed={!!status.done}
+        onClick={onToggle}
+      >
+        {multi && !status.done ? <ProgressRing count={status.count} target={status.target} /> : <span class="check-mark">{status.done ? '✓' : ''}</span>}
       </button>
       <button class="item-text chore-text" onClick={onEdit}>
         <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>
@@ -282,6 +305,49 @@ function OwnerPicker({ value, onChange }) {
   );
 }
 
+/** The check circle split into one segment per time, filled as they're done. */
+function ProgressRing({ count, target }) {
+  const r = 12.5;
+  const c = 2 * Math.PI * r;
+  const gap = 3.2; // px between segments
+  const seg = c / target - gap;
+  return (
+    <svg class="ring" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+      {Array.from({ length: target }, (_, i) => (
+        <circle
+          key={i}
+          class={i < count ? 'seg on' : 'seg'}
+          cx="15" cy="15" r={r}
+          fill="none"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-dasharray={`${seg} ${c - seg}`}
+          stroke-dashoffset={-(i * (c / target)) - gap / 2}
+          transform="rotate(-90 15 15)"
+        />
+      ))}
+      {count > 0 && <text x="15" y="19.5" text-anchor="middle" class="ring-count">{count}</text>}
+    </svg>
+  );
+}
+
+/** How many times each day, week or month. */
+function TimesPicker({ cadence, value, onChange }) {
+  const per = { daily: 'a day', weekly: 'a week', monthly: 'a month' }[cadence] || 'a week';
+  return (
+    <div class="field">
+      <label>How many times {per}</label>
+      <div class="chips" role="radiogroup" aria-label={`How many times ${per}`}>
+        {Array.from({ length: MAX_TIMES }, (_, i) => i + 1).map((n) => (
+          <button type="button" key={n} role="radio" aria-checked={value === n} class={'chip' + (value === n ? ' on' : '')} onClick={() => onChange(n)}>
+            {n === 1 ? 'Once' : `${n}×`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CadencePicker({ value, onChange }) {
   return (
     <div class="segmented" role="radiogroup" aria-label="How often">
@@ -298,10 +364,11 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
   const [cadence, setCadence] = useState(initial);
   const [icon, setIcon] = useState(null); // null: follow the cadence's default
   const [owner, setOwner] = useState(null); // null: anyone
+  const [times, setTimes] = useState(1);
 
   const submit = (e) => {
     e.preventDefault();
-    const c = store.addChore({ name, cadence, icon: icon || DEFAULT_ICON[cadence], owner, createdBy: session.name });
+    const c = store.addChore({ name, cadence, icon: icon || DEFAULT_ICON[cadence], owner, times, createdBy: session.name });
     if (!c) return;
     onClose();
     onCreated(c);
@@ -318,6 +385,7 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
           <label>How often</label>
           <CadencePicker value={cadence} onChange={setCadence} />
         </div>
+        <TimesPicker cadence={cadence} value={times} onChange={setTimes} />
         <OwnerPicker value={owner} onChange={setOwner} />
         <EmojiPicker value={icon || DEFAULT_ICON[cadence]} onChange={setIcon} />
         <button class="btn primary big" type="submit" disabled={!name.trim()}>Add chore</button>
@@ -345,6 +413,9 @@ function ChoreSheet({ chore, onClose }) {
   const pickCadence = (k) => {
     setCadence(k);
     if (k !== chore.cadence) change({ cadence: k });
+  };
+  const pickTimes = (n) => {
+    if (n !== timesOf(chore)) change({ times: n });
   };
   const pickOwner = (v) => {
     const same = v ? sameName(v, chore.owner) : !chore.owner;
@@ -412,6 +483,7 @@ function ChoreSheet({ chore, onClose }) {
           </div>
           <p class="hint">Forgot to tick it off? Pick the day it was done.</p>
         </div>
+        <TimesPicker cadence={cadence} value={timesOf(chore)} onChange={pickTimes} />
         <OwnerPicker value={chore.owner || null} onChange={pickOwner} />
         <EmojiPicker value={icon} onChange={pickIcon} />
         <button class="btn primary big" type="submit">Done</button>

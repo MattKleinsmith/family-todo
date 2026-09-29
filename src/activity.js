@@ -8,6 +8,7 @@
 //
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
+import { periodIndex, periodWord, timesOf } from './house.js';
 import { iconToText } from './icons.js';
 import { memberKey, sameName } from './members.js';
 
@@ -99,7 +100,12 @@ export function describeChange(prev, next, ctx = {}) {
       const removed = (prev.done || []).filter((d) => !has.has(d.at));
       for (const d of added) {
         // Ticked off now, or filled in afterwards for an earlier day.
-        if (next.updatedAt - d.at < 3600_000) parts.push(`checked off ${q(next.name)}`);
+        // Chores done several times a period say which time this was.
+        const target = timesOf(next);
+        const cad = next.cadence || 'weekly';
+        const nth = (next.done || []).filter((x) => x.at <= d.at && periodIndex(cad, x.at) === periodIndex(cad, d.at)).length;
+        const of = target > 1 ? ` (${nth} of ${target} ${periodWord(cad)})` : '';
+        if (next.updatedAt - d.at < 3600_000) parts.push(`checked off ${q(next.name)}${of}`);
         else parts.push(`marked ${q(next.name)} done on ${new Date(d.at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`);
       }
       // Only the history cap trimming the oldest entry isn't news.
@@ -107,6 +113,10 @@ export function describeChange(prev, next, ctx = {}) {
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
       if (next.name !== prev.name) parts.push(`renamed the chore ${q(prev.name)} to ${q(next.name)}`);
       if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadence(next)}`);
+      if (timesOf(next) !== timesOf(prev)) {
+        const per = { daily: 'a day', weekly: 'a week', monthly: 'a month' }[next.cadence] || 'a week';
+        parts.push(timesOf(next) === 1 ? `set ${q(next.name)} to once ${per}` : `set ${q(next.name)} to ${timesOf(next)} times ${per}`);
+      }
       if ((next.owner || '') !== (prev.owner || ''))
         parts.push(
           !next.owner

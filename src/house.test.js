@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
-import { choreStatus, dueLabel, missedLabel, periodBounds, periodIndex, whenLabel, STARTER_CHORES, overdueChores } from './house.js';
+import { choreStatus, timesOf, dueLabel, missedLabel, periodBounds, periodIndex, whenLabel, STARTER_CHORES, overdueChores } from './house.js';
 import { createStore } from './store.js';
 import { describeChange } from './activity.js';
 import { ICONS, iconId } from './icons.js';
@@ -77,6 +77,23 @@ describe('choreStatus', () => {
     expect(choreStatus(monthly, MON)).toMatchObject({ state: 'due', missed: 0, daysLeft: 3 });
     expect(choreStatus(monthly, at(2026, 10, 2))).toMatchObject({ state: 'overdue', missed: 1 });
   });
+  it('chores done several times a period count up to their target', () => {
+    const bottles = (done) => chore({ cadence: 'daily', times: 2, done, createdAt: at(2026, 9, 1) });
+    const morning = { at: MON - 2 * 3600_000, by: 'Huishi' };
+    const noon = { at: MON + 2 * 3600_000, by: 'Matthew' };
+    expect(choreStatus(bottles([]), MON)).toMatchObject({ count: 0, target: 2, state: 'overdue' });
+    expect(choreStatus(bottles([morning]), MON)).toMatchObject({ count: 1, target: 2, state: 'due', done: null, missed: 0 });
+    expect(choreStatus(bottles([morning]), MON).latest.by).toBe('Huishi');
+    const both = choreStatus(bottles([noon, morning]), MON + 3 * 3600_000);
+    expect(both).toMatchObject({ count: 2, state: 'done' });
+    expect(both.done.by).toBe('Matthew');
+    // Only once yesterday isn't "missed": the day wasn't skipped.
+    expect(choreStatus(bottles([{ at: at(2026, 9, 27, 9) }]), MON)).toMatchObject({ count: 0, missed: 0, state: 'due' });
+    // Out-of-range settings fall back to something sensible.
+    expect(timesOf({ times: 9 })).toBe(4);
+    expect(timesOf({ times: 0 })).toBe(1);
+    expect(timesOf({})).toBe(1);
+  });
   it('overdueChores picks out the late ones', () => {
     const ok = chore({ id: 'a', done: [{ at: MON }] });
     const late = chore({ id: 'b', done: [{ at: at(2026, 8, 1) }] });
@@ -109,6 +126,12 @@ describe('store chores', () => {
     expect(store.chores().map((c) => c.name)).toEqual(['Mow the lawn']);
     expect(store.hasAnyChores()).toBe(true);
     expect(store.tombstones(Infinity).map((e) => e.id)).toContain(a.id);
+  });
+  it('keeps more history for chores done several times a period', () => {
+    const store = createStore({ storage: null });
+    const c = store.addChore({ name: 'Wash the bottles', cadence: 'daily', times: 3 });
+    for (let i = 0; i < 90; i++) store.markChore(c.id, { at: MON - i * 3600_000, by: 'x' });
+    expect(store.getEntity('chore', c.id).done.length).toBe(60);
   });
   it('keeps only the most recent completions', () => {
     const store = createStore({ storage: null });
@@ -172,6 +195,14 @@ describe('chore activity', () => {
     expect(describeChange(c(), c({ owner: 'Matthew', updatedBy: 'Matthew' }))).toBe('took on “Mow the lawn”');
     expect(describeChange(c({ owner: 'Huishi' }), c({ owner: null }))).toBe('made “Mow the lawn” anyone’s job');
     expect(describeChange(null, c({ owner: 'Matthew' }))).toBe('added the weekly chore “Mow the lawn” for Matthew');
+  });
+  it('says which time it was for chores done several times a period', () => {
+    const b = (o) => c({ name: 'Wash the bottles', cadence: 'daily', times: 2, ...o });
+    const first = { at: MON - 1000 };
+    expect(describeChange(b(), b({ done: [first] }))).toBe('checked off “Wash the bottles” (1 of 2 today)');
+    expect(describeChange(b({ done: [first] }), b({ done: [{ at: MON - 500 }, first] }))).toBe('checked off “Wash the bottles” (2 of 2 today)');
+    expect(describeChange(c(), c({ times: 2 }))).toBe('set “Mow the lawn” to 2 times a week');
+    expect(describeChange(c({ times: 2 }), c({ times: 1 }))).toBe('set “Mow the lawn” to once a week');
   });
   it('dropping the oldest completion to make room is not news', () => {
     const old = Array.from({ length: 20 }, (_, i) => ({ at: MON - (i + 1) * 86400_000 }));
