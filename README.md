@@ -73,6 +73,12 @@ Chores are grouped into **Every day**, **Every week** and **Every month**. Tap t
 circle when one is done; it counts for the current day, week (Monday to Sunday) or
 calendar month, then comes back around. Tap it again to undo.
 
+Some chores happen more than once a period, like washing the bottles twice a day.
+Set **How many times** (once to 4×) and the circle splits into that many segments:
+each tap fills one ("1 of 2 · last 8:10 AM · Huishi"), the last turns it into a
+check, and tapping a finished chore takes the last one back. Each partial tick
+also offers Undo.
+
 If the previous period went by without it, the chore is flagged: amber for one
 missed period ("Missed last week"), red for two or more ("Missed 3 weeks"). The
 summary card lists what's overdue, and the House tab shows a badge with the count

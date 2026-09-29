@@ -367,10 +367,10 @@ export function createStore({
 
   // ---- House chores: daily, weekly and monthly, with their recent completions ----
 
-  function addChore({ name, cadence = 'weekly', icon = '', owner = null, createdBy = '' }) {
+  function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, createdBy = '' }) {
     const n = (name || '').trim();
     if (!n) return null;
-    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, done: [], createdBy, createdAt: stamp(), deleted: false });
+    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, done: [], createdBy, createdAt: stamp(), deleted: false });
   }
 
   /**
@@ -397,7 +397,9 @@ export function createStore({
   function markChore(id, { at = now(), by = '' } = {}) {
     const c = state.chores[id];
     if (!c) return null;
-    const done = [{ at, by }, ...(c.done || []).filter((d) => d.at !== at)].sort((a, b) => b.at - a.at).slice(0, CHORE_HISTORY);
+    // A chore done several times a period keeps proportionally more history.
+    const keep = CHORE_HISTORY * Math.min(4, Math.max(1, Math.round(Number(c.times) || 1)));
+    const done = [{ at, by }, ...(c.done || []).filter((d) => d.at !== at)].sort((a, b) => b.at - a.at).slice(0, keep);
     return patch('chore', id, { done });
   }
 

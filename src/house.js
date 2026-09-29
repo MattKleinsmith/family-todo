@@ -9,6 +9,16 @@ import { iconToken } from './icons.js';
 export const CADENCES = ['daily', 'weekly', 'monthly'];
 export const CADENCE_LABEL = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 export const HISTORY_LIMIT = 20;
+export const MAX_TIMES = 4;
+
+/** How many times a chore is meant to be done each period (1 unless set). */
+export function timesOf(chore) {
+  const n = Math.round(Number(chore && chore.times) || 1);
+  return Math.min(MAX_TIMES, Math.max(1, n));
+}
+
+const PERIOD_WORD = { daily: 'today', weekly: 'this week', monthly: 'this month' };
+export const periodWord = (cadence) => PERIOD_WORD[cadence] || 'this week';
 
 const DAY = 24 * 3600 * 1000;
 
@@ -52,10 +62,13 @@ export function doneList(chore) {
 
 /**
  * Where a chore stands right now:
- *  - `done`: the completion that covers the current period, if any;
+ *  - `count` of `target`: completions so far this period, and how many it takes;
+ *  - `done`: once the target is reached, the latest completion this period;
+ *  - `latest`: the latest completion this period, if any;
  *  - `missed`: how many whole periods before this one went by without it.
  *    The period a chore was added in doesn't count against it;
- *  - `state`: 'done', 'due', or 'overdue' (not done yet and missed ≥ 1);
+ *    Any completion this period, even one of two, means it's under way;
+ *  - `state`: 'done', 'due', or 'overdue' (none yet this period and missed ≥ 1);
  *  - `daysLeft`: whole days left in the current period, counting today.
  */
 export function choreStatus(chore, now = Date.now()) {
@@ -63,12 +76,15 @@ export function choreStatus(chore, now = Date.now()) {
   const current = periodIndex(cadence, now);
   const list = doneList(chore).filter((d) => d.at <= now + 60_000);
   const last = list[0] || null;
-  const done = last && periodIndex(cadence, last.at) === current ? last : null;
+  const target = timesOf(chore);
+  const count = list.filter((d) => periodIndex(cadence, d.at) === current).length;
+  const latest = count ? last : null;
+  const done = count >= target ? last : null;
   const baseline = last ? periodIndex(cadence, last.at) : periodIndex(cadence, chore.createdAt || now);
-  const missed = done ? 0 : Math.max(0, current - baseline - 1);
+  const missed = count ? 0 : Math.max(0, current - baseline - 1);
   const { end } = periodBounds(cadence, now);
   const daysLeft = Math.max(1, dayNumber(end - 1) - dayNumber(now) + 1);
-  return { cadence, done, last, missed, daysLeft, state: done ? 'done' : missed > 0 ? 'overdue' : 'due' };
+  return { cadence, done, latest, last, count, target, missed, daysLeft, state: done ? 'done' : missed > 0 ? 'overdue' : 'due' };
 }
 
 /** "Missed yesterday", "Missed 2 weeks", … */
