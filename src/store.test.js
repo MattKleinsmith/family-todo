@@ -170,3 +170,36 @@ describe('restoreList', () => {
     expect(store.itemsFor(list.id).map((i) => i.id)).toEqual([milk.id]);
   });
 });
+
+describe('moveAllItems', () => {
+  it('moves one-offs (done or not) and repeating items, in order, after what is there, and undoes', async () => {
+    const { describeChange } = await import('./activity.js');
+    let t = 1000;
+    const store = createStore({ storage: null, now: () => (t += 10) });
+    const old = store.createList({ name: 'Old' });
+    const mine = store.createList({ name: 'Matthew’s todos' });
+    const existing = store.addItem({ listId: mine.id, text: 'Already here' });
+    const a = store.addItem({ listId: old.id, text: 'A' });
+    const b = store.addItem({ listId: old.id, text: 'B' });
+    store.toggleItem(b.id);
+    const c = store.addChore({ name: 'Practice Chinese', cadence: 'daily', listId: old.id });
+    store.markChore(c.id, { at: t, by: 'Matthew' });
+    const seen = [];
+    store.onLocalChange((next, prev) => seen.push(describeChange(prev, next, { listName: (id) => store.getEntity('list', id)?.name })));
+    const move = store.moveAllItems(old.id, mine.id);
+    expect(move.count).toBe(3);
+    expect(store.itemsFor(old.id)).toEqual([]);
+    expect(store.choresFor(old.id)).toEqual([]);
+    expect(store.itemsFor(mine.id).map((i) => [i.text, i.done])).toEqual([['Already here', false], ['A', false], ['B', true]]);
+    expect(store.choresFor(mine.id).map((x) => [x.name, x.done.length])).toEqual([['Practice Chinese', 1]]);
+    expect(seen.filter(Boolean)).toEqual(['moved 3 items from “Old” to “Matthew’s todos”']);
+    store.deleteList(old.id);
+    store.undoMoveAll(move);
+    expect(store.getEntity('list', old.id).deleted).toBe(false);
+    expect(store.itemsFor(old.id).map((i) => i.text)).toEqual(['A', 'B']);
+    expect(store.choresFor(old.id).map((x) => x.name)).toEqual(['Practice Chinese']);
+    expect(store.itemsFor(mine.id).map((i) => i.id)).toEqual([existing.id]);
+    expect(store.moveAllItems(mine.id, mine.id)).toBeNull();
+    expect(a.id).toBeTruthy();
+  });
+});

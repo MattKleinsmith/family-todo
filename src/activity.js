@@ -29,6 +29,7 @@ export function describeChange(prev, next, ctx = {}) {
       if (!prev && next.fromChore && !next.deleted) return `stopped repeating ${q(next.text)} ${where}`;
       if (!prev) return next.deleted ? null : `added ${q(next.text)} ${where}`;
       if (next.convertedTo) return null; // it became a repeating item; that record tells the story
+      if (next.moveBatch && next.moveBatch !== prev.moveBatch) return null; // part of moving a whole list; the list says so once
       if (next.deleted && !prev.deleted) return `removed ${q(prev.text)} from ${listName(next.listId)}`;
       if (prev.deleted && !next.deleted) return `put back ${q(next.text)} in ${listName(next.listId)}`;
       if (next.deleted) return null;
@@ -47,6 +48,7 @@ export function describeChange(prev, next, ctx = {}) {
       if (prev.deleted && !next.deleted) return `put back the list ${label(next)}`;
       if (next.deleted) return null;
       const parts = [];
+      if (next.moveNote && next.moveNote.id !== prev.moveNote?.id) parts.push(next.moveNote.text);
       if (next.name !== prev.name) parts.push(`renamed the list ${q(prev.name)} to ${q(next.name)}`);
       if ((next.emoji || '') !== (prev.emoji || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.emoji ? iconToText(next.emoji) : 'none'}`);
       if (next.order !== prev.order && !next.renumbered) parts.push(`reordered the list ${q(next.name)}`);
@@ -104,6 +106,7 @@ export function describeChange(prev, next, ctx = {}) {
       if (!prev && next.fromItem && !next.deleted) return `made ${q(next.name)} repeat ${often(next)}${where}`;
       if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.convertedTo) return null; // turned back into a one-off item; that record tells the story
+      if (next.moveBatch && next.moveBatch !== prev.moveBatch) return null; // part of moving a whole list
       if (next.deleted && !prev.deleted) return `removed ${noun} ${q(prev.name)}${inList ? ` from ${listName(next.listId)}` : ''}`;
       if (prev.deleted && !next.deleted) return `put back ${noun} ${q(next.name)}${where}`;
       if (next.deleted) return null;

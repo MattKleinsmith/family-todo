@@ -631,3 +631,17 @@ li:last-child > .act { border-bottom: none; }
 /* A list shown as a tab: keep the add box clear when scrolling rows into view */
 .screen.list-tab .content { scroll-padding-bottom: 112px; }
 [data-keyboard] .screen.list-tab .tabbar { display: none; }
+
+/* Move everything: pick a list */
+.move-target {
+  width: 100%; min-height: 54px; display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  border: none; background: transparent; text-align: left; font-weight: 700;
+}
+.move-target:active { background: var(--surface-2); }
+.move-icon { flex: none; display: flex; }
+.move-name { flex: 1; min-width: 0; }
+.move-radio {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface-3);
+  display: grid; place-items: center; color: var(--accent-text); font-size: 14px; font-weight: 800;
+}
+.move-target.on .move-radio { background: var(--accent); border-color: var(--accent); }

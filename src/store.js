@@ -262,6 +262,44 @@ export function createStore({
     return patch('list', id, { deleted: false });
   }
 
+  /**
+   * Move everything in one list into another: one-off items (done or not) and
+   * repeating items (with their history), in their order, after what's already
+   * there. Each moved record carries the move's `moveBatch` so the activity
+   * feed shows one line (the `moveNote` on the source list) instead of one per
+   * item. Returns what's needed to undo it, or null if there was nothing to move.
+   */
+  function moveAllItems(fromId, toId) {
+    const from = state.lists[fromId];
+    const to = state.lists[toId];
+    if (!from || !to || fromId === toId) return null;
+    const pick = (bucketName, listId) => Object.values(state[bucketName]).filter((e) => e.listId === listId && !e.deleted).sort(byKey);
+    const items = pick('items', fromId);
+    const chores = pick('chores', fromId);
+    const count = items.length + chores.length;
+    if (!count) return null;
+    const batch = newId();
+    const place = (type, moving, already) => {
+      let base = already.reduce((m, e) => Math.max(m, sortKey(e)), 0);
+      for (const e of moving) patch(type, e.id, { listId: toId, order: (base += ORDER_STEP), moveBatch: batch });
+    };
+    place('item', items, pick('items', toId));
+    place('chore', chores, pick('chores', toId));
+    const plural = `${count} item${count === 1 ? '' : 's'}`;
+    patch('list', fromId, { moveNote: { id: batch, text: `moved ${plural} from “${from.name}” to “${to.name}”` } });
+    return { fromId, toId, count, before: [...items.map((e) => ['item', e]), ...chores.map((e) => ['chore', e])].map(([type, e]) => ({ type, id: e.id, order: e.order ?? null })) };
+  }
+
+  /** Undo moveAllItems: everything goes back where it was (bring the list back first if it was deleted). */
+  function undoMoveAll(move) {
+    if (!move) return;
+    if (state.lists[move.fromId]?.deleted) patch('list', move.fromId, { deleted: false });
+    const batch = newId();
+    for (const b of move.before) patch(b.type, b.id, { listId: move.fromId, order: b.order, moveBatch: batch });
+    const from = state.lists[move.fromId];
+    patch('list', move.fromId, { moveNote: { id: batch, text: `moved ${move.count} item${move.count === 1 ? '' : 's'} back to “${from.name}”` } });
+  }
+
   function deleteList(id) {
     const items = Object.values(state.items).filter((i) => i.listId === id && !i.deleted);
     for (const item of items) patch('item', item.id, { deleted: true });
@@ -617,6 +655,8 @@ export function createStore({
     updateList,
     deleteList,
     restoreList,
+    moveAllItems,
+    undoMoveAll,
     addItem,
     updateItem,
     toggleItem,
