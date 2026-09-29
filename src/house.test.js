@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { choreStatus, timesOf, dueLabel, missedLabel, periodBounds, periodIndex, whenLabel, STARTER_CHORES, overdueChores } from './house.js';
 import { createStore } from './store.js';
-import { describeChange } from './activity.js';
+import { describeChange, isQuiet } from './activity.js';
 import { ICONS, iconId } from './icons.js';
 
 // Monday 28 September 2026, 10:00 local time.
@@ -233,5 +233,55 @@ describe('chore activity', () => {
     const old = Array.from({ length: 20 }, (_, i) => ({ at: MON - (i + 1) * 86400_000 }));
     const next = [{ at: MON - 1000 }, ...old.slice(0, 19)];
     expect(describeChange(c({ done: old }), c({ done: next }))).toBe('checked off “Mow the lawn”');
+  });
+});
+
+describe('repeating items in a list', () => {
+  it('an item can start repeating and go back to a one-off, keeping its place', () => {
+    let t = MON;
+    const store = createStore({ storage: null, now: () => t++ });
+    const list = store.createList({ name: 'Matthew’s todos' });
+    const a = store.addItem({ listId: list.id, text: 'Buy a notebook' });
+    const b = store.addItem({ listId: list.id, text: 'Practice Chinese' });
+    store.toggleItem(b.id); // done today already
+    const c = store.repeatItem(b.id, { cadence: 'daily' });
+    expect(store.itemsFor(list.id).map((i) => i.text)).toEqual(['Buy a notebook']);
+    expect(store.choresFor(list.id).map((x) => [x.name, x.cadence])).toEqual([['Practice Chinese', 'daily']]);
+    expect(store.getEntity('item', b.id)).toMatchObject({ deleted: true, convertedTo: c.id });
+    expect(choreStatus(store.getEntity('chore', c.id), t).state).toBe('done'); // ticking it off earlier counts
+    // Not a household chore.
+    expect(store.houseChores().map((x) => x.id)).not.toContain(c.id);
+    const back = store.stopRepeating(c.id);
+    expect(store.choresFor(list.id)).toEqual([]);
+    expect(store.itemsFor(list.id).map((i) => [i.text, i.done])).toEqual([['Buy a notebook', false], ['Practice Chinese', false]]);
+    expect(back.fromChore).toBe(c.id);
+    expect(a.id).toBeTruthy();
+  });
+  it('deleting a list takes its repeating items with it, and undo brings them back', () => {
+    const store = createStore({ storage: null });
+    const list = store.createList({ name: 'Me' });
+    const c = store.addChore({ name: 'Read theology', cadence: 'daily', listId: list.id });
+    const house = store.addChore({ name: 'Dishes', cadence: 'daily' });
+    store.deleteList(list.id);
+    expect(store.chores().map((x) => x.id)).toEqual([house.id]);
+    store.restoreList(list.id, [], [c.id]);
+    expect(store.choresFor(list.id).map((x) => x.id)).toEqual([c.id]);
+  });
+  it('reads like a list item in the activity feed, and ticking one off is quiet', () => {
+    const ctx = { listName: (id) => ({ me: 'Matthew’s todos' })[id] };
+    const r = (o) => chore({ name: 'Practice Chinese', cadence: 'daily', listId: 'me', updatedAt: MON, ...o });
+    expect(describeChange(null, r(), ctx)).toBe('added “Practice Chinese” to Matthew’s todos, repeating daily');
+    expect(describeChange(null, r({ fromItem: 'i1' }), ctx)).toBe('made “Practice Chinese” repeat daily in Matthew’s todos');
+    const ticked = r({ done: [{ at: MON - 1000 }] });
+    expect(describeChange(r(), ticked, ctx)).toBe('checked off “Practice Chinese” in Matthew’s todos');
+    expect(isQuiet(r(), ticked)).toBe(true);
+    expect(isQuiet(r(), r({ name: 'Practice Mandarin' }))).toBe(false);
+    expect(isQuiet(chore({ updatedAt: MON }), chore({ updatedAt: MON, done: [{ at: MON }] }))).toBe(false); // House chores still count
+    // Converting back and forth doesn't read as removing and adding.
+    const item = { id: 'i1', type: 'item', listId: 'me', text: 'Practice Chinese', done: false, deleted: false, updatedAt: 1 };
+    expect(describeChange(item, { ...item, deleted: true, convertedTo: 'c' }, ctx)).toBeNull();
+    expect(describeChange(r(), r({ deleted: true, convertedTo: 'i2' }), ctx)).toBeNull();
+    expect(describeChange(null, { ...item, id: 'i2', fromChore: 'c' }, ctx)).toBe('stopped repeating “Practice Chinese” in Matthew’s todos');
+    expect(describeChange(r(), r({ deleted: true }), ctx)).toBe('removed the repeating item “Practice Chinese” from Matthew’s todos');
   });
 });

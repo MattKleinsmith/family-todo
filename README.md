@@ -92,6 +92,17 @@ Saturday but forgot to tap"). New families, and families upgrading to this versi
 start with: wipe the counters and do the dishes (daily), mow the lawn and change the
 cat litter (weekly), drain a gallon from the water heater (monthly).
 
+### Repeating items in any list
+
+For personal habits that the rest of the family doesn't need front and centre
+(practicing a language, reading), any list can have **repeating items**. Tap an
+item and choose **Repeat** (daily, weekly, every 2 weeks or monthly), or pick
+**Add a repeating item** from the list's ⋯ menu. They gather in a **Repeating**
+group at the top of that list, work like chores (the circle, 2×, overdue colours,
+history), and can go back to a one-off with **Stop repeating**. They don't appear
+on the House tab or its badge, and ticking one off shows in the activity feed
+without counting on anyone's bell.
+
 ## The activity feed
 
 The phone that makes a change writes a plain-language entry for it: "Huishi

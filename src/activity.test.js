@@ -256,3 +256,24 @@ describe('reorder wording', () => {
     expect(describeChange(list({ order: 1 }), list({ order: 2, renumbered: true }), ctx)).toBeNull();
   });
 });
+
+describe('quiet entries', () => {
+  it('ticking off a repeating item in a list shows in the feed but not on the bell', async () => {
+    const T0 = new Date(2026, 8, 29, 9).getTime();
+    const clock = { t: T0 };
+    const relay = [];
+    const storage = memStorage();
+    const A = phone({ name: 'Matthew', device: 'dA', joinedAt: T0 - 1, relay, clock });
+    const me = A.store.createList({ name: 'Matthew’s todos' });
+    const c = A.store.addChore({ name: 'Practice Chinese', cadence: 'daily', listId: me.id });
+    A.store.markChore(c.id, { at: clock.t, by: 'Matthew' });
+    await settle();
+    const B = phone({ name: 'Huishi', device: 'dB', joinedAt: T0 - 2, relay: [], clock, storage });
+    await B.activity.ready;
+    deliver(relay, B);
+    const texts = B.activity.visibleEntries().map((e) => [e.text, e.seen]);
+    expect(texts).toContainEqual(['checked off “Practice Chinese” in Matthew’s todos', true]);
+    expect(texts).toContainEqual(['added “Practice Chinese” to Matthew’s todos, repeating daily', false]);
+    expect(B.activity.unseenForList(me.id)).toBe(2); // the list and the new repeating item, not the tick
+  });
+});

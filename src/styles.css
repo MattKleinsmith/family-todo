@@ -616,3 +616,8 @@ li:last-child > .act { border-bottom: none; }
 .chore.late .ring .seg:not(.on) { stroke: var(--danger); }
 .chore .progress { color: var(--accent); font-weight: 800; }
 .avatar.system { background: var(--sun-soft); }
+
+/* Lists with repeating items */
+.list-group { margin-bottom: 14px; }
+.list-head { padding-top: 4px; }
+.cadence-tag { color: var(--muted); }

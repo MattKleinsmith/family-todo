@@ -4,7 +4,7 @@ import { overdueChores } from '../house.js';
 
 export function TabBar({ active }) {
   const { store } = useApp();
-  const overdue = store ? overdueChores(store.chores()).length : 0;
+  const overdue = store ? overdueChores(store.houseChores()).length : 0;
   const tab = (key, href, glyph, label, badge = 0) => (
     <a href={href} class={'tab' + (active === key ? ' active' : '')} aria-current={active === key ? 'page' : undefined} aria-label={badge ? `${label}, ${badge} overdue` : undefined}>
       <span class="tab-icon">
