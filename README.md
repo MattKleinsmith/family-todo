@@ -103,7 +103,10 @@ shown on their own **My list** tab and left off their **Lists** tab; everyone
 else sees it on theirs, next to the shared lists. It's made automatically the
 first time each person opens the app (a new family's starter "<name>’s todos"
 list becomes the creator's), it follows a rename, and it can be emptied but not
-deleted. The tabs start as **Baby, House, My list, Lists**; press and hold any
+deleted. To fold an older list into it, open that list's ⋯ menu and choose
+**Move everything to another list**: every item moves as it is (done ones stay
+done, repeating ones keep their history), the old list can be deleted in the
+same step, and one Undo puts it all back. The tabs start as **Baby, House, My list, Lists**; press and hold any
 tab to drag them into another order (kept per phone).
 
 ### Repeating items in any list

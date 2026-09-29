@@ -13,7 +13,7 @@ import { newestOf, useMarkSeen } from './useSeen.js';
 import { ChoreRow, ChoreSheet, NewChoreSheet, useChoreToggle } from './House.jsx';
 import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
-import { isOfficialPersonal } from '../personal.js';
+import { isOfficialPersonal, personalListFor } from '../personal.js';
 
 /** One list. `asTab`: it's your own list on the My list tab (no back button, tab bar underneath). */
 export function ListView({ id, focus, asTab = false }) {
@@ -23,6 +23,7 @@ export function ListView({ id, focus, asTab = false }) {
   const [editing, setEditing] = useState(null); // item id
   const [editingChore, setEditingChore] = useState(null); // repeating item id
   const [addingRepeat, setAddingRepeat] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [menu, setMenu] = useState(false);
   const [, tick] = useReducer((x) => x + 1, 0);
   const repRef = useRef(null);
@@ -62,7 +63,8 @@ export function ListView({ id, focus, asTab = false }) {
   }, [focus]);
 
   useEffect(() => {
-    if (list && list.deleted) navigate('/');
+    // Only if we're still looking at it (moving everything out and deleting it navigates elsewhere first).
+    if (list && list.deleted && location.hash.includes(id)) navigate('/');
   }, [list?.deleted]);
 
   if (!list || list.deleted) {
@@ -219,14 +221,19 @@ export function ListView({ id, focus, asTab = false }) {
       {menu && (
         <ListMenuSheet
           list={list}
-          counts={{ open: open.length, done: done.length }}
+          counts={{ open: open.length, done: done.length, all: items.length + repeating.length }}
           onClose={() => setMenu(false)}
           onAddRepeating={() => {
             setMenu(false);
             setAddingRepeat(true);
           }}
+          onMove={() => {
+            setMenu(false);
+            setMoving(true);
+          }}
         />
       )}
+      {moving && <MoveAllSheet list={list} counts={{ open: open.length, done: done.length, repeating: repeating.length }} onClose={() => setMoving(false)} />}
     </div>
   );
 }
@@ -305,7 +312,7 @@ function EditItemSheet({ item, onClose, onRepeat }) {
   );
 }
 
-function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
+function ListMenuSheet({ list, counts, onClose, onAddRepeating, onMove }) {
   const { store, navigate, deleted } = useApp();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(list.name);
@@ -336,6 +343,7 @@ function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
       <div class="stack">
         <button class="btn big" onClick={() => setRenaming(true)}>Rename or change icon</button>
         <button class="btn big" onClick={onAddRepeating}>Add a repeating item</button>
+        <button class="btn big" disabled={counts.all === 0} onClick={onMove}>Move everything to another list</button>
         <button
           class="btn big"
           disabled={counts.done === 0}
@@ -376,6 +384,79 @@ function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
         </button>
         )}
       </div>
+    </Sheet>
+  );
+}
+
+/**
+ * Move every item in this list (done or not, repeating ones with their
+ * history) into another list, and optionally delete this one: for folding an
+ * old list into your own.
+ */
+function MoveAllSheet({ list, counts, onClose }) {
+  const { store, session, navigate, deleted: showUndo } = useApp();
+  const all = store.lists();
+  const mine = personalListFor(all, session.name);
+  const official = isOfficialPersonal(list, all);
+  // Your own list first, then the rest in their usual order.
+  const targets = [...(mine && mine.id !== list.id ? [mine] : []), ...all.filter((l) => l.id !== list.id && l.id !== mine?.id)];
+  const [to, setTo] = useState(targets[0]?.id || null);
+  const [deleteAfter, setDeleteAfter] = useState(!official);
+  const total = counts.open + counts.done + counts.repeating;
+  const parts = [
+    counts.open && `${counts.open} to do`,
+    counts.done && `${counts.done} done`,
+    counts.repeating && `${counts.repeating} repeating`,
+  ].filter(Boolean);
+
+  const go = (e) => {
+    e.preventDefault();
+    const dest = store.getEntity('list', to);
+    const move = to && store.moveAllItems(list.id, to);
+    if (!move) return;
+    if (deleteAfter && !official) store.deleteList(list.id);
+    onClose();
+    navigate(mine && to === mine.id ? '/mine' : `/list/${to}`);
+    showUndo(`Moved ${move.count} item${move.count === 1 ? '' : 's'} to “${dest.name}”`, () => {
+      store.undoMoveAll(move);
+      navigate(`/list/${list.id}`);
+    });
+  };
+
+  return (
+    <Sheet title="Move everything" onClose={onClose}>
+      <form class="stack" onSubmit={go}>
+        <p class="hint">
+          All {total} item{total === 1 ? '' : 's'} in “{list.name}” ({parts.join(', ')}) move as they are: ticked-off items stay ticked off, and repeating ones keep their history.
+        </p>
+        <div class="field">
+          <label>Move to</label>
+          {targets.length === 0 ? (
+            <p class="hint">There’s no other list to move them to yet.</p>
+          ) : (
+            <ul class="items move-targets" role="radiogroup" aria-label="Move to">
+              {targets.map((l) => (
+                <li key={l.id} class="item">
+                  <button type="button" role="radio" aria-checked={to === l.id} class={'move-target' + (to === l.id ? ' on' : '')} onClick={() => setTo(l.id)}>
+                    <span class="move-icon"><ListIcon value={l.emoji} size={24} /></span>
+                    <span class="move-name">{l.name}{mine && l.id === mine.id ? <span class="muted"> · My list</span> : null}</span>
+                    <span class="move-radio" aria-hidden="true">{to === l.id ? '✓' : ''}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {!official && (
+          <label class="toggle">
+            <input type="checkbox" checked={deleteAfter} onChange={(e) => setDeleteAfter(e.currentTarget.checked)} />
+            <span>Then delete “{list.name}”</span>
+          </label>
+        )}
+        <button class="btn primary big" type="submit" disabled={!to}>
+          Move {total} item{total === 1 ? '' : 's'}
+        </button>
+      </form>
     </Sheet>
   );
 }

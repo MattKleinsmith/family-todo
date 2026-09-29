@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'move-everything',
+    at: '2026-09-29T12:45:15-04:00',
+    text: 'You can move a whole list into another one, for example an old list into My list. Open the list’s ⋯ menu and tap “Move everything to another list”. Done items stay done, repeating ones keep their history, and the old list can be deleted in the same step.',
+  },
+  {
     id: 'my-list-tab',
     at: '2026-09-29T12:13:16-04:00',
     text: 'Everyone now has their own list with its own “My list” tab. Everyone else can still see it on their Lists tab. Press and hold any tab to rearrange the tabs.',
