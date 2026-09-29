@@ -349,6 +349,9 @@ function TimesPicker({ cadence, value, onChange }) {
   );
 }
 
+// Icons that suit household chores, shown first in the chore icon picker.
+const CHORE_ICONS = ['sponge', 'plate', 'broom', 'soap', 'bubbles', 'bucket', 'droplet', 'shower', 'bed', 'wastebasket', 'basket', 'toilet-paper', 'clover', 'potted-plant', 'cat', 'dog', 'tools', 'cooking'];
+
 function CadencePicker({ value, onChange }) {
   return (
     <div class="segmented" role="radiogroup" aria-label="How often">
@@ -388,7 +391,7 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
         </div>
         <TimesPicker cadence={cadence} value={times} onChange={setTimes} />
         <OwnerPicker value={owner} onChange={setOwner} />
-        <EmojiPicker value={icon || DEFAULT_ICON[cadence]} onChange={setIcon} />
+        <EmojiPicker value={icon || DEFAULT_ICON[cadence]} onChange={setIcon} prefer={CHORE_ICONS} />
         <button class="btn primary big" type="submit" disabled={!name.trim()}>Add chore</button>
       </form>
     </Sheet>
@@ -489,7 +492,7 @@ function ChoreSheet({ chore, onClose }) {
         </div>
         <TimesPicker cadence={cadence} value={timesOf(chore)} onChange={pickTimes} />
         <OwnerPicker value={chore.owner || null} onChange={pickOwner} />
-        <EmojiPicker value={icon} onChange={pickIcon} />
+        <EmojiPicker value={icon} onChange={pickIcon} prefer={CHORE_ICONS} />
         <button class="btn primary big" type="submit">Done</button>
         <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false })); }}>Delete chore</button>
       </form>
