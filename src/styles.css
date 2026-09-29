@@ -468,7 +468,10 @@ li:last-child > .act { border-bottom: none; }
 .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; padding: 4px 2px; }
 /* Two rows, never a scroller of its own inside the sheet. */
 .icon-grid.collapsed { height: calc(2 * 52px + 6px + 8px); overflow: hidden; }
-.more-icons { align-self: flex-start; padding: 6px 2px; min-height: 36px; }
+.more-icons { width: 100%; margin-top: 4px; }
+.more-chev { display: flex; color: var(--muted); transform: rotate(90deg); transition: transform 0.15s ease; }
+.more-chev svg { width: 18px; height: 18px; }
+.more-icons.open .more-chev { transform: rotate(-90deg); }
 .icon-opt { height: 52px; border-radius: 16px; border: 2px solid transparent; background: var(--surface); display: grid; place-items: center; padding: 0; }
 .icon-opt img { display: block; }
 .icon-opt.selected { border-color: var(--accent); background: var(--accent-soft); }

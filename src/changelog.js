@@ -7,7 +7,7 @@ export const CHANGELOG = [
   {
     id: 'icon-picker-one-scroll',
     at: '2026-09-29T08:09:20-04:00',
-    text: 'Picking an icon no longer means scrolling a little box inside a scrolling sheet. It shows two rows of likely icons, and “More icons” opens the rest.',
+    text: 'Picking an icon no longer means scrolling a little box inside a scrolling sheet. It shows two rows of likely icons, and the “More icons” button opens the rest.',
   },
   {
     id: 'chore-every-2-weeks',

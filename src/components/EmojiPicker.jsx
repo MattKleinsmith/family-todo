@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { extractEmoji } from '../emoji.js';
 import { ICONS, iconToken, iconSrc } from '../icons.js';
 import { ListIcon } from './ListIcon.jsx';
+import { ChevronIcon } from './Icons.jsx';
 
 /**
  * Icon field: pick one of the themed icons, or switch the keyboard to emoji
@@ -68,8 +69,9 @@ export function EmojiPicker({ value, onChange, prefer = [] }) {
           );
         })}
       </div>
-      <button type="button" class="btn link more-icons" aria-expanded={all} onClick={() => setAll(!all)}>
+      <button type="button" class={'btn more-icons' + (all ? ' open' : '')} aria-expanded={all} onClick={() => setAll(!all)}>
         {all ? 'Fewer icons' : `More icons (${ICONS.length})`}
+        <span class="more-chev" aria-hidden="true"><ChevronIcon /></span>
       </button>
     </div>
   );
