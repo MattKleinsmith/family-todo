@@ -8,7 +8,7 @@
 //
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
-import { periodIndex, periodWord, timesOf } from './house.js';
+import { cadenceText, periodIndex, periodWord, timesOf } from './house.js';
 import { iconToText } from './icons.js';
 import { memberKey, sameName } from './members.js';
 
@@ -88,8 +88,9 @@ export function describeChange(prev, next, ctx = {}) {
       return parts.length ? joinParts(parts) : null;
     }
     case 'chore': {
-      const cadence = (c) => ({ daily: 'daily', weekly: 'weekly', monthly: 'monthly' })[c.cadence] || 'weekly';
-      if (!prev) return next.deleted || next.starter ? null : `added the ${cadence(next)} chore ${q(next.name)}${next.owner ? ` for ${next.owner}` : ''}`;
+      const often = (c) => cadenceText(c.cadence).often;
+      const addedAs = (c) => (c.cadence === 'biweekly' ? `added the chore ${q(c.name)} (every 2 weeks)` : `added the ${often(c)} chore ${q(c.name)}`);
+      if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.deleted && !prev.deleted) return `removed the chore ${q(prev.name)}`;
       if (prev.deleted && !next.deleted) return `put back the chore ${q(next.name)}`;
       if (next.deleted) return null;
@@ -112,9 +113,9 @@ export function describeChange(prev, next, ctx = {}) {
       const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
       if (next.name !== prev.name) parts.push(`renamed the chore ${q(prev.name)} to ${q(next.name)}`);
-      if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadence(next)}`);
+      if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${often(next)}`);
       if (timesOf(next) !== timesOf(prev)) {
-        const per = { daily: 'a day', weekly: 'a week', monthly: 'a month' }[next.cadence] || 'a week';
+        const { per } = cadenceText(next.cadence);
         parts.push(timesOf(next) === 1 ? `set ${q(next.name)} to once ${per}` : `set ${q(next.name)} to ${timesOf(next)} times ${per}`);
       }
       if ((next.owner || '') !== (prev.owner || ''))

@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'chore-every-2-weeks',
+    at: '2026-09-29T08:02:58-04:00',
+    text: 'Chores can now come around every 2 weeks, like changing the sheets. Pick “2 weeks” under “How often”.',
+    href: '#/house',
+  },
+  {
     id: 'whats-new-notes',
     at: '2026-09-28T21:20:00-04:00',
     text: 'After each update, a short note like this one shows up here saying what changed.',

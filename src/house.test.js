@@ -26,6 +26,18 @@ describe('periods', () => {
     expect(periodIndex('monthly', at(2026, 10, 1))).toBe(periodIndex('monthly', at(2026, 9, 30)) + 1);
     expect(periodIndex('monthly', at(2027, 1, 1))).toBe(periodIndex('monthly', at(2026, 12, 31)) + 1);
   });
+  it('two-week blocks run Monday to Sunday, the same on every phone', () => {
+    const { start, end } = periodBounds('biweekly', MON);
+    expect(new Date(start).getDay()).toBe(1);
+    expect(Math.round((end - start) / 86400_000)).toBe(14);
+    expect(periodIndex('biweekly', start)).toBe(periodIndex('biweekly', end - 1));
+    expect(periodIndex('biweekly', end)).toBe(periodIndex('biweekly', start) + 1);
+    // Each block is two of the weekly periods.
+    expect(periodIndex('weekly', end) - periodIndex('weekly', start)).toBe(2);
+    // Across daylight saving (1 November 2026) the blocks stay 14 days.
+    const nov = periodBounds('biweekly', at(2026, 11, 3));
+    expect(Math.round((nov.end - nov.start) / 86400_000)).toBe(14);
+  });
   it('daylight saving changes do not skip or repeat a day', () => {
     // US clocks change on 1 November 2026 and 14 March 2027.
     expect(periodIndex('daily', at(2026, 11, 2, 0))).toBe(periodIndex('daily', at(2026, 11, 1, 0)) + 1);
@@ -93,6 +105,16 @@ describe('choreStatus', () => {
     expect(timesOf({ times: 9 })).toBe(4);
     expect(timesOf({ times: 0 })).toBe(1);
     expect(timesOf({})).toBe(1);
+  });
+  it('every-two-weeks chores', () => {
+    const sheets = (done) => chore({ cadence: 'biweekly', done, createdAt: at(2026, 8, 1) });
+    const { start } = periodBounds('biweekly', MON);
+    expect(choreStatus(sheets([{ at: start + 3600_000 }]), MON).state).toBe('done');
+    expect(choreStatus(sheets([{ at: start - 86400_000 }]), MON)).toMatchObject({ state: 'due', missed: 0 });
+    expect(choreStatus(sheets([{ at: start - 15 * 86400_000 }]), MON)).toMatchObject({ state: 'overdue', missed: 1 });
+    expect(missedLabel('biweekly', 1)).toBe('Missed the last 2 weeks');
+    expect(missedLabel('biweekly', 2)).toBe('Missed 4 weeks');
+    expect(dueLabel(choreStatus(sheets([]), start))).toBe('14 days left');
   });
   it('overdueChores picks out the late ones', () => {
     const ok = chore({ id: 'a', done: [{ at: MON }] });
@@ -188,6 +210,9 @@ describe('chore activity', () => {
     const sat = at(2026, 9, 26);
     expect(describeChange(c(), c({ done: [{ at: sat }] }))).toBe(`marked “Mow the lawn” done on ${new Date(sat).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`);
     expect(describeChange(c(), c({ cadence: 'monthly' }))).toBe('made “Mow the lawn” monthly');
+    expect(describeChange(c(), c({ cadence: 'biweekly' }))).toBe('made “Mow the lawn” every 2 weeks');
+    expect(describeChange(null, c({ cadence: 'biweekly' }))).toBe('added the chore “Mow the lawn” (every 2 weeks)');
+    expect(describeChange(c({ cadence: 'biweekly' }), c({ cadence: 'biweekly', times: 2 }))).toBe('set “Mow the lawn” to 2 times every 2 weeks');
     expect(describeChange(c(), c({ name: 'Mow' }))).toBe('renamed the chore “Mow the lawn” to “Mow”');
     expect(describeChange(c(), c({ deleted: true }))).toBe('removed the chore “Mow the lawn”');
     expect(describeChange(c(), c({ order: 5 }))).toBe('reordered the chore “Mow the lawn”');
