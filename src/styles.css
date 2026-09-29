@@ -641,3 +641,9 @@ li:last-child > .act { border-bottom: none; }
 .add-item input::placeholder { color: var(--muted); font-weight: 600; }
 .add-go { flex: none; min-height: 38px; padding: 0 18px; }
 .icon-btn.add-btn svg { width: 24px; height: 24px; }
+.times-other { align-items: center; gap: 10px; margin-top: 4px; }
+.times-other input[type="number"] {
+  flex: 0 0 110px; width: 110px; min-width: 0; min-height: 46px; padding: 8px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  background: var(--surface); font-size: 17px; outline: none; -webkit-appearance: none; appearance: none;
+}
+.times-other input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }

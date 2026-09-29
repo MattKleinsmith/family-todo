@@ -102,7 +102,9 @@ describe('choreStatus', () => {
     // Only once yesterday isn't "missed": the day wasn't skipped.
     expect(choreStatus(bottles([{ at: at(2026, 9, 27, 9) }]), MON)).toMatchObject({ count: 0, missed: 0, state: 'due' });
     // Out-of-range settings fall back to something sensible.
-    expect(timesOf({ times: 9 })).toBe(4);
+    expect(timesOf({ times: 9 })).toBe(9);
+    expect(timesOf({ times: 500 })).toBe(99);
+    expect(timesOf({ times: 'x' })).toBe(1);
     expect(timesOf({ times: 0 })).toBe(1);
     expect(timesOf({})).toBe(1);
   });

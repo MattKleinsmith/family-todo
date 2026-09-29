@@ -18,6 +18,7 @@ import {
   DEFAULT_ICON,
   cadenceText,
   MAX_TIMES,
+  QUICK_TIMES,
   periodWord,
   timesOf,
   STARTER_CHORES,
@@ -313,10 +314,22 @@ function OwnerPicker({ value, onChange }) {
   );
 }
 
-/** The check circle split into one segment per time, filled as they're done. */
+/** The check circle split into one segment per time, filled as they're done (a smooth ring past 8). */
 function ProgressRing({ count, target }) {
   const r = 12.5;
   const c = 2 * Math.PI * r;
+  if (target > 8) {
+    const filled = (c * Math.min(count, target)) / target;
+    return (
+      <svg class="ring" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <circle class="seg" cx="15" cy="15" r={r} fill="none" stroke-width="3" />
+        {count > 0 && (
+          <circle class="seg on" cx="15" cy="15" r={r} fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray={`${filled} ${c - filled}`} transform="rotate(-90 15 15)" />
+        )}
+        {count > 0 && <text x="15" y="19.5" text-anchor="middle" class="ring-count">{count}</text>}
+      </svg>
+    );
+  }
   const gap = 3.2; // px between segments
   const seg = c / target - gap;
   return (
@@ -340,18 +353,72 @@ function ProgressRing({ count, target }) {
 }
 
 /** How many times each day, week or month. */
+/** How many times each day, week or month: quick choices, or type any number. */
 function TimesPicker({ cadence, value, onChange }) {
   const { per } = cadenceText(cadence);
+  const custom = !QUICK_TIMES.includes(value);
+  const [typing, setTyping] = useState(custom);
+  const [draft, setDraft] = useState(custom ? String(value) : '');
+  const commit = (raw) => {
+    const n = Math.round(Number(raw));
+    if (Number.isFinite(n) && n >= 1) onChange(Math.min(MAX_TIMES, n));
+  };
   return (
     <div class="field">
       <label>How many times {per}</label>
       <div class="chips" role="radiogroup" aria-label={`How many times ${per}`}>
-        {Array.from({ length: MAX_TIMES }, (_, i) => i + 1).map((n) => (
-          <button type="button" key={n} role="radio" aria-checked={value === n} class={'chip' + (value === n ? ' on' : '')} onClick={() => onChange(n)}>
+        {QUICK_TIMES.map((n) => (
+          <button
+            type="button"
+            key={n}
+            role="radio"
+            aria-checked={value === n && !typing}
+            class={'chip' + (value === n && !typing ? ' on' : '')}
+            onClick={() => {
+              setTyping(false);
+              onChange(n);
+            }}
+          >
             {n === 1 ? 'Once' : `${n}×`}
           </button>
         ))}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={typing}
+          class={'chip' + (typing ? ' on' : '')}
+          onClick={() => {
+            setTyping(true);
+            setDraft(custom ? String(value) : '');
+          }}
+        >
+          {custom && !typing ? `${value}×` : 'Other…'}
+        </button>
       </div>
+      {typing && (
+        <div class="row times-other">
+          <input
+            type="number"
+            inputmode="numeric"
+            min="1"
+            max={MAX_TIMES}
+            placeholder="e.g. 6"
+            aria-label={`Times ${per}`}
+            value={draft}
+            autoFocus
+            onInput={(e) => setDraft(e.currentTarget.value)}
+            // Saved once you've finished typing (not "1" then "12").
+            onChange={(e) => commit(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              commit(e.currentTarget.value);
+              e.currentTarget.blur();
+            }}
+          />
+          <span class="muted">times {per}</span>
+        </div>
+      )}
     </div>
   );
 }

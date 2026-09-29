@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'any-number-of-times',
+    at: '2026-09-29T15:10:33-04:00',
+    text: 'A chore or repeating item can now be done any number of times a day, week or month: pick “Other…” under “How many times” and type a number.',
+    href: '#/house',
+  },
+  {
     id: 'add-row-in-list',
     at: '2026-09-29T12:59:44-04:00',
     text: 'Adding to a list now happens in the list itself: “Add an item…” is its last row, so nothing floats over your items. On a long list, the + at the top jumps straight to it.',
