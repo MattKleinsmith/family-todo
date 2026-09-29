@@ -16,6 +16,7 @@ import {
   CADENCES,
   CADENCE_LABEL,
   DEFAULT_ICON,
+  cadenceText,
   MAX_TIMES,
   periodWord,
   timesOf,
@@ -27,8 +28,7 @@ import {
   whenLabel,
 } from '../house.js';
 
-const SECTION_TITLE = { daily: 'Every day', weekly: 'Every week', monthly: 'Every month' };
-const NOUN = { daily: 'daily', weekly: 'weekly', monthly: 'monthly' };
+
 
 /** Starter chores, set up once per family, preferably after this phone has caught up with the others. */
 function useStarterChores() {
@@ -151,6 +151,7 @@ function Summary({ chores, now }) {
   const periods = [
     { k: 'daily', label: 'Today' },
     { k: 'weekly', label: 'This week' },
+    { k: 'biweekly', label: 'These 2 weeks' },
     { k: 'monthly', label: month },
   ].filter((p) => total(p.k) > 0);
   const allDone = periods.every((p) => left(p.k) === 0);
@@ -211,7 +212,7 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
   return (
     <section class="day chores">
       <div class="day-head">
-        <span>{SECTION_TITLE[cadence]}</span>
+        <span>{cadenceText(cadence).section}</span>
         {rows.length > 0 && <span class="day-stats">{doneCount} of {rows.length} done</span>}
       </div>
       <ul class="items" ref={listRef}>
@@ -220,7 +221,7 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
         ))}
         <li class="add-row">
           <button class="add-chore" onClick={onAdd}>
-            <span class="add-plus" aria-hidden="true">+</span> Add a {NOUN[cadence]} chore
+            <span class="add-plus" aria-hidden="true">+</span> {cadenceText(cadence).add}
           </button>
         </li>
       </ul>
@@ -333,7 +334,7 @@ function ProgressRing({ count, target }) {
 
 /** How many times each day, week or month. */
 function TimesPicker({ cadence, value, onChange }) {
-  const per = { daily: 'a day', weekly: 'a week', monthly: 'a month' }[cadence] || 'a week';
+  const { per } = cadenceText(cadence);
   return (
     <div class="field">
       <label>How many times {per}</label>
@@ -379,7 +380,7 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
       <form class="stack" onSubmit={submit}>
         <div class="field">
           <label for="chore-name">What needs doing</label>
-          <input id="chore-name" type="text" placeholder={{ daily: 'Sweep the kitchen', weekly: 'Take out the trash', monthly: 'Change the air filter' }[cadence]} value={name} onInput={(e) => setName(e.currentTarget.value)} autoFocus />
+          <input id="chore-name" type="text" placeholder={{ daily: 'Sweep the kitchen', weekly: 'Take out the trash', biweekly: 'Change the sheets', monthly: 'Change the air filter' }[cadence]} value={name} onInput={(e) => setName(e.currentTarget.value)} autoFocus />
         </div>
         <div class="field">
           <label>How often</label>
@@ -458,7 +459,10 @@ function ChoreSheet({ chore, onClose }) {
         <div class="field">
           <label>How often</label>
           <CadencePicker value={cadence} onChange={pickCadence} />
-          <p class="hint">{cadence === 'weekly' ? 'Weeks run Monday to Sunday.' : cadence === 'monthly' ? 'Any day in the month counts.' : 'Resets every morning.'} If a whole {cadence === 'daily' ? 'day' : cadence === 'weekly' ? 'week' : 'month'} goes by without it, it’s flagged as overdue.</p>
+          <p class="hint">
+            {{ daily: 'Resets every morning.', weekly: 'Weeks run Monday to Sunday.', biweekly: 'Runs in two-week blocks, Monday to Sunday.', monthly: 'Any day in the month counts.' }[cadence]}{' '}
+            {cadence === 'biweekly' ? 'If two whole weeks go by' : `If a whole ${cadenceText(cadence).span} goes by`} without it, it’s flagged as overdue.
+          </p>
         </div>
         <div class="field">
           <label>Done</label>

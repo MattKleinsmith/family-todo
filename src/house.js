@@ -1,13 +1,23 @@
-// Pure helpers for the house tracker: which daily, weekly or monthly period a
+// Pure helpers for the house tracker: which daily, weekly, two-weekly or monthly period a
 // time falls in, and whether a chore is done for the current one, still due,
 // or overdue because the previous period went by without it.
 //
 // Periods are calendar periods in local time: a day, a week starting Monday
-// (so a weekend stays together), and a month.
+// (so a weekend stays together), a fixed two-week block of those weeks (the
+// same blocks on every phone), and a month.
 import { iconToken } from './icons.js';
 
-export const CADENCES = ['daily', 'weekly', 'monthly'];
-export const CADENCE_LABEL = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+export const CADENCES = ['daily', 'weekly', 'biweekly', 'monthly'];
+export const CADENCE_LABEL = { daily: 'Daily', weekly: 'Weekly', biweekly: '2 weeks', monthly: 'Monthly' };
+
+/** Wording for each cadence, shared by the House tab, its sheets and the activity feed. */
+export const CADENCE_TEXT = {
+  daily: { section: 'Every day', add: 'Add a daily chore', often: 'daily', per: 'a day', unit: 'day', span: 'day' },
+  weekly: { section: 'Every week', add: 'Add a weekly chore', often: 'weekly', per: 'a week', unit: 'week', span: 'week' },
+  biweekly: { section: 'Every 2 weeks', add: 'Add a chore for every 2 weeks', often: 'every 2 weeks', per: 'every 2 weeks', unit: 'week', span: 'two weeks' },
+  monthly: { section: 'Every month', add: 'Add a monthly chore', often: 'monthly', per: 'a month', unit: 'month', span: 'month' },
+};
+export const cadenceText = (cadence) => CADENCE_TEXT[cadence] || CADENCE_TEXT.weekly;
 export const HISTORY_LIMIT = 20;
 export const MAX_TIMES = 4;
 
@@ -17,7 +27,7 @@ export function timesOf(chore) {
   return Math.min(MAX_TIMES, Math.max(1, n));
 }
 
-const PERIOD_WORD = { daily: 'today', weekly: 'this week', monthly: 'this month' };
+const PERIOD_WORD = { daily: 'today', weekly: 'this week', biweekly: 'these two weeks', monthly: 'this month' };
 export const periodWord = (cadence) => PERIOD_WORD[cadence] || 'this week';
 
 const DAY = 24 * 3600 * 1000;
@@ -37,7 +47,14 @@ export function periodIndex(cadence, ts) {
   const n = dayNumber(ts);
   // 1970-01-01 was a Thursday; +3 makes Monday the first day of each week.
   if (cadence === 'weekly') return Math.floor((n + 3) / 7);
+  if (cadence === 'biweekly') return Math.floor(Math.floor((n + 3) / 7) / 2);
   return n;
+}
+
+/** Local midnight of a day number. */
+function dayStartOf(n) {
+  const u = new Date(n * DAY);
+  return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()).getTime();
 }
 
 /** Start (inclusive) and end (exclusive) of the period `ts` falls in, in local time. */
@@ -45,6 +62,10 @@ export function periodBounds(cadence, ts) {
   const d = new Date(ts);
   if (cadence === 'monthly') {
     return { start: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() };
+  }
+  if (cadence === 'biweekly') {
+    const first = periodIndex('biweekly', ts) * 14 - 3; // day number of the block's first Monday
+    return { start: dayStartOf(first), end: dayStartOf(first + 14) };
   }
   if (cadence === 'weekly') {
     const back = (d.getDay() + 6) % 7; // days since Monday
@@ -90,7 +111,8 @@ export function choreStatus(chore, now = Date.now()) {
 /** "Missed yesterday", "Missed 2 weeks", … */
 export function missedLabel(cadence, missed) {
   if (missed <= 0) return '';
-  const unit = { daily: 'day', weekly: 'week', monthly: 'month' }[cadence] || 'week';
+  if (cadence === 'biweekly') return missed === 1 ? 'Missed the last 2 weeks' : `Missed ${missed * 2} weeks`;
+  const { unit } = cadenceText(cadence);
   if (missed === 1) return cadence === 'daily' ? 'Missed yesterday' : `Missed last ${unit}`;
   return `Missed ${missed} ${unit}s`;
 }
@@ -110,6 +132,7 @@ export function dueLabel(status) {
   const { cadence, daysLeft } = status;
   if (cadence === 'daily') return 'Due today';
   if (daysLeft <= 1) return 'Due by tonight';
+  if (cadence === 'biweekly') return `${daysLeft} days left`;
   return `${daysLeft} days left this ${cadence === 'weekly' ? 'week' : 'month'}`;
 }
 
@@ -122,7 +145,7 @@ export const STARTER_CHORES = [
   { id: 'starter-water-heater', name: 'Drain a gallon from the water heater', cadence: 'monthly', icon: iconToken('droplet') },
 ];
 
-export const DEFAULT_ICON = { daily: iconToken('broom'), weekly: iconToken('bucket'), monthly: iconToken('tools') };
+export const DEFAULT_ICON = { daily: iconToken('broom'), weekly: iconToken('bucket'), biweekly: iconToken('soap'), monthly: iconToken('tools') };
 
 /** Chores that are overdue right now, for the tab badge and the summary card. */
 export function overdueChores(chores, now = Date.now()) {

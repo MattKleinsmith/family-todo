@@ -69,9 +69,9 @@ crosses midnight is split across the two days.
 
 ## The house tracker
 
-Chores are grouped into **Every day**, **Every week** and **Every month**. Tap the
-circle when one is done; it counts for the current day, week (Monday to Sunday) or
-calendar month, then comes back around. Tap it again to undo.
+Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. Tap the
+circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
+block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 
 Some chores happen more than once a period, like washing the bottles twice a day.
 Set **How many times** (once to 4×) and the circle splits into that many segments:
