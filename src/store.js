@@ -255,14 +255,16 @@ export function createStore({
   }
 
   /** Undo deleteList: bring back the list and the items that went with it. */
-  function restoreList(id, itemIds = []) {
+  function restoreList(id, itemIds = [], choreIds = []) {
     for (const itemId of itemIds) if (state.items[itemId]?.deleted) patch('item', itemId, { deleted: false });
+    for (const choreId of choreIds) if (state.chores[choreId]?.deleted) patch('chore', choreId, { deleted: false });
     return patch('list', id, { deleted: false });
   }
 
   function deleteList(id) {
     const items = Object.values(state.items).filter((i) => i.listId === id && !i.deleted);
     for (const item of items) patch('item', item.id, { deleted: true });
+    for (const c of Object.values(state.chores)) if (c.listId === id && !c.deleted) patch('chore', c.id, { deleted: true });
     return patch('list', id, { deleted: true });
   }
 
@@ -367,10 +369,61 @@ export function createStore({
 
   // ---- House chores: daily, weekly and monthly, with their recent completions ----
 
-  function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, createdBy = '' }) {
+  /** A chore for the House tab, or, with `listId`, a repeating item that lives in that list instead. */
+  function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, createdBy = '', listId = null }) {
     const n = (name || '').trim();
     if (!n) return null;
-    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, done: [], createdBy, createdAt: stamp(), deleted: false });
+    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, done: [], createdBy, createdAt: stamp(), deleted: false, ...(listId ? { listId } : {}) });
+  }
+
+  /**
+   * Make a one-off list item repeat: it becomes a repeating item in the same
+   * list and place, and if it was ticked off, that counts for this period.
+   * The two records point at each other (`fromItem` / `convertedTo`) so the
+   * activity feed can say "made … repeat" instead of "removed" and "added".
+   */
+  function repeatItem(itemId, { cadence = 'daily', name } = {}) {
+    const item = state.items[itemId];
+    if (!item || item.deleted) return null;
+    const chore = putLocal({
+      id: newId(),
+      type: 'chore',
+      listId: item.listId,
+      name: (name || item.text).trim() || item.text,
+      cadence,
+      icon: '',
+      owner: null,
+      times: 1,
+      done: item.done && item.doneAt ? [{ at: item.doneAt, by: item.updatedBy || '' }] : [],
+      createdBy: item.createdBy || '',
+      createdAt: stamp(),
+      order: sortKey(item),
+      fromItem: item.id,
+      deleted: false,
+    });
+    patch('item', itemId, { deleted: true, convertedTo: chore.id });
+    return chore;
+  }
+
+  /** Turn a list's repeating item back into a plain one-off item. */
+  function stopRepeating(choreId) {
+    const c = state.chores[choreId];
+    if (!c || c.deleted || !c.listId) return null;
+    const item = putLocal({
+      id: newId(),
+      type: 'item',
+      listId: c.listId,
+      text: c.name,
+      done: false,
+      doneAt: null,
+      createdBy: c.createdBy || '',
+      createdAt: stamp(),
+      order: sortKey(c),
+      fromChore: c.id,
+      deleted: false,
+    });
+    patch('chore', choreId, { deleted: true, convertedTo: item.id });
+    return item;
   }
 
   /**
@@ -413,6 +466,16 @@ export function createStore({
     return Object.values(state.chores)
       .filter((c) => !c.deleted)
       .sort(byKey);
+  }
+
+  /** The household's chores, for the House tab: not the repeating items that live in lists. */
+  function houseChores() {
+    return chores().filter((c) => !c.listId);
+  }
+
+  /** Repeating items in one list. */
+  function choresFor(listId) {
+    return chores().filter((c) => c.listId === listId);
   }
 
   /** True once this phone holds any chore record at all, deleted ones included. */
@@ -574,6 +637,10 @@ export function createStore({
     seedLocal,
     addChore,
     seedChores,
+    repeatItem,
+    stopRepeating,
+    houseChores,
+    choresFor,
     updateChore,
     deleteChore,
     markChore,

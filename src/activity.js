@@ -26,7 +26,9 @@ export function describeChange(prev, next, ctx = {}) {
   switch (next.type) {
     case 'item': {
       const where = `in ${listName(next.listId)}`;
+      if (!prev && next.fromChore && !next.deleted) return `stopped repeating ${q(next.text)} ${where}`;
       if (!prev) return next.deleted ? null : `added ${q(next.text)} ${where}`;
+      if (next.convertedTo) return null; // it became a repeating item; that record tells the story
       if (next.deleted && !prev.deleted) return `removed ${q(prev.text)} from ${listName(next.listId)}`;
       if (prev.deleted && !next.deleted) return `put back ${q(next.text)} in ${listName(next.listId)}`;
       if (next.deleted) return null;
@@ -89,10 +91,21 @@ export function describeChange(prev, next, ctx = {}) {
     }
     case 'chore': {
       const often = (c) => cadenceText(c.cadence).often;
-      const addedAs = (c) => (c.cadence === 'biweekly' ? `added the chore ${q(c.name)} (every 2 weeks)` : `added the ${often(c)} chore ${q(c.name)}`);
+      // Repeating items that live in a list read like list items, and say which list.
+      const inList = !!next.listId;
+      const where = inList ? ` in ${listName(next.listId)}` : '';
+      const noun = inList ? 'the repeating item' : 'the chore';
+      const addedAs = (c) =>
+        inList
+          ? `added ${q(c.name)} to ${listName(c.listId)}, repeating ${often(c)}`
+          : c.cadence === 'biweekly'
+            ? `added the chore ${q(c.name)} (every 2 weeks)`
+            : `added the ${often(c)} chore ${q(c.name)}`;
+      if (!prev && next.fromItem && !next.deleted) return `made ${q(next.name)} repeat ${often(next)}${where}`;
       if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
-      if (next.deleted && !prev.deleted) return `removed the chore ${q(prev.name)}`;
-      if (prev.deleted && !next.deleted) return `put back the chore ${q(next.name)}`;
+      if (next.convertedTo) return null; // turned back into a one-off item; that record tells the story
+      if (next.deleted && !prev.deleted) return `removed ${noun} ${q(prev.name)}${inList ? ` from ${listName(next.listId)}` : ''}`;
+      if (prev.deleted && !next.deleted) return `put back ${noun} ${q(next.name)}${where}`;
       if (next.deleted) return null;
       const parts = [];
       const had = new Set((prev.done || []).map((d) => d.at));
@@ -112,7 +125,7 @@ export function describeChange(prev, next, ctx = {}) {
       // Only the history cap trimming the oldest entry isn't news.
       const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
-      if (next.name !== prev.name) parts.push(`renamed the chore ${q(prev.name)} to ${q(next.name)}`);
+      if (next.name !== prev.name) parts.push(`renamed ${noun} ${q(prev.name)} to ${q(next.name)}`);
       if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${often(next)}`);
       if (timesOf(next) !== timesOf(prev)) {
         const { per } = cadenceText(next.cadence);
@@ -127,8 +140,8 @@ export function describeChange(prev, next, ctx = {}) {
               : `gave ${q(next.name)} to ${next.owner}`,
         );
       if ((next.icon || '') !== (prev.icon || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.icon ? iconToText(next.icon) : 'none'}`);
-      if (next.order !== prev.order && !next.renumbered) parts.push(`reordered the chore ${q(next.name)}`);
-      return parts.length ? joinParts(parts) : null;
+      if (next.order !== prev.order && !next.renumbered) parts.push(`reordered ${noun} ${q(next.name)}`);
+      return parts.length ? `${joinParts(parts)}${where}` : null;
     }
     case 'member': {
       const dev = next.device ? ` on ${/^[aeiou]/i.test(next.device) ? 'an' : 'a'} ${next.device}` : '';
@@ -149,6 +162,19 @@ export function areaOf(e) {
   if (e.entityType === 'chore') return 'house';
   if (e.entityType === 'log' || (e.entityType === 'meta' && e.entityId === 'baby')) return 'baby';
   return null;
+}
+
+/**
+ * Ticking off a repeating item in a list (someone's own habit, say) is shown
+ * in the feed but isn't news for everyone's bell. Anything else about it
+ * (adding, renaming, removing) is.
+ */
+export function isQuiet(prev, next) {
+  if (!prev || next.type !== 'chore' || !next.listId || next.deleted) return false;
+  const skip = new Set(['done', 'updatedAt', 'updatedBy']);
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  for (const k of keys) if (!skip.has(k) && JSON.stringify(prev[k]) !== JSON.stringify(next[k])) return false;
+  return true;
 }
 
 export function actorOf(entity) {
@@ -326,7 +352,8 @@ export function createActivity({
       text,
       entityType: next.type,
       entityId: next.id,
-      listId: next.type === 'item' ? next.listId : next.type === 'list' ? next.id : null,
+      listId: next.type === 'item' || next.type === 'chore' ? next.listId || null : next.type === 'list' ? next.id : null,
+      ...(isQuiet(prev, next) ? { quiet: true } : {}),
     });
     notify();
     scheduleFlush();
@@ -404,7 +431,7 @@ export function createActivity({
       seen.add(e.id);
       const mine = mineOverride ?? isMine(e);
       const area = areaOf(e);
-      out.push({ ...e, mine, seen: mine || e.at <= cut || (area != null && e.at <= (areaSeen[area] || 0)) });
+      out.push({ ...e, mine, seen: mine || !!e.quiet || e.at <= cut || (area != null && e.at <= (areaSeen[area] || 0)) });
     };
     for (const b of store.activityBuckets()) for (const e of b.entries || []) add(e);
     for (const e of pending) add(e);

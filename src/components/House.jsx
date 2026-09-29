@@ -52,13 +52,13 @@ function useStarterChores() {
 }
 
 export function House({ focus }) {
-  const { store, session, navigate, deleted: showUndo } = useApp();
+  const { store, navigate } = useApp();
   const [, tick] = useReducer((x) => x + 1, 0);
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(null); // cadence
   const [flash, setFlash] = useState(null);
   useStarterChores();
-  useMarkSeen('house', newestOf(Object.values(store.get().chores)));
+  useMarkSeen('house', newestOf(Object.values(store.get().chores).filter((c) => !c.listId)));
 
   // Days and weeks roll over while the app is open.
   useEffect(() => {
@@ -80,21 +80,10 @@ export function House({ focus }) {
   }, [focus]);
 
   const now = Date.now();
-  const chores = store.chores().map((c) => ({ chore: c, status: choreStatus(c, now) }));
+  const chores = store.houseChores().map((c) => ({ chore: c, status: choreStatus(c, now) }));
   const byCadence = Object.fromEntries(CADENCES.map((k) => [k, chores.filter((x) => x.status.cadence === k)]));
 
-  // Tap to tick off one more time; once it's all done, a tap takes the last one back.
-  const toggle = ({ chore, status }) => {
-    if (status.done) {
-      store.unmarkChore(chore.id, status.done.at);
-      return;
-    }
-    const at = Date.now();
-    store.markChore(chore.id, { at, by: session.name });
-    highlight(chore.id);
-    if (status.target > 1 && status.count + 1 < status.target)
-      showUndo(`${chore.name}: ${status.count + 1} of ${status.target} ${periodWord(status.cadence)}`, () => store.unmarkChore(chore.id, at));
-  };
+  const toggle = useChoreToggle(highlight);
 
   return (
     <div class="screen has-tabs">
@@ -140,6 +129,22 @@ export function House({ focus }) {
       )}
     </div>
   );
+}
+
+/** Tap to tick off one more time; once it's all done, a tap takes the last one back. */
+export function useChoreToggle(highlight = () => {}) {
+  const { store, session, deleted: showUndo } = useApp();
+  return ({ chore, status }) => {
+    if (status.done) {
+      store.unmarkChore(chore.id, status.done.at);
+      return;
+    }
+    const at = Date.now();
+    store.markChore(chore.id, { at, by: session.name });
+    highlight(chore.id);
+    if (status.target > 1 && status.count + 1 < status.target)
+      showUndo(`${chore.name}: ${status.count + 1} of ${status.target} ${periodWord(status.cadence)}`, () => store.unmarkChore(chore.id, at));
+  };
 }
 
 function Summary({ chores, now }) {
@@ -229,7 +234,8 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
   );
 }
 
-function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete }) {
+/** One chore. `showCadence` prefixes the status line with how often it repeats, for lists that mix them. */
+export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete, showCadence = false }) {
   const { session } = useApp();
   const swipe = swipeDelete(onDelete);
   const mine = sameName(chore.owner, session.name);
@@ -242,7 +248,7 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
   else if (status.latest)
     sub = (
       <>
-        {/* The section header already says every day, week or month. */}
+        {/* The section header already says every day, week or month (or the row does, in a list). */}
         <b class="progress">{status.count} of {status.target}</b> · last {whenLabel(status.latest.at, now)}{by(status.latest)}
       </>
     );
@@ -266,11 +272,12 @@ function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete 
         {multi && !status.done ? <ProgressRing count={status.count} target={status.target} /> : <span class="check-mark">{status.done ? '✓' : ''}</span>}
       </button>
       <button class="item-text chore-text" onClick={onEdit}>
-        <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>
+        {chore.icon && <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>}
         <span class="chore-lines">
           <span class="chore-name">{chore.name}</span>
           <span class="item-by chore-sub">
             {chore.owner && <span class={'owner-pill' + (mine ? ' mine' : '')} aria-label={mine ? 'Yours:' : `${chore.owner}’s:`}>{mine ? 'You' : chore.owner}</span>}
+            {showCadence && <span class="cadence-tag">{{ daily: 'Daily', weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' }[status.cadence]} · </span>}
             {sub}
           </span>
         </span>
@@ -362,7 +369,8 @@ function CadencePicker({ value, onChange }) {
   );
 }
 
-function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
+/** Add a House chore, or, with `listId`, a repeating item for that list. */
+export function NewChoreSheet({ cadence: initial, onClose, onCreated, listId = null }) {
   const { store, session } = useApp();
   const [name, setName] = useState('');
   const [cadence, setCadence] = useState(initial);
@@ -372,27 +380,35 @@ function NewChoreSheet({ cadence: initial, onClose, onCreated }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const c = store.addChore({ name, cadence, icon: icon || DEFAULT_ICON[cadence], owner, times, createdBy: session.name });
+    const c = store.addChore({ name, cadence, icon: icon || (listId ? '' : DEFAULT_ICON[cadence]), owner, times, createdBy: session.name, listId });
     if (!c) return;
     onClose();
     onCreated(c);
   };
 
   return (
-    <Sheet title="New chore" onClose={onClose}>
+    <Sheet title={listId ? 'New repeating item' : 'New chore'} onClose={onClose}>
       <form class="stack" onSubmit={submit}>
         <div class="field">
-          <label for="chore-name">What needs doing</label>
-          <input id="chore-name" type="text" placeholder={{ daily: 'Sweep the kitchen', weekly: 'Take out the trash', biweekly: 'Change the sheets', monthly: 'Change the air filter' }[cadence]} value={name} onInput={(e) => setName(e.currentTarget.value)} autoFocus />
+          <label for="chore-name">{listId ? 'What to repeat' : 'What needs doing'}</label>
+          <input
+            id="chore-name"
+            type="text"
+            placeholder={listId ? { daily: 'Practice Chinese', weekly: 'Call Mom', biweekly: 'Get a haircut', monthly: 'Review the budget' }[cadence] : { daily: 'Sweep the kitchen', weekly: 'Take out the trash', biweekly: 'Change the sheets', monthly: 'Change the air filter' }[cadence]}
+            value={name}
+            onInput={(e) => setName(e.currentTarget.value)}
+            autoFocus
+          />
+          {listId && <p class="hint">It stays in this list, resets every day, week or month, and doesn’t show on the House tab.</p>}
         </div>
         <div class="field">
           <label>How often</label>
           <CadencePicker value={cadence} onChange={setCadence} />
         </div>
         <TimesPicker cadence={cadence} value={times} onChange={setTimes} />
-        <OwnerPicker value={owner} onChange={setOwner} />
-        <EmojiPicker value={icon || DEFAULT_ICON[cadence]} onChange={setIcon} prefer={CHORE_ICONS} />
-        <button class="btn primary big" type="submit" disabled={!name.trim()}>Add chore</button>
+        {!listId && <OwnerPicker value={owner} onChange={setOwner} />}
+        <EmojiPicker value={icon || (listId ? '' : DEFAULT_ICON[cadence])} onChange={setIcon} prefer={listId ? [] : CHORE_ICONS} />
+        <button class="btn primary big" type="submit" disabled={!name.trim()}>{listId ? 'Add repeating item' : 'Add chore'}</button>
       </form>
     </Sheet>
   );
@@ -403,11 +419,12 @@ const dateInput = (ts) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-function ChoreSheet({ chore, onClose }) {
+export function ChoreSheet({ chore, onClose }) {
   const { store, session, deleted } = useApp();
+  const inList = !!chore.listId;
   const [name, setName] = useState(chore.name);
   const [cadence, setCadence] = useState(chore.cadence);
-  const [icon, setIcon] = useState(chore.icon || DEFAULT_ICON[chore.cadence]);
+  const [icon, setIcon] = useState(chore.icon || (inList ? '' : DEFAULT_ICON[chore.cadence]));
   const [pastDay, setPastDay] = useState(dateInput(Date.now() - 24 * 3600 * 1000));
   const history = doneList(chore);
   const today = dateInput(Date.now());
@@ -453,7 +470,7 @@ function ChoreSheet({ chore, onClose }) {
   };
 
   return (
-    <Sheet title="Chore" onClose={close}>
+    <Sheet title={inList ? 'Repeating item' : 'Chore'} onClose={close}>
       <form class="stack" onSubmit={submit}>
         <div class="field">
           <label for="chore-edit-name">Name</label>
@@ -491,10 +508,23 @@ function ChoreSheet({ chore, onClose }) {
           <p class="hint">Forgot to tick it off? Pick the day it was done.</p>
         </div>
         <TimesPicker cadence={cadence} value={timesOf(chore)} onChange={pickTimes} />
-        <OwnerPicker value={chore.owner || null} onChange={pickOwner} />
-        <EmojiPicker value={icon} onChange={pickIcon} prefer={CHORE_ICONS} />
+        {(!inList || chore.owner) && <OwnerPicker value={chore.owner || null} onChange={pickOwner} />}
+        <EmojiPicker value={icon} onChange={pickIcon} prefer={inList ? [] : CHORE_ICONS} />
         <button class="btn primary big" type="submit">Done</button>
-        <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false })); }}>Delete chore</button>
+        {inList && (
+          <button
+            class="btn big"
+            type="button"
+            onClick={() => {
+              commitName();
+              store.stopRepeating(chore.id);
+              onClose();
+            }}
+          >
+            Stop repeating (make it a one-off)
+          </button>
+        )}
+        <button class="btn danger big" type="button" onClick={() => { store.deleteChore(chore.id); onClose(); deleted(`Deleted “${chore.name}”`, () => store.updateChore(chore.id, { deleted: false })); }}>{inList ? 'Delete' : 'Delete chore'}</button>
       </form>
     </Sheet>
   );

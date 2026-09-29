@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useReducer, useRef, useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
@@ -10,20 +10,38 @@ import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
+import { ChoreRow, ChoreSheet, NewChoreSheet, useChoreToggle } from './House.jsx';
+import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 
 export function ListView({ id, focus }) {
   const { store, session, navigate, deleted } = useApp();
   const list = store.get().lists[id];
   const [text, setText] = useState('');
   const [editing, setEditing] = useState(null); // item id
+  const [editingChore, setEditingChore] = useState(null); // repeating item id
+  const [addingRepeat, setAddingRepeat] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [, tick] = useReducer((x) => x + 1, 0);
+  const repRef = useRef(null);
+  const repGrip = gripProps(() => ({ container: repRef.current, onDrop: (ids, moved) => store.moveTo('chore', moved, ids) }));
   const [showDone, setShowDone] = useState(true);
   const [flash, setFlash] = useState(null);
   const inputRef = useRef(null);
   const openRef = useRef(null);
   const grip = gripProps(() => ({ container: openRef.current, onDrop: (ids, moved) => store.moveTo('item', moved, ids) }));
   // Deleted items count too: seeing that they're gone is seeing the change.
-  useMarkSeen(`list:${id}`, newestOf([list, ...Object.values(store.get().items).filter((i) => i.listId === id)]));
+  useMarkSeen(`list:${id}`, newestOf([list, ...Object.values(store.get().items).filter((i) => i.listId === id), ...Object.values(store.get().chores).filter((c) => c.listId === id)]));
+  const highlight = (cid) => {
+    setFlash(cid);
+    setTimeout(() => setFlash((cur) => (cur === cid ? null : cur)), 1500);
+  };
+  const toggleChore = useChoreToggle(highlight);
+
+  // Repeating items roll over at midnight (and on Mondays, and the 1st) while the list is open.
+  useEffect(() => {
+    const t = setInterval(tick, 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Arriving from the activity feed: scroll to the item in question and highlight it briefly.
   useEffect(() => {
@@ -31,7 +49,7 @@ export function ListView({ id, focus }) {
     setShowDone(true);
     setFlash(focus);
     const t = setTimeout(() => {
-      document.getElementById(`item-${focus}`)?.scrollIntoView({ block: 'center' });
+      (document.getElementById(`item-${focus}`) || document.getElementById(`chore-${focus}`))?.scrollIntoView({ block: 'center' });
     }, 50);
     const clear = setTimeout(() => setFlash(null), 2000);
     return () => {
@@ -56,6 +74,13 @@ export function ListView({ id, focus }) {
   const items = store.itemsFor(id);
   const open = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
+  const now = Date.now();
+  const repeating = store.choresFor(id).map((c) => ({ chore: c, status: choreStatus(c, now) }));
+  const repeatingDone = repeating.filter((x) => x.status.done).length;
+  const removeChore = (c) => {
+    store.deleteChore(c.id);
+    deleted(`Deleted “${c.name}”`, () => store.updateChore(c.id, { deleted: false }));
+  };
 
   const remove = (item) => {
     store.deleteItem(item.id);
@@ -85,10 +110,38 @@ export function ListView({ id, focus }) {
       </header>
 
       <div class="content">
-      {items.length === 0 && (
+      {items.length === 0 && repeating.length === 0 && (
         <div class="empty small">
           <p>Nothing here yet. Add your first item.</p>
         </div>
+      )}
+
+      {/* Only lists that have repeating items get this group; it's how they're told apart from one-offs. */}
+      {repeating.length > 0 && (
+        <section class="list-group">
+          <div class="day-head">
+            <span>Repeating</span>
+            <span class="day-stats">{repeatingDone} of {repeating.length} done</span>
+          </div>
+          <ul class="items" ref={repRef}>
+            {repeating.map((x) => (
+              <ChoreRow
+                key={x.chore.id}
+                {...x}
+                now={now}
+                showCadence
+                flash={flash === x.chore.id}
+                grip={repeating.length > 1 ? repGrip : null}
+                onToggle={() => toggleChore(x)}
+                onEdit={() => setEditingChore(x.chore.id)}
+                onDelete={() => removeChore(x.chore)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+      {repeating.length > 0 && open.length > 0 && (
+        <div class="day-head list-head"><span>To do</span></div>
       )}
 
       {open.length > 0 && (
@@ -132,10 +185,42 @@ export function ListView({ id, focus }) {
       </div>
 
 
-      {editing && store.get().items[editing] && (
-        <EditItemSheet item={store.get().items[editing]} onClose={() => setEditing(null)} />
+      {editing && store.get().items[editing] && !store.get().items[editing].deleted && (
+        <EditItemSheet
+          item={store.get().items[editing]}
+          onClose={() => setEditing(null)}
+          onRepeat={(c) => {
+            setEditing(null);
+            highlight(c.id);
+            requestAnimationFrame(() => document.getElementById(`chore-${c.id}`)?.scrollIntoView({ block: 'nearest' }));
+          }}
+        />
       )}
-      {menu && <ListMenuSheet list={list} counts={{ open: open.length, done: done.length }} onClose={() => setMenu(false)} />}
+      {editingChore && store.getEntity('chore', editingChore) && !store.getEntity('chore', editingChore).deleted && (
+        <ChoreSheet chore={store.getEntity('chore', editingChore)} onClose={() => setEditingChore(null)} />
+      )}
+      {addingRepeat && (
+        <NewChoreSheet
+          cadence="daily"
+          listId={id}
+          onClose={() => setAddingRepeat(false)}
+          onCreated={(c) => {
+            highlight(c.id);
+            requestAnimationFrame(() => document.getElementById(`chore-${c.id}`)?.scrollIntoView({ block: 'nearest' }));
+          }}
+        />
+      )}
+      {menu && (
+        <ListMenuSheet
+          list={list}
+          counts={{ open: open.length, done: done.length }}
+          onClose={() => setMenu(false)}
+          onAddRepeating={() => {
+            setMenu(false);
+            setAddingRepeat(true);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -161,11 +246,17 @@ function ItemRow({ item, flash, grip, onToggle, onEdit, onDelete }) {
   );
 }
 
-function EditItemSheet({ item, onClose }) {
+function EditItemSheet({ item, onClose, onRepeat }) {
   const { store, deleted } = useApp();
   const [text, setText] = useState(item.text);
+  const [repeat, setRepeat] = useState(null); // null: a one-off; otherwise a cadence
   const save = (e) => {
     e.preventDefault();
+    if (repeat) {
+      const c = store.repeatItem(item.id, { cadence: repeat, name: text.trim() || item.text });
+      if (c) onRepeat(c);
+      return;
+    }
     if (text.trim() && text.trim() !== item.text) store.updateItem(item.id, { text: text.trim() });
     onClose();
   };
@@ -176,7 +267,22 @@ function EditItemSheet({ item, onClose }) {
           <input type="text" value={text} onInput={(e) => setText(e.currentTarget.value)} autoFocus />
           {item.createdBy && <p class="hint">Added by {item.createdBy}</p>}
         </div>
-        <button class="btn primary big" type="submit" disabled={!text.trim()}>Save</button>
+        <div class="field">
+          <label>Repeat</label>
+          <div class="chips" role="radiogroup" aria-label="Repeat">
+            {[null, ...CADENCES].map((k) => (
+              <button type="button" key={k || 'never'} role="radio" aria-checked={repeat === k} class={'chip' + (repeat === k ? ' on' : '')} onClick={() => setRepeat(k)}>
+                {k ? (k === 'biweekly' ? 'Every 2 weeks' : CADENCE_LABEL[k]) : 'Never'}
+              </button>
+            ))}
+          </div>
+          <p class="hint">
+            {repeat
+              ? 'It moves to “Repeating” at the top of this list and comes back every time. It won’t show on the House tab.'
+              : 'For habits like practicing a language: repeating items reset every day, week or month.'}
+          </p>
+        </div>
+        <button class="btn primary big" type="submit" disabled={!text.trim()}>{repeat ? 'Make it repeat' : 'Save'}</button>
         <button
           class="btn danger big"
           type="button"
@@ -193,7 +299,7 @@ function EditItemSheet({ item, onClose }) {
   );
 }
 
-function ListMenuSheet({ list, counts, onClose }) {
+function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
   const { store, navigate, deleted } = useApp();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(list.name);
@@ -223,6 +329,7 @@ function ListMenuSheet({ list, counts, onClose }) {
     <Sheet title={list.name} onClose={onClose}>
       <div class="stack">
         <button class="btn big" onClick={() => setRenaming(true)}>Rename or change icon</button>
+        <button class="btn big" onClick={onAddRepeating}>Add a repeating item</button>
         <button
           class="btn big"
           disabled={counts.done === 0}
@@ -248,10 +355,11 @@ function ListMenuSheet({ list, counts, onClose }) {
           onClick={() => {
             if (confirm(`Delete "${list.name}" and everything in it?`)) {
               const itemIds = store.itemsFor(list.id).map((i) => i.id);
+              const choreIds = store.choresFor(list.id).map((c) => c.id);
               store.deleteList(list.id);
               onClose();
               navigate('/');
-              deleted(`Deleted “${list.name}”`, () => store.restoreList(list.id, itemIds));
+              deleted(`Deleted “${list.name}”`, () => store.restoreList(list.id, itemIds, choreIds));
             }
           }}
         >

@@ -10,6 +10,7 @@ import { Bell } from './Bell.jsx';
 import { ListIcon } from './ListIcon.jsx';
 import { Glyph } from './Glyph.jsx';
 import { iconToken } from '../icons.js';
+import { choreStatus } from '../house.js';
 import { swipeDelete } from './SwipeAction.jsx';
 
 export function Home() {
@@ -41,14 +42,18 @@ export function Home() {
           {lists.map((l) => {
             const items = store.itemsFor(l.id);
             const left = items.filter((i) => !i.done).length;
+            const repeating = store.choresFor(l.id);
+            const repeatLeft = repeating.filter((c) => choreStatus(c).state !== 'done').length;
+            const count = items.length + repeating.length;
             const fresh = activity ? activity.unseenForList(l.id) : 0;
             const swipe = swipeDelete(
               () => {
-                const what = items.length ? `“${l.name}” and its ${items.length} item${items.length === 1 ? '' : 's'}` : `“${l.name}”`;
+                const what = count ? `“${l.name}” and its ${count} item${count === 1 ? '' : 's'}` : `“${l.name}”`;
                 if (!confirm(`Delete ${what}?`)) return;
                 const itemIds = items.map((i) => i.id);
+                const choreIds = repeating.map((c) => c.id);
                 store.deleteList(l.id);
-                deleted(`Deleted “${l.name}”`, () => store.restoreList(l.id, itemIds));
+                deleted(`Deleted “${l.name}”`, () => store.restoreList(l.id, itemIds, choreIds));
               },
               { confirm: true },
             );
@@ -59,7 +64,13 @@ export function Home() {
                   <span class="card-body">
                     <span class="card-title">{l.name}</span>
                     <span class="card-sub">
-                      {left === 0 ? (items.length ? 'All done' : 'Empty') : `${left} to go`}
+                      {left === 0 ? (items.length ? 'All done' : repeating.length ? '' : 'Empty') : `${left} to go`}
+                      {repeating.length > 0 && (
+                        <span>
+                          {left || items.length ? ' · ' : ''}
+                          {repeatLeft ? `${repeatLeft} repeating left` : 'repeating all done'}
+                        </span>
+                      )}
                       {fresh > 0 && <span class="fresh"> · {fresh} new change{fresh === 1 ? '' : 's'}</span>}
                     </span>
                   </span>

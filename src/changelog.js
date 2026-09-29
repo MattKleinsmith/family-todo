@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'repeating-list-items',
+    at: '2026-09-29T11:05:29-04:00',
+    text: 'Any list can now have repeating items, like “Practice Chinese” every day. Tap an item and pick how often under “Repeat”. They stay in that list, not on the House tab, and ticking them off doesn’t ping everyone’s bell.',
+  },
+  {
     id: 'icon-picker-one-scroll',
     at: '2026-09-29T08:09:20-04:00',
     text: 'Picking an icon no longer means scrolling a little box inside a scrolling sheet. It shows two rows of likely icons, and the “More icons” button opens the rest.',

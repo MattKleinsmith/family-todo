@@ -25,7 +25,13 @@ export function targetFor(entry, store) {
       return entry.entityId === 'baby' ? '#/baby' : null;
     case 'chore': {
       const chore = store.getEntity('chore', entry.entityId);
-      return `#/house${chore && !chore.deleted ? `?focus=${chore.id}` : ''}`;
+      const live = chore && !chore.deleted;
+      const listId = entry.listId || chore?.listId;
+      if (listId) {
+        const list = store.getEntity('list', listId);
+        return list && !list.deleted ? `#/list/${listId}${live ? `?focus=${chore.id}` : ''}` : null;
+      }
+      return `#/house${live ? `?focus=${chore.id}` : ''}`;
     }
     case 'member':
       return '#/settings';
