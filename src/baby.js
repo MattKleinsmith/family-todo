@@ -140,3 +140,22 @@ export function countdown(target, now = Date.now()) {
   if (diff > -MIN) return { lead: 'due', value: 'Now', note: `~${at}`, state: 'due' };
   return { lead: 'overdue by', value: formatDuration(-diff), note: `was due ${at}`, state: 'late' };
 }
+
+/**
+ * A feed means he's awake. If a sleep is still running and began before a
+ * feed at `at`, that's the sleep the feed ends (someone forgot to tap
+ * "Woke up"). Null otherwise.
+ */
+export function sleepEndedByFeed(logs, at) {
+  const s = ongoingSleep(logs);
+  return s && s.startAt < at ? s : null;
+}
+
+/**
+ * When a feed that ended a nap is moved, the nap's end moves with it, as long
+ * as it still reads as the moment he woke (not before he fell asleep).
+ */
+export function followFeedMove(sleep, feed, newStartAt) {
+  if (!sleep || sleep.endedByFeed !== feed.id || sleep.endAt !== feed.startAt) return null;
+  return newStartAt > sleep.startAt ? newStartAt : null;
+}

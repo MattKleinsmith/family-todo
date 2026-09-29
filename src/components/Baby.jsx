@@ -22,6 +22,8 @@ import {
   nextFeedAt,
   nextNapAt,
   countdown,
+  sleepEndedByFeed,
+  followFeedMove,
   relative,
   toInputValue,
 } from '../baby.js';
@@ -68,7 +70,20 @@ export function Baby({ focus }) {
     setTimeout(() => setJustAdded((cur) => (cur === log.id ? null : cur)), 1500);
   };
 
-  const fedNow = () => flash(store.addLog({ kind: 'feed', startAt: Date.now(), createdBy: session.name }));
+  const fedNow = () => {
+    const at = Date.now();
+    const feed = store.addLog({ kind: 'feed', startAt: at, createdBy: session.name });
+    flash(feed);
+    // Fed while the app thinks he's asleep: someone forgot "Woke up", so the nap ends now.
+    // A dream feed (fed without waking) is the exception, hence Undo.
+    const nap = sleepEndedByFeed(logs, at);
+    if (nap) {
+      store.updateLog(nap.id, { endAt: at, endedByFeed: feed.id });
+      deleted(`Also ended the nap: woke by ${formatTime(at)} (slept ${formatDuration(at - nap.startAt)})`, () =>
+        store.updateLog(nap.id, { endAt: null, endedByFeed: null }),
+      );
+    }
+  };
   const sleepNow = () => {
     if (state.asleep) return;
     flash(store.addLog({ kind: 'sleep', startAt: Date.now(), createdBy: session.name }));
@@ -240,6 +255,13 @@ function EditLogSheet({ log, onClose }) {
     e.preventDefault();
     const changes = { kind, startAt, note: note.trim(), endAt: kind === 'sleep' ? endAt : null };
     if (kind === 'sleep' && endAt != null && endAt < startAt) changes.endAt = startAt;
+    // Moving a feed that ended a nap moves the nap's end with it.
+    if (log.kind === 'feed' && kind === 'feed' && startAt !== log.startAt) {
+      for (const s of store.logs()) {
+        const end = followFeedMove(s, log, startAt);
+        if (end != null) store.updateLog(s.id, { endAt: end });
+      }
+    }
     store.updateLog(log.id, changes);
     onClose();
   };

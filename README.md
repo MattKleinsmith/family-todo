@@ -62,6 +62,10 @@ nap after a shorter gap (default 2 hours). Both are set in the tab's menu, along
 with his name. Once he has napped after a feed, no nap is shown as due until the
 next feed.
 
+A feed means he's awake: tapping **Fed now** while a nap is still running ends
+the nap at that moment (someone forgot to tap **Woke up**), with an Undo for a
+dream feed. Moving that feed's time moves the wake-up with it.
+
 Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nudges for
 the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
 it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
