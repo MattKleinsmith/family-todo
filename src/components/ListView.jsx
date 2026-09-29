@@ -3,7 +3,7 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
-import { BackIcon, DotsIcon, GripIcon } from './Icons.jsx';
+import { BackIcon, DotsIcon, GripIcon, PlusIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
 import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
@@ -40,6 +40,18 @@ export function ListView({ id, focus, asTab = false }) {
     setTimeout(() => setFlash((cur) => (cur === cid ? null : cur)), 1500);
   };
   const toggleChore = useChoreToggle(highlight);
+
+  // When the keyboard opens (the app shrinks to the space above it), keep the add row in view.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const keep = () => {
+      const input = inputRef.current;
+      if (input && document.activeElement === input) input.closest('li')?.scrollIntoView({ block: 'nearest' });
+    };
+    vv.addEventListener('resize', keep);
+    return () => vv.removeEventListener('resize', keep);
+  }, []);
 
   // Repeating items roll over at midnight (and on Mondays, and the 1st) while the list is open.
   useEffect(() => {
@@ -98,7 +110,20 @@ export function ListView({ id, focus, asTab = false }) {
     const added = store.addItem({ listId: id, text, createdBy: session.name });
     setText('');
     inputRef.current && inputRef.current.focus({ preventScroll: true });
-    if (added) requestAnimationFrame(() => document.getElementById(`item-${added.id}`)?.scrollIntoView({ block: 'nearest' }));
+    // Keep the new item and the add row (just below it) in view.
+    if (added) requestAnimationFrame(() => inputRef.current?.closest('li')?.scrollIntoView({ block: 'nearest' }));
+  };
+
+  // The header's + jumps to the add row at the end of the list and starts typing.
+  const startAdding = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+    input.closest('li')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
 
   return (
@@ -111,6 +136,7 @@ export function ListView({ id, focus, asTab = false }) {
         </h1>
         <div class="topbar-actions">
           <SyncBadge />
+          <button class="icon-btn add-btn" aria-label="Add an item" onClick={startAdding}><PlusIcon /></button>
           <button class="icon-btn" aria-label="List options" onClick={() => setMenu(true)}><DotsIcon /></button>
         </div>
       </header>
@@ -150,29 +176,30 @@ export function ListView({ id, focus, asTab = false }) {
         <div class="day-head list-head"><span>To do</span></div>
       )}
 
-      {open.length > 0 && (
-        <ul class="items" ref={openRef}>
-          {open.map((item) => (
-            <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} onDelete={() => remove(item)} />
-          ))}
-        </ul>
-      )}
-
-      {/* Right under the list, so the keyboard moves things as little as possible;
-          on a long list it sticks to the bottom of the visible area. */}
-      <form class="add-bar inline" onSubmit={add}>
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Add an item…"
-          value={text}
-          enterkeyhint="done"
-          autocomplete="off"
-          onTouchEnd={focusWithoutScrolling}
-          onInput={(e) => setText(e.currentTarget.value)}
-        />
-        <button class="btn primary" type="submit" disabled={!text.trim()} aria-label="Add">Add</button>
-      </form>
+      {/* Adding happens in the list itself, as its last row (like Reminders),
+          so nothing ever floats over the items. */}
+      <ul class="items" ref={openRef}>
+        {open.map((item) => (
+          <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} onDelete={() => remove(item)} />
+        ))}
+        <li class="add-row">
+          <form class="add-item" onSubmit={add}>
+            <span class="add-plus" aria-hidden="true">+</span>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Add an item…"
+              aria-label="Add an item"
+              value={text}
+              enterkeyhint="done"
+              autocomplete="off"
+              onTouchEnd={focusWithoutScrolling}
+              onInput={(e) => setText(e.currentTarget.value)}
+            />
+            {text.trim() && <button class="btn primary add-go" type="submit">Add</button>}
+          </form>
+        </li>
+      </ul>
 
       {done.length > 0 && (
         <>
