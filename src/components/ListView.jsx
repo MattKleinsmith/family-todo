@@ -15,7 +15,7 @@ import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
 import { isOfficialPersonal, personalListFor } from '../personal.js';
 
-/** One list. `asTab`: it's your own list on the My list tab (no back button, tab bar underneath). */
+/** One list. `asTab`: it's your own list on the Me tab (no back button, tab bar underneath). */
 export function ListView({ id, focus, asTab = false }) {
   const { store, session, navigate, deleted } = useApp();
   const list = store.get().lists[id];
@@ -106,7 +106,7 @@ export function ListView({ id, focus, asTab = false }) {
       <header class="topbar">
         {!asTab && <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>}
         <h1 class="title-with-emoji">
-          {/* On the My list tab the tab itself shows the icon. */}
+          {/* On the Me tab the tab itself shows the icon. */}
           {!asTab && <span class="title-icon"><ListIcon value={list.emoji} size={28} /></span>} {list.name}
         </h1>
         <div class="topbar-actions">
@@ -439,7 +439,7 @@ function MoveAllSheet({ list, counts, onClose }) {
                 <li key={l.id} class="item">
                   <button type="button" role="radio" aria-checked={to === l.id} class={'move-target' + (to === l.id ? ' on' : '')} onClick={() => setTo(l.id)}>
                     <span class="move-icon"><ListIcon value={l.emoji} size={24} /></span>
-                    <span class="move-name">{l.name}{mine && l.id === mine.id ? <span class="muted"> · My list</span> : null}</span>
+                    <span class="move-name">{l.name}{mine && l.id === mine.id ? <span class="muted"> · Me</span> : null}</span>
                     <span class="move-radio" aria-hidden="true">{to === l.id ? '✓' : ''}</span>
                   </button>
                 </li>
