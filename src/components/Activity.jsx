@@ -29,6 +29,8 @@ export function targetFor(entry, store) {
     }
     case 'member':
       return '#/settings';
+    case 'note':
+      return entry.href || null;
     default:
       return null;
   }
@@ -86,15 +88,19 @@ export function Activity() {
                 const href = targetFor(e, store);
                 const inner = (
                   <>
-                    <span class="avatar" aria-hidden="true">{(e.actor || '?').slice(0, 1).toUpperCase()}</span>
+                    {e.system ? (
+                      <span class="avatar system" aria-hidden="true"><Glyph name="sparkles" size={22} /></span>
+                    ) : (
+                      <span class="avatar" aria-hidden="true">{(e.actor || '?').slice(0, 1).toUpperCase()}</span>
+                    )}
                     <span class="act-body">
-                      <span class="act-text"><b>{e.mine ? 'You' : e.actor}</b> {e.text}</span>
-                      <span class="act-time">{formatTime(e.at)}</span>
+                      <span class="act-text"><b>{e.mine ? 'You' : e.actor}</b>{e.system ? ': ' : ' '}{e.text}</span>
+                      <span class="act-time">{e.system ? `App update · ${formatTime(e.at)}` : formatTime(e.at)}</span>
                     </span>
                     {href && <span class="chev"><ChevronIcon /></span>}
                   </>
                 );
-                const cls = 'act' + (e.seen ? '' : ' unseen') + (e.mine ? ' mine' : '') + (href ? ' link' : '');
+                const cls = 'act' + (e.seen ? '' : ' unseen') + (e.mine ? ' mine' : '') + (e.system ? ' system' : '') + (href ? ' link' : '');
                 return (
                   <li key={e.id}>
                     {href ? <a class={cls} href={href}>{inner}</a> : <div class={cls}>{inner}</div>}

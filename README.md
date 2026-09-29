@@ -112,6 +112,11 @@ People and devices: each phone publishes a small synced "member" record when it
 joins, changes its name, or leaves. Those appear in the feed and under
 *Settings → Family members*.
 
+After an app update, the feed also shows short **What's new** notes (with a ✨)
+saying what changed; they count on the bell until you've looked, and tapping one
+opens the screen it's about. The notes ship with the app (`src/changelog.js`), so
+nothing extra is synced.
+
 ## How syncing works
 
 There is no app server. Each phone keeps its lists in local storage and mirrors
