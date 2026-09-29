@@ -10,7 +10,7 @@ import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
-import { ChoreRow, ChoreSheet, NewChoreSheet, useChoreToggle } from './House.jsx';
+import { ChoreRow, ChoreSheet, NewChoreSheet, TimesPicker, useChoreToggle } from './House.jsx';
 import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
 import { isOfficialPersonal, personalListFor } from '../personal.js';
@@ -290,10 +290,11 @@ function EditItemSheet({ item, onClose, onRepeat }) {
   const { store, deleted } = useApp();
   const [text, setText] = useState(item.text);
   const [repeat, setRepeat] = useState(null); // null: a one-off; otherwise a cadence
+  const [times, setTimes] = useState(1);
   const save = (e) => {
     e.preventDefault();
     if (repeat) {
-      const c = store.repeatItem(item.id, { cadence: repeat, name: text.trim() || item.text });
+      const c = store.repeatItem(item.id, { cadence: repeat, name: text.trim() || item.text, times });
       if (c) onRepeat(c);
       return;
     }
@@ -322,6 +323,8 @@ function EditItemSheet({ item, onClose, onRepeat }) {
               : 'For habits like practicing a language: repeating items reset every day, week or month.'}
           </p>
         </div>
+        {/* Shown as soon as it repeats, so it can be set up in one go. */}
+        {repeat && <TimesPicker cadence={repeat} value={times} onChange={setTimes} />}
         <button class="btn primary big" type="submit" disabled={!text.trim()}>{repeat ? 'Make it repeat' : 'Save'}</button>
         <button
           class="btn danger big"

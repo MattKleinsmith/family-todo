@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'repeat-times-inline',
+    at: '2026-09-29T15:14:25-04:00',
+    text: 'When you make a list item repeat, “How many times” now appears right under it, so a “3× a day” habit can be set up in one go.',
+  },
+  {
     id: 'any-number-of-times',
     at: '2026-09-29T15:10:33-04:00',
     text: 'A chore or repeating item can now be done any number of times a day, week or month: pick “Other…” under “How many times” and type a number.',

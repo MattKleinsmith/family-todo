@@ -247,6 +247,10 @@ describe('repeating items in a list', () => {
     const b = store.addItem({ listId: list.id, text: 'Practice Chinese' });
     store.toggleItem(b.id); // done today already
     const c = store.repeatItem(b.id, { cadence: 'daily' });
+    const vocab = store.addItem({ listId: list.id, text: 'Chinese vocab' });
+    const v = store.repeatItem(vocab.id, { cadence: 'daily', times: 3 });
+    expect(store.getEntity('chore', v.id).times).toBe(3);
+    store.deleteChore(v.id);
     expect(store.itemsFor(list.id).map((i) => i.text)).toEqual(['Buy a notebook']);
     expect(store.choresFor(list.id).map((x) => [x.name, x.cadence])).toEqual([['Practice Chinese', 'daily']]);
     expect(store.getEntity('item', b.id)).toMatchObject({ deleted: true, convertedTo: c.id });

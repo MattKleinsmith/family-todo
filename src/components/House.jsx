@@ -354,7 +354,7 @@ function ProgressRing({ count, target }) {
 
 /** How many times each day, week or month. */
 /** How many times each day, week or month: quick choices, or type any number. */
-function TimesPicker({ cadence, value, onChange }) {
+export function TimesPicker({ cadence, value, onChange }) {
   const { per } = cadenceText(cadence);
   const custom = !QUICK_TIMES.includes(value);
   const [typing, setTyping] = useState(custom);

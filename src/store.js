@@ -421,7 +421,7 @@ export function createStore({
    * The two records point at each other (`fromItem` / `convertedTo`) so the
    * activity feed can say "made … repeat" instead of "removed" and "added".
    */
-  function repeatItem(itemId, { cadence = 'daily', name } = {}) {
+  function repeatItem(itemId, { cadence = 'daily', name, times = 1 } = {}) {
     const item = state.items[itemId];
     if (!item || item.deleted) return null;
     const chore = putLocal({
@@ -432,7 +432,7 @@ export function createStore({
       cadence,
       icon: '',
       owner: null,
-      times: 1,
+      times: Math.min(99, Math.max(1, Math.round(Number(times) || 1))),
       done: item.done && item.doneAt ? [{ at: item.doneAt, by: item.updatedBy || '' }] : [],
       createdBy: item.createdBy || '',
       createdAt: stamp(),
