@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'feed-ends-nap',
+    at: '2026-09-29T12:05:44-04:00',
+    text: 'Forgot to tap “Woke up”? Tapping “Fed now” during a nap now ends the nap at that moment. If he was fed in his sleep, tap Undo.',
+    href: '#/baby',
+  },
+  {
     id: 'repeating-list-items',
     at: '2026-09-29T11:05:29-04:00',
     text: 'Any list can now have repeating items, like “Practice Chinese” every day. Tap an item and pick how often under “Repeat”. They stay in that list, not on the House tab, and ticking them off doesn’t ping everyone’s bell.',

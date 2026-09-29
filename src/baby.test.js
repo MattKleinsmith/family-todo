@@ -118,3 +118,23 @@ describe('countdown', () => {
     expect(countdown(at(-25), now)).toEqual({ lead: 'overdue by', value: '25m', note: `was due ${formatTime(at(-25))}`, state: 'late' });
   });
 });
+
+describe('a feed while he is asleep', () => {
+  it('ends the nap that was still running', async () => {
+    const { sleepEndedByFeed, followFeedMove } = await import('./baby.js');
+    const t = new Date(2026, 8, 29, 14, 0).getTime();
+    const nap = { id: 's', kind: 'sleep', startAt: t - 90 * 60_000, endAt: null };
+    const feed = { id: 'f', kind: 'feed', startAt: t - 4 * 3600_000 };
+    expect(sleepEndedByFeed([nap, feed], t)).toBe(nap);
+    expect(sleepEndedByFeed([{ ...nap, endAt: t - 60_000 }, feed], t)).toBeNull(); // already awake
+    expect(sleepEndedByFeed([{ ...nap, startAt: t + 60_000 }], t)).toBeNull(); // a feed logged before that nap began
+    expect(sleepEndedByFeed([feed], t)).toBeNull();
+    // Nudging that feed earlier moves the wake-up with it, but never before he fell asleep.
+    const ended = { ...nap, endAt: t, endedByFeed: 'f' };
+    const thisFeed = { id: 'f', kind: 'feed', startAt: t };
+    expect(followFeedMove(ended, thisFeed, t - 15 * 60_000)).toBe(t - 15 * 60_000);
+    expect(followFeedMove(ended, thisFeed, t - 3 * 3600_000)).toBeNull();
+    expect(followFeedMove({ ...ended, endAt: t - 5 * 60_000 }, thisFeed, t - 15 * 60_000)).toBeNull(); // wake time was fixed by hand
+    expect(followFeedMove({ ...ended, endedByFeed: 'other' }, thisFeed, t - 15 * 60_000)).toBeNull();
+  });
+});
