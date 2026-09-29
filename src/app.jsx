@@ -11,6 +11,7 @@ import { createKV, requestPersistence } from './kv.js';
 import { runMaintenance } from './maintenance.js';
 import { iconToken } from './icons.js';
 import { sameName } from './members.js';
+import { ensurePersonalList, personalListFor, renamePersonalList } from './personal.js';
 import { useRoute, navigate } from './router.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
@@ -115,7 +116,7 @@ export function App() {
         if (current.createDefaults && store.lists().length === 0) {
           store.createList({ name: 'Groceries', emoji: iconToken('broccoli'), createdBy: current.name });
           store.createList({ name: 'House', emoji: iconToken('house'), createdBy: current.name });
-          store.createList({ name: `${current.name}’s todos`, emoji: iconToken('seedling'), createdBy: current.name });
+          store.createList({ name: `${current.name}’s todos`, emoji: iconToken('seedling'), createdBy: current.name, personal: true, owner: current.name });
         }
         if (current.announceJoin || current.createDefaults) {
           const s = { ...current };
@@ -151,6 +152,21 @@ export function App() {
       setSession(s);
     }
   }, [session?.code]);
+
+  // Everyone has an official personal list. Set it up once this phone has
+  // caught up (so an existing one is found rather than duplicated), or after a
+  // few seconds offline.
+  const caughtUp = !!status.caughtUp;
+  useEffect(() => {
+    if (!family || !session?.name) return undefined;
+    const run = () => ensurePersonalList(family.store, session.name);
+    if (caughtUp) {
+      run();
+      return undefined;
+    }
+    const t = setTimeout(run, 8000);
+    return () => clearTimeout(t);
+  }, [family, caughtUp, session?.name]);
 
   // Re-render on every store or activity change.
   const [, bump] = useReducer((x) => x + 1, 0);
@@ -191,8 +207,10 @@ export function App() {
           const old = session.name;
           // Chores that were yours stay yours, unless another phone still goes by the old name.
           const oldStillUsed = store.members().some((m) => m.id !== deviceId() && !m.leftAt && sameName(m.name, old));
-          if (!sameName(old, s.name) && !oldStillUsed)
+          if (!sameName(old, s.name) && !oldStillUsed) {
             for (const c of store.chores()) if (sameName(c.owner, old)) store.updateChore(c.id, { owner: s.name });
+            renamePersonalList(store, old, s.name);
+          }
           store.setMember(deviceId(), { name: s.name });
         }
       },
@@ -238,7 +256,15 @@ export function App() {
   }
 
   let page;
-  if (route.name === 'list') page = <ListView id={route.id} focus={route.focus} />;
+  const mine = personalListFor(family.store.lists(), session.name);
+  if (route.name === 'mine')
+    page = mine ? <ListView id={mine.id} focus={route.focus} asTab /> : (
+      <div class="screen center">
+        <div class="spinner" />
+        <p class="muted">Setting up your list…</p>
+      </div>
+    );
+  else if (route.name === 'list') page = <ListView id={route.id} focus={route.focus} asTab={!!mine && route.id === mine.id} />;
   else if (route.name === 'settings') page = <Settings />;
   else if (route.name === 'baby') page = <Baby focus={route.focus} />;
   else if (route.name === 'house') page = <House focus={route.focus} />;

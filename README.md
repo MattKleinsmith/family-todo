@@ -96,6 +96,16 @@ Saturday but forgot to tap"). New families, and families upgrading to this versi
 start with: wipe the counters and do the dishes (daily), mow the lawn and change the
 cat litter (weekly), drain a gallon from the water heater (monthly).
 
+### Your own list
+
+Everyone in the family has one official personal list ("Matthew’s todos"),
+shown on their own **My list** tab and left off their **Lists** tab; everyone
+else sees it on theirs, next to the shared lists. It's made automatically the
+first time each person opens the app (a new family's starter "<name>’s todos"
+list becomes the creator's), it follows a rename, and it can be emptied but not
+deleted. The tabs start as **Baby, House, My list, Lists**; press and hold any
+tab to drag them into another order (kept per phone).
+
 ### Repeating items in any list
 
 For personal habits that the rest of the family doesn't need front and centre
@@ -204,6 +214,8 @@ src/
   store.js         local-first state, last-writer-wins merge, selectors
   baby.js          baby tracker helpers: current state, daily totals, formatting
   house.js         house tracker helpers: day/week/month periods, done/due/overdue
+  personal.js      each person's official list: find, set up, follow renames
+  tabs.js          the bottom bar's tab order (per phone)
   activity.js      the activity feed: describes each incoming change in plain words
   maintenance.js   compacts old baby logs into daily summaries, prunes old deletion markers
   kv.js            IndexedDB key/value storage (localStorage fallback)

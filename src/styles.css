@@ -148,7 +148,7 @@ h1, h2, p { margin: 0; }
   flex: 1; font-size: 27px; font-weight: 800; letter-spacing: -0.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.title-with-emoji { font-size: 23px; }
+.topbar h1.title-with-emoji { font-size: clamp(19px, 5.4vw, 23px); }
 .title-with-emoji span { margin-right: 4px; }
 .topbar-actions { display: flex; align-items: center; gap: 4px; }
 .icon-btn {
@@ -621,3 +621,13 @@ li:last-child > .act { border-bottom: none; }
 .list-group { margin-bottom: 14px; }
 .list-head { padding-top: 4px; }
 .cadence-tag { color: var(--muted); }
+
+/* Tabs: press and hold to rearrange; no iOS link preview on the long press */
+.tab { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.tab-icon .list-icon-emoji { font-size: 21px; }
+.arrange-row { align-items: center; min-height: 56px; padding-left: 16px; gap: 14px; }
+.arrange-icon { display: flex; }
+.arrange-label { flex: 1; font-weight: 700; }
+/* A list shown as a tab: keep the add box clear when scrolling rows into view */
+.screen.list-tab .content { scroll-padding-bottom: 112px; }
+[data-keyboard] .screen.list-tab .tabbar { display: none; }

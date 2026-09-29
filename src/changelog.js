@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'my-list-tab',
+    at: '2026-09-29T12:13:16-04:00',
+    text: 'Everyone now has their own list with its own “My list” tab. Everyone else can still see it on their Lists tab. Press and hold any tab to rearrange the tabs.',
+    href: '#/mine',
+  },
+  {
     id: 'feed-ends-nap',
     at: '2026-09-29T12:05:44-04:00',
     text: 'Forgot to tap “Woke up”? Tapping “Fed now” during a nap now ends the nap at that moment. If he was fed in his sleep, tap Undo.',
