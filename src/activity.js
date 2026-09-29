@@ -173,12 +173,17 @@ export function createActivity({
   since = () => 0,
   self = () => '',
   flushMs = FLUSH_MS,
+  notes = [], // "What's new" notes that ship with the app: { id, at (ISO), text, href? }
 }) {
   const listeners = new Set();
   let pending = []; // written here, not yet in a chunk
   let legacy = []; // other people's entries from the old local-only feed, kept for display
   let lastSeenAt = null;
   let areaSeen = {}; // area -> seen up to, from looking at that list or tab
+  let notesSeenUpTo = null; // newest "What's new" note already seen on this phone
+  const noteEntries = notes
+    .map((n) => ({ id: `note:${n.id}`, at: Date.parse(n.at), actor: 'What’s new', text: n.text, href: n.href || null, entityType: 'note', entityId: n.id, listId: null, system: true }))
+    .filter((n) => Number.isFinite(n.at));
   let flushTimer = null;
   let saveTimer = null;
   let loaded = false;
@@ -226,6 +231,7 @@ export function createActivity({
       if (typeof parsed.lastSeenAt === 'number') lastSeenAt = parsed.lastSeenAt;
       if (Array.isArray(parsed.legacy)) legacy = parsed.legacy;
       if (parsed.areaSeen && typeof parsed.areaSeen === 'object') areaSeen = parsed.areaSeen;
+      if (typeof parsed.notesSeenUpTo === 'number') notesSeenUpTo = parsed.notesSeenUpTo;
     }
   }
 
@@ -241,7 +247,7 @@ export function createActivity({
       try {
         // Anything the overall "seen up to" already covers needn't be kept per area.
         for (const [k, t] of Object.entries(areaSeen)) if (t <= (lastSeenAt || 0)) delete areaSeen[k];
-        const r = storage.setItem(storageKey, JSON.stringify({ v: 2, lastSeenAt, legacy, areaSeen }));
+        const r = storage.setItem(storageKey, JSON.stringify({ v: 2, lastSeenAt, legacy, areaSeen, notesSeenUpTo }));
         if (r && typeof r.catch === 'function') r.catch(() => {});
       } catch {
         /* ignore */
@@ -255,6 +261,11 @@ export function createActivity({
       // A phone that just joined has seen nothing, but history from before it
       // joined isn't news: it's shown, just not counted.
       lastSeenAt = since() || Date.now();
+      needsSave = true;
+    }
+    if (notesSeenUpTo == null) {
+      // Notes from before you joined aren't news; ones since then are, once.
+      notesSeenUpTo = since() || Date.now();
       needsSave = true;
     }
     if (needsSave) save();
@@ -397,6 +408,13 @@ export function createActivity({
     for (const b of store.activityBuckets()) for (const e of b.entries || []) add(e);
     for (const e of pending) add(e);
     for (const e of legacy) add(e, false);
+    // Notes about changes from before this phone joined mean nothing to it.
+    const joined = since() || 0;
+    for (const n of noteEntries) {
+      if (seen.has(n.id) || n.at < joined) continue;
+      seen.add(n.id);
+      out.push({ ...n, mine: false, seen: n.at <= (notesSeenUpTo ?? Infinity) });
+    }
     out.sort((a, b) => b.at - a.at);
     // Hide repeat "joined the family" lines left by earlier reinstalls; keep the first.
     const joins = new Set();
@@ -444,9 +462,12 @@ export function createActivity({
       notify();
     },
     markAllSeen() {
-      const latest = entries().reduce((m, e) => Math.max(m, e.at), Date.now());
-      if (latest <= seenAt()) return;
-      lastSeenAt = latest;
+      const latest = entries().reduce((m, e) => (e.system ? m : Math.max(m, e.at)), Date.now());
+      const latestNote = noteEntries.reduce((m, n) => Math.max(m, n.at), 0);
+      const notesNew = latestNote > (notesSeenUpTo ?? Infinity);
+      if (latest <= seenAt() && !notesNew) return;
+      lastSeenAt = Math.max(latest, seenAt());
+      if (notesNew) notesSeenUpTo = latestNote;
       save();
       notify();
     },

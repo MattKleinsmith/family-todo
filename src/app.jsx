@@ -5,6 +5,7 @@ import { deriveKeys } from './keys.js';
 import { createStore } from './store.js';
 import { createSync } from './sync.js';
 import { createActivity } from './activity.js';
+import { CHANGELOG } from './changelog.js';
 import { deviceId, describeDevice } from './device.js';
 import { createKV, requestPersistence } from './kv.js';
 import { runMaintenance } from './maintenance.js';
@@ -73,6 +74,7 @@ export function App() {
           device: deviceId,
           since: () => sessionRef.current?.joinedAt || 0,
           self: () => sessionRef.current?.name || '',
+          notes: CHANGELOG,
         });
         feed = activity;
         await Promise.all([store.ready, activity.ready]);

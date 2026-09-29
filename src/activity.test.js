@@ -140,6 +140,30 @@ describe('createActivity (synced)', () => {
     expect(B.activity.unseenForList(g.id)).toBe(1);
   });
 
+  it('shows What’s new notes from the app, new once for people who joined before them', async () => {
+    const notes = [
+      { id: 'b', at: new Date(T + 5000).toISOString(), text: 'Second thing', href: '#/house' },
+      { id: 'a', at: new Date(T - 5000).toISOString(), text: 'Old thing' },
+    ];
+    const storage = memStorage();
+    const store = createStore({ now: () => T + 10_000 });
+    const make = () => createActivity({ store, storageKey: 'act', storage, prefs: storage, device: () => 'd', since: () => T, self: () => 'M', flushMs: 1, notes });
+    const a = make();
+    await a.ready;
+    const shown = a.visibleEntries().filter((e) => e.system);
+    // Only notes since this phone joined: the older one is left out.
+    expect(shown.map((e) => [e.text, e.seen, e.actor])).toEqual([['Second thing', false, 'What’s new']]);
+    expect(shown[0].href).toBe('#/house');
+    expect(a.unseenCount()).toBe(1);
+    a.markAllSeen();
+    expect(a.unseenCount()).toBe(0);
+    await settle();
+    await new Promise((r) => setTimeout(r, 150)); // let the seen state save
+    const again = make(); // next launch
+    await again.ready;
+    expect(again.unseenCount()).toBe(0);
+  });
+
   it('a phone that joins later sees the whole history, already marked as seen', async () => {
     const clock = { t: T };
     const relay = [];

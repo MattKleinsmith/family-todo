@@ -609,3 +609,4 @@ li:last-child > .act { border-bottom: none; }
 .chore.behind .ring .seg:not(.on) { stroke: var(--warn); }
 .chore.late .ring .seg:not(.on) { stroke: var(--danger); }
 .chore .progress { color: var(--accent); font-weight: 800; }
+.avatar.system { background: var(--sun-soft); }
