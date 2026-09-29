@@ -26,7 +26,7 @@ export function TabBar({ active }) {
   const TABS = {
     baby: { href: '#/baby', label: 'Baby', icon: <Glyph name="baby" size={24} /> },
     house: { href: '#/house', label: 'House', icon: <Glyph name="house" size={24} />, badge: overdue },
-    mine: { href: '#/mine', label: 'My list', icon: mine && mine.emoji ? <ListIcon value={mine.emoji} size={24} /> : <Glyph name="seedling" size={24} /> },
+    mine: { href: '#/mine', label: 'Me', icon: mine && mine.emoji ? <ListIcon value={mine.emoji} size={24} /> : <Glyph name="seedling" size={24} /> },
     lists: { href: '#/', label: 'Lists', icon: <Glyph name="memo" size={24} /> },
   };
 

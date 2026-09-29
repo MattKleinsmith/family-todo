@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { loadTabOrder, normalizeOrder, saveTabOrder, TAB_KEYS } from './tabs.js';
 
 describe('tab order', () => {
-  it('defaults to Baby, House, My list, Lists', () => {
+  it('defaults to Baby, House, Me, Lists', () => {
     expect(TAB_KEYS).toEqual(['baby', 'house', 'mine', 'lists']);
     expect(normalizeOrder(null)).toEqual(TAB_KEYS);
   });
