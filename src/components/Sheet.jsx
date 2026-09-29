@@ -38,6 +38,7 @@ export function Sheet({ title, onClose, children }) {
 
     const onStart = (e) => {
       if (e.touches.length !== 1) return;
+      if (e.target.closest('.grip')) return; // dragging a row to reorder, not the sheet
       const fromHandle = !!e.target.closest('.sheet-handle, .sheet-title');
       // A pull only closes the sheet if everything under the finger is at its
       // top; otherwise the finger is scrolling that area back up.

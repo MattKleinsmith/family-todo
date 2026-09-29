@@ -10,6 +10,7 @@ export function parseRoute(hash) {
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 'baby') return { name: 'baby', focus };
   if (parts[0] === 'house') return { name: 'house', focus };
+  if (parts[0] === 'mine') return { name: 'mine', focus };
   if (parts[0] === 'activity') return { name: 'activity' };
   if (parts[0] === 'join') return { name: 'join', code: decodeURIComponent(parts.slice(1).join('/')) };
   return { name: 'home' };

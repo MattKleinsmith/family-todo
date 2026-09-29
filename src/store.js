@@ -238,7 +238,7 @@ export function createStore({
 
   // ---- Convenience API used by the UI ----
 
-  function createList({ name, emoji = '', createdBy = '' }) {
+  function createList({ name, emoji = '', createdBy = '', personal = false, owner = null }) {
     return putLocal({
       id: newId(),
       type: 'list',
@@ -247,6 +247,7 @@ export function createStore({
       createdBy,
       createdAt: stamp(),
       deleted: false,
+      ...(personal ? { personal: true, owner } : {}),
     });
   }
 

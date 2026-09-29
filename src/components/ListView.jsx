@@ -12,8 +12,11 @@ import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
 import { ChoreRow, ChoreSheet, NewChoreSheet, useChoreToggle } from './House.jsx';
 import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
+import { TabBar } from './TabBar.jsx';
+import { isOfficialPersonal } from '../personal.js';
 
-export function ListView({ id, focus }) {
+/** One list. `asTab`: it's your own list on the My list tab (no back button, tab bar underneath). */
+export function ListView({ id, focus, asTab = false }) {
   const { store, session, navigate, deleted } = useApp();
   const list = store.get().lists[id];
   const [text, setText] = useState('');
@@ -97,11 +100,12 @@ export function ListView({ id, focus }) {
   };
 
   return (
-    <div class="screen">
+    <div class={asTab ? 'screen has-tabs list-tab' : 'screen'}>
       <header class="topbar">
-        <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>
+        {!asTab && <button class="icon-btn back" aria-label="Back" onClick={() => navigate('/')}><BackIcon /></button>}
         <h1 class="title-with-emoji">
-          <span class="title-icon"><ListIcon value={list.emoji} size={28} /></span> {list.name}
+          {/* On the My list tab the tab itself shows the icon. */}
+          {!asTab && <span class="title-icon"><ListIcon value={list.emoji} size={28} /></span>} {list.name}
         </h1>
         <div class="topbar-actions">
           <SyncBadge />
@@ -184,6 +188,8 @@ export function ListView({ id, focus }) {
       )}
       </div>
 
+
+      {asTab && <TabBar active="mine" />}
 
       {editing && store.get().items[editing] && !store.get().items[editing].deleted && (
         <EditItemSheet
@@ -350,6 +356,9 @@ function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
         >
           Remove done items
         </button>
+        {isOfficialPersonal(list, store.lists()) ? (
+          <p class="hint">This is {list.owner}’s own list, so it can’t be deleted. Everyone in the family can see it.</p>
+        ) : (
         <button
           class="btn danger big"
           onClick={() => {
@@ -365,6 +374,7 @@ function ListMenuSheet({ list, counts, onClose, onAddRepeating }) {
         >
           Delete list
         </button>
+        )}
       </div>
     </Sheet>
   );

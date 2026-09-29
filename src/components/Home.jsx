@@ -11,12 +11,16 @@ import { ListIcon } from './ListIcon.jsx';
 import { Glyph } from './Glyph.jsx';
 import { iconToken } from '../icons.js';
 import { choreStatus } from '../house.js';
+import { isOfficialPersonal, personalListFor } from '../personal.js';
 import { swipeDelete } from './SwipeAction.jsx';
 
 export function Home() {
-  const { store, activity, navigate, deleted } = useApp();
+  const { store, activity, navigate, deleted, session } = useApp();
   const [creating, setCreating] = useState(false);
-  const lists = store.lists();
+  const all = store.lists();
+  // Your own list has its own tab; everyone else's, and the shared ones, are here.
+  const mine = personalListFor(all, session.name);
+  const lists = all.filter((l) => !mine || l.id !== mine.id);
   const cardsRef = useRef(null);
   const grip = gripProps(() => ({ container: cardsRef.current, onDrop: (ids, moved) => store.moveTo('list', moved, ids) }));
 
@@ -46,7 +50,9 @@ export function Home() {
             const repeatLeft = repeating.filter((c) => choreStatus(c).state !== 'done').length;
             const count = items.length + repeating.length;
             const fresh = activity ? activity.unseenForList(l.id) : 0;
-            const swipe = swipeDelete(
+            // Someone's own list can be emptied but not deleted.
+            const official = isOfficialPersonal(l, all);
+            const swipe = official ? { row: {}, action: null } : swipeDelete(
               () => {
                 const what = count ? `“${l.name}” and its ${count} item${count === 1 ? '' : 's'}` : `“${l.name}”`;
                 if (!confirm(`Delete ${what}?`)) return;
@@ -58,7 +64,7 @@ export function Home() {
               { confirm: true },
             );
             return (
-              <li key={l.id} data-id={l.id} class="card-row swipe-row" {...swipe.row}>
+              <li key={l.id} data-id={l.id} class={'card-row' + (official ? '' : ' swipe-row')} {...swipe.row}>
                 <a class="card" href={`#/list/${l.id}`}>
                   <span class="card-emoji"><ListIcon value={l.emoji} size={28} /></span>
                   <span class="card-body">
