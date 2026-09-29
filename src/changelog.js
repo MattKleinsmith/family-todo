@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'add-row-in-list',
+    at: '2026-09-29T12:59:44-04:00',
+    text: 'Adding to a list now happens in the list itself: “Add an item…” is its last row, so nothing floats over your items. On a long list, the + at the top jumps straight to it.',
+  },
+  {
     id: 'me-tab',
     at: '2026-09-29T12:48:05-04:00',
     text: 'The “My list” tab is now called “Me”.',

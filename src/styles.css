@@ -353,27 +353,12 @@ input[type="text"]:focus, input[type="datetime-local"]:focus, input[type="date"]
 .chip { min-height: 40px; padding: 6px 15px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-weight: 700; }
 .chip.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
 
-.add-bar {
-  flex: none; margin: 8px 16px calc(12px + var(--safe-bottom));
-  display: flex; gap: 8px;
-  background: var(--surface); padding: 8px; border-radius: 999px;
-  box-shadow: 0 10px 30px rgba(93, 74, 46, 0.16);
-  border: 1.5px solid var(--border);
-}
-.add-bar.inline {
-  position: sticky; bottom: calc(10px + var(--safe-bottom)); z-index: 3;
-  margin: 12px 0 12px;
-}
 .screen:not(.has-tabs) .content {
   padding-bottom: calc(24px + var(--safe-bottom));
-  /* Scrolling a row into view keeps it clear of the stuck add box. */
-  scroll-padding-bottom: calc(112px + var(--safe-bottom));
+  scroll-padding-bottom: 16px;
 }
-[data-keyboard] .add-bar.inline { bottom: 10px; }
-[data-keyboard] .screen:not(.has-tabs) .content { padding-bottom: 24px; scroll-padding-bottom: 112px; }
+[data-keyboard] .screen:not(.has-tabs) .content { padding-bottom: 24px; }
 .empty.small { padding: 28px 20px 8px; }
-.add-bar input { flex: 1; min-width: 0; border: none; background: transparent; box-shadow: none !important; padding-left: 14px; }
-.add-bar .btn { padding: 0 20px; }
 
 /* Sheet */
 .backdrop {
@@ -629,7 +614,7 @@ li:last-child > .act { border-bottom: none; }
 .arrange-icon { display: flex; }
 .arrange-label { flex: 1; font-weight: 700; }
 /* A list shown as a tab: keep the add box clear when scrolling rows into view */
-.screen.list-tab .content { scroll-padding-bottom: 112px; }
+.screen.list-tab .content { scroll-padding-bottom: 16px; }
 [data-keyboard] .screen.list-tab .tabbar { display: none; }
 
 /* Move everything: pick a list */
@@ -645,3 +630,14 @@ li:last-child > .act { border-bottom: none; }
   display: grid; place-items: center; color: var(--accent-text); font-size: 14px; font-weight: 800;
 }
 .move-target.on .move-radio { background: var(--accent); border-color: var(--accent); }
+
+/* The add row at the end of a list: part of the list, not floating over it */
+.add-item { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px 6px 16px; }
+.add-item .add-plus { margin: 0 5px 0 1px; color: var(--muted); }
+.add-item input[type="text"] {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0; border: none; background: transparent; box-shadow: none; font-size: 17px;
+}
+.add-item input[type="text"]:focus { box-shadow: none; }
+.add-item input::placeholder { color: var(--muted); font-weight: 600; }
+.add-go { flex: none; min-height: 38px; padding: 0 18px; }
+.icon-btn.add-btn svg { width: 24px; height: 24px; }
