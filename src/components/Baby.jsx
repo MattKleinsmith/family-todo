@@ -22,6 +22,11 @@ import {
   nextFeedAt,
   nextNapAt,
   countdown,
+  feedDueAt,
+  isNightStart,
+  couldBeNight,
+  DEFAULT_BEDTIME_MIN,
+  DEFAULT_NIGHT_AFTER_FEED,
   sleepEndedByFeed,
   followFeedMove,
   relative,
@@ -30,6 +35,8 @@ import {
 
 const INTERVALS = [120, 150, 180, 210, 240];
 const NAP_AFTER = [60, 90, 120, 150, 180];
+const BEDTIMES = [19 * 60, 19 * 60 + 30, 20 * 60, 20 * 60 + 30, 21 * 60, 21 * 60 + 30, 22 * 60];
+const NIGHT_AFTER = [3, 4, 5, 6, 0];
 
 export function Baby({ focus }) {
   const { store, session, navigate, deleted } = useApp();
@@ -63,6 +70,10 @@ export function Baby({ focus }) {
   const name = profile.name || 'Baby';
   const feedEvery = profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN;
   const napAfter = profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN;
+  const nightRules = {
+    bedtimeMin: profile.bedtimeMin ?? DEFAULT_BEDTIME_MIN,
+    nightAfterFeed: profile.nightAfterFeed ?? DEFAULT_NIGHT_AFTER_FEED,
+  };
   const state = currentState(logs, now);
 
   const flash = (log) => {
@@ -86,14 +97,18 @@ export function Baby({ focus }) {
   };
   const sleepNow = () => {
     if (state.asleep) return;
-    flash(store.addLog({ kind: 'sleep', startAt: Date.now(), createdBy: session.name }));
+    const at = Date.now();
+    // After bedtime, or after his usual number of feeds in the evening, this is his night sleep.
+    flash(store.addLog({ kind: 'sleep', startAt: at, createdBy: session.name, night: isNightStart(at, logs, nightRules) }));
   };
   const wokeNow = () => {
     if (!state.asleep) return;
     store.updateLog(state.asleep.id, { endAt: Date.now() });
   };
 
-  const feedDue = nextFeedAt(state.lastFeed, feedEvery);
+  const feedDue = feedDueAt(state, feedEvery);
+  const downForNight = !!(state.asleep && state.asleep.night);
+  const afterNight = !state.asleep && state.lastSleep?.night && state.lastFeed && state.lastSleep.startAt > state.lastFeed.startAt;
   const sleepDue = nextNapAt(state, napAfter);
   const groups = groupByDay(logs);
   const older = store.summaries();
@@ -114,21 +129,31 @@ export function Baby({ focus }) {
       <section class={'status baby-status ' + (state.asleep ? 'asleep' : 'awake')} aria-live="polite">
         {/* What's coming up leads; how things stand now is the small print. */}
         <div class="next-tiles">
-          {state.asleep ? (
+          {downForNight ? (
+            <NextTile glyph="moon" title="Night sleep" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} />
+          ) : state.asleep ? (
             <NextTile glyph="sleeping" title="Napping" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} />
           ) : sleepDue ? (
             <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} />
           ) : (
-            <NextTile glyph="sleeping" title="Next nap" value="—" note={state.lastFeed ? 'napped since the last feed' : 'log a feed to see'} quiet />
+            <NextTile glyph="sleeping" title="Next nap" value="—" note={afterNight ? 'after the morning feed' : state.lastFeed ? 'napped since the last feed' : 'log a feed to see'} quiet />
           )}
-          {feedDue ? (
-            <NextTile glyph="bottle" title="Next feed" {...countdown(feedDue, now)} />
+          {downForNight ? (
+            // No feeds during the night sleep, so nothing counts down or goes overdue.
+            <NextTile glyph="bottle" title="Next feed" value="—" note={`when ${name} wakes`} quiet />
+          ) : feedDue ? (
+            <NextTile glyph="bottle" title="Next feed" {...(afterNight ? { ...countdown(feedDue, now), note: 'morning feed' } : countdown(feedDue, now))} />
           ) : (
             <NextTile glyph="bottle" title="Next feed" value="—" note="no feeds logged yet" quiet />
           )}
         </div>
+        {state.asleep && (downForNight || couldBeNight(state.asleep.startAt)) && (
+          <button type="button" class="night-switch" onClick={() => store.updateLog(state.asleep.id, { night: !downForNight })}>
+            {downForNight ? 'Just a nap? Count it as a nap' : 'Down for the night? Make it night sleep'}
+          </button>
+        )}
         <div class="status-now">
-          <Glyph name={state.asleep ? 'sleeping' : 'sun'} size={18} />
+          <Glyph name={downForNight ? 'moon' : state.asleep ? 'sleeping' : 'sun'} size={18} />
           <span>
             {[
               // While he's asleep the nap tile already says so.
@@ -166,10 +191,14 @@ export function Baby({ focus }) {
                 return (
                 <li key={l.id} id={`log-${l.id}`} class={'log swipe-row' + (justAdded === l.id ? ' flash' : '')} {...swipe.row}>
                   <button class="log-row" onClick={() => setEditing(l.id)}>
-                    <span class="log-emoji"><Glyph name={l.kind === 'feed' ? 'bottle' : 'sleeping'} size={26} /></span>
+                    <span class="log-emoji"><Glyph name={l.kind === 'feed' ? 'bottle' : l.night ? 'moon' : 'sleeping'} size={26} /></span>
                     <span class="log-body">
                       <span class="log-title">
-                        {l.kind === 'feed' ? 'Feed' : l.endAt == null ? 'Sleeping…' : `Slept ${formatDuration(l.endAt - l.startAt)}`}
+                        {l.kind === 'feed'
+                          ? 'Feed'
+                          : l.endAt == null
+                            ? l.night ? 'Night sleep…' : 'Sleeping…'
+                            : `${l.night ? 'Night sleep' : 'Slept'} ${formatDuration(l.endAt - l.startAt)}`}
                         {l.note ? <span class="log-note"> · {l.note}</span> : null}
                       </span>
                       <span class="log-sub">
@@ -249,11 +278,12 @@ function EditLogSheet({ log, onClose }) {
   const [startAt, setStartAt] = useState(log.startAt);
   const [endAt, setEndAt] = useState(log.endAt);
   const [note, setNote] = useState(log.note || '');
+  const [night, setNight] = useState(!!log.night);
   const ongoing = kind === 'sleep' && endAt == null;
 
   const save = (e) => {
     e.preventDefault();
-    const changes = { kind, startAt, note: note.trim(), endAt: kind === 'sleep' ? endAt : null };
+    const changes = { kind, startAt, note: note.trim(), endAt: kind === 'sleep' ? endAt : null, night: kind === 'sleep' ? night : false };
     if (kind === 'sleep' && endAt != null && endAt < startAt) changes.endAt = startAt;
     // Moving a feed that ended a nap moves the nap's end with it.
     if (log.kind === 'feed' && kind === 'feed' && startAt !== log.startAt) {
@@ -286,6 +316,12 @@ function EditLogSheet({ log, onClose }) {
           </div>
         </div>
         {kind === 'sleep' && (
+          <label class="toggle">
+            <input type="checkbox" checked={night} onChange={(e) => setNight(e.currentTarget.checked)} />
+            <span>Night sleep <span class="muted">(no feed countdown during it)</span></span>
+          </label>
+        )}
+        {kind === 'sleep' && (
           <div class="field">
             <label class="toggle">
               <input type="checkbox" checked={ongoing} onChange={(e) => setEndAt(e.currentTarget.checked ? null : Math.max(startAt, Date.now()))} />
@@ -317,11 +353,14 @@ function BabyMenuSheet({ profile, onClose }) {
   const [name, setName] = useState(profile.name || '');
   const [feedEvery, setFeedEvery] = useState(profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN);
   const [napAfter, setNapAfter] = useState(profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN);
+  const [bedtime, setBedtime] = useState(profile.bedtimeMin ?? DEFAULT_BEDTIME_MIN);
+  const [nightAfter, setNightAfter] = useState(profile.nightAfterFeed ?? DEFAULT_NIGHT_AFTER_FEED);
   const save = (e) => {
     e.preventDefault();
-    store.setMeta('baby', { name: name.trim(), feedIntervalMin: feedEvery, napAfterFeedMin: napAfter });
+    store.setMeta('baby', { name: name.trim(), feedIntervalMin: feedEvery, napAfterFeedMin: napAfter, bedtimeMin: bedtime, nightAfterFeed: nightAfter });
     onClose();
   };
+  const clock = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const label = (m) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
   return (
     <Sheet title="Baby settings" onClose={onClose}>
@@ -346,6 +385,23 @@ function BabyMenuSheet({ profile, onClose }) {
             ))}
           </div>
           <p class="hint">Used only for the "next feed" and "next nap" hints, both counted from when the last feed started. Adjust as his rhythm changes.</p>
+        </div>
+        <div class="field">
+          <label>Night sleep: “Fell asleep” after this time</label>
+          <div class="chips" role="radiogroup">
+            {BEDTIMES.map((m) => (
+              <button type="button" key={m} role="radio" aria-checked={bedtime === m} class={'chip' + (bedtime === m ? ' on' : '')} onClick={() => setBedtime(m)}>{clock(m)}</button>
+            ))}
+          </div>
+        </div>
+        <div class="field">
+          <label>…or in the evening, after this many feeds that day</label>
+          <div class="chips" role="radiogroup">
+            {NIGHT_AFTER.map((n) => (
+              <button type="button" key={n} role="radio" aria-checked={nightAfter === n} class={'chip' + (nightAfter === n ? ' on' : '')} onClick={() => setNightAfter(n)}>{n ? `${n} feeds` : 'Don’t use'}</button>
+            ))}
+          </div>
+          <p class="hint">During night sleep there’s no feed countdown and nothing goes overdue; in the morning the next feed is due when he wakes. You can switch any sleep between nap and night sleep on the card or by tapping it.</p>
         </div>
         <button class="btn primary big" type="submit">Save</button>
         <button class="btn link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>Family code, sync & app settings</button>

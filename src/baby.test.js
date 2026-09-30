@@ -138,3 +138,37 @@ describe('a feed while he is asleep', () => {
     expect(followFeedMove({ ...ended, endedByFeed: 'other' }, thisFeed, t - 15 * 60_000)).toBeNull();
   });
 });
+
+describe('night sleep', () => {
+  it('knows a night sleep from a nap', async () => {
+    const { isNightStart, couldBeNight } = await import('./baby.js');
+    const at = (h, m = 0) => new Date(2026, 8, 30, h, m).getTime();
+    const feeds = (n) => Array.from({ length: n }, (_, i) => ({ kind: 'feed', startAt: at(7 + i * 3) }));
+    expect(isNightStart(at(21, 15), [])).toBe(true); // after 9 PM
+    expect(isNightStart(at(2), [])).toBe(true); // small hours
+    expect(isNightStart(at(14), feeds(3))).toBe(false); // afternoon nap
+    expect(isNightStart(at(19, 30), feeds(4))).toBe(false); // evening, 4 feeds: still a nap
+    expect(isNightStart(at(19, 30), feeds(5))).toBe(true); // after the 5th feed
+    expect(isNightStart(at(19, 30), feeds(5), { nightAfterFeed: 0 })).toBe(false); // feed rule off
+    expect(isNightStart(at(20, 15), [], { bedtimeMin: 20 * 60 })).toBe(true); // earlier bedtime
+    expect(couldBeNight(at(18, 30))).toBe(true);
+    expect(couldBeNight(at(13))).toBe(false);
+  });
+  it('no feed countdown while he is down for the night, and due on waking', async () => {
+    const { feedDueAt, currentState } = await import('./baby.js');
+    const t = (h, day = 30) => new Date(2026, 8, day, h).getTime();
+    const lastFeed = { id: 'f', kind: 'feed', startAt: t(20) };
+    const night = { id: 's', kind: 'sleep', startAt: t(21), endAt: null, night: true };
+    // Asleep for the night at 3 AM: nothing due, however long since the feed.
+    expect(feedDueAt(currentState([night, lastFeed], t(3, 31)))).toBeNull();
+    // Woke at 7 AM: due right then, not 8 hours overdue.
+    const woke = { ...night, endAt: t(7, 31) };
+    expect(feedDueAt(currentState([woke, lastFeed], t(7, 31) + 60_000))).toBe(t(7, 31));
+    // A nap works as before: counted from the last feed.
+    const nap = { ...woke, night: false };
+    expect(feedDueAt(currentState([nap, lastFeed], t(7, 31)))).toBe(t(23));
+    // Once he's fed in the morning, the usual interval.
+    const morning = { id: 'm', kind: 'feed', startAt: t(7, 31) + 10 * 60_000 };
+    expect(feedDueAt(currentState([morning, woke, lastFeed], t(8, 31)))).toBe(morning.startAt + 180 * 60_000);
+  });
+});

@@ -5,6 +5,18 @@
 
 export const CHANGELOG = [
   {
+    id: 'night-sleep',
+    at: '2026-09-29T23:36:00-04:00',
+    text: 'Once the baby goes down for the night (after 9 PM, or after his 5th feed in the evening), the Baby tab shows “Night sleep” and stops counting down to a feed until he wakes. A button on the sleep card switches between nap and night sleep, and the bedtime is in the tab’s menu.',
+    href: '#/baby',
+  },
+  {
+    id: 'overdue-first',
+    at: '2026-09-29T23:36:00-04:00',
+    text: 'Overdue chores and repeating items now sit at the top of their group with a coloured edge, so they’re hard to miss. Then come the ones still to do, then the done ones.',
+    href: '#/house',
+  },
+  {
     id: 'done-sink-to-bottom',
     at: '2026-09-29T23:26:12-04:00',
     text: 'Repeating items and chores you’ve done now move below the ones still to do, in the order you arranged them. When they reset the next day (or week), your original order is back.',

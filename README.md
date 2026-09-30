@@ -66,6 +66,14 @@ A feed means he's awake: tapping **Fed now** while a nap is still running ends
 the nap at that moment (someone forgot to tap **Woke up**), with an Undo for a
 dream feed. Moving that feed's time moves the wake-up with it.
 
+**Night sleep.** A sleep started from 9 PM on (or in the evening once he's had
+his 5th feed of the day) counts as his night sleep: the tab shows a moon and
+"Night sleep" instead of a nap, and the feed countdown goes quiet ("when he
+wakes") instead of turning red overnight. When he wakes, the morning feed is due
+straight away and the countdowns pick up from there. A button on the sleep card
+switches a sleep between nap and night sleep if the guess is wrong, and the
+bedtime and feed count are set in the tab's menu.
+
 Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nudges for
 the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
 it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
@@ -73,8 +81,9 @@ crosses midnight is split across the two days.
 
 ## The house tracker
 
-Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. Chores still to do come first
-and done ones drop below them (a moment after the tick), each group in the order
+Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. Overdue chores (a whole day,
+week or month went by without them) come first, tinted amber or red; then the
+ones still to do; done ones drop below them (a moment after the tick), each group in the order
 you arranged; when a new day, week or month resets them, that order is simply
 back. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week

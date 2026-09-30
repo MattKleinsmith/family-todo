@@ -24,6 +24,7 @@ import {
   STARTER_CHORES,
   choreStatus,
   orderForDisplay,
+  displayRank,
   doneList,
   dueLabel,
   missedLabel,
@@ -141,8 +142,8 @@ export function House({ focus }) {
  */
 export function useSettling(ms = 900) {
   const [settling, setSettling] = useState({});
-  const settle = (id, wasDone) => {
-    setSettling((s) => ({ ...s, [id]: wasDone }));
+  const settle = (id, wasRank) => {
+    setSettling((s) => ({ ...s, [id]: wasRank }));
     setTimeout(
       () =>
         setSettling((s) => {
@@ -160,7 +161,7 @@ export function useSettling(ms = 900) {
 export function useChoreToggle(highlight = () => {}, settle = () => {}) {
   const { store, session, deleted: showUndo } = useApp();
   return ({ chore, status }) => {
-    settle(chore.id, !!status.done);
+    settle(chore.id, displayRank(status));
     if (status.done) {
       store.unmarkChore(chore.id, status.done.at);
       return;

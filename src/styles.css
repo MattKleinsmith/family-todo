@@ -510,8 +510,9 @@ li:last-child > .act { border-bottom: none; }
 .chore.late .missed { color: var(--danger); }
 .chore.behind .check::before { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); }
 .chore.late .check::before { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, var(--surface)); }
-.chore.behind, .chore.late { box-shadow: inset 4px 0 0 var(--warn); }
-.chore.late { box-shadow: inset 4px 0 0 var(--danger); }
+/* Overdue rows: a coloured edge and a warm tint (beats the plain swipe-row background). */
+.items .chore.behind, .items .chore.late { box-shadow: inset 4px 0 0 var(--warn); background: color-mix(in srgb, var(--warn) 11%, var(--surface)); }
+.items .chore.late { box-shadow: inset 4px 0 0 var(--danger); background: color-mix(in srgb, var(--danger) 11%, var(--surface)); }
 .chore.flash { animation: flash 1.5s ease-out; }
 .add-chore {
   width: 100%; min-height: 50px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
@@ -647,3 +648,9 @@ li:last-child > .act { border-bottom: none; }
   background: var(--surface); font-size: 17px; outline: none; -webkit-appearance: none; appearance: none;
 }
 .times-other input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* Baby: switch a running sleep between nap and night sleep */
+.night-switch {
+  align-self: flex-start; border: none; background: none; padding: 2px 4px; min-height: 32px;
+  color: var(--text); font-weight: 700; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; opacity: 0.75;
+}
