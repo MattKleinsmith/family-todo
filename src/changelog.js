@@ -5,6 +5,18 @@
 
 export const CHANGELOG = [
   {
+    id: 'sync-heal-members-by-person',
+    at: '2026-09-30T14:10:00-04:00',
+    text: 'Fixed a new phone or computer sometimes missing older lists and family members. Family members are now one row per person with their devices (“iPhone, Mac”), and a second “todos” list made on a new device is folded into your own.',
+    href: '#/settings',
+  },
+  {
+    id: 'settings-apply-instantly',
+    at: '2026-09-30T14:10:00-04:00',
+    text: 'Baby settings now take effect as soon as you pick them; swiping the sheet away keeps them. App settings are at the top of the Baby settings and in the ⋯ menu on your own list, and on a computer the page scrolls from anywhere in the window.',
+    href: '#/baby',
+  },
+  {
     id: 'night-sleep',
     at: '2026-09-29T23:36:00-04:00',
     text: 'Once the baby goes down for the night (after 9 PM, or after his 5th feed in the evening), the Baby tab shows “Night sleep” and stops counting down to a feed until he wakes. A button on the sleep card switches between nap and night sleep, and the bedtime is in the tab’s menu.',

@@ -3,7 +3,7 @@ import { useApp } from '../app.jsx';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
-import { BackIcon, DotsIcon, GripIcon, PlusIcon } from './Icons.jsx';
+import { BackIcon, DotsIcon, GearIcon, GripIcon, PlusIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
 import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
@@ -345,7 +345,9 @@ function EditItemSheet({ item, onClose, onRepeat }) {
 }
 
 function ListMenuSheet({ list, counts, onClose, onAddRepeating, onMove }) {
-  const { store, navigate, deleted } = useApp();
+  const { store, navigate, deleted, session } = useApp();
+  // Your own list is a tab with no other way to the app's settings.
+  const own = personalListFor(store.lists(), session.name)?.id === list.id;
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(list.name);
   const [emoji, setEmoji] = useState(list.emoji || iconToken('memo'));
@@ -373,6 +375,11 @@ function ListMenuSheet({ list, counts, onClose, onAddRepeating, onMove }) {
   return (
     <Sheet title={list.name} onClose={onClose}>
       <div class="stack">
+        {own && (
+          <button class="btn settings-link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>
+            <GearIcon /> <span>App settings</span> <span class="hint">family code, members, sync</span>
+          </button>
+        )}
         <button class="btn big" onClick={() => setRenaming(true)}>Rename or change icon</button>
         <button class="btn big" onClick={onAddRepeating}>Add a repeating item</button>
         <button class="btn big" disabled={counts.all === 0} onClick={onMove}>Move everything to another list</button>

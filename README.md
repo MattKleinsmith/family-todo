@@ -151,7 +151,11 @@ are hidden unless you turn on "Show my own changes".
 
 People and devices: each phone publishes a small synced "member" record when it
 joins, changes its name, or leaves. Those appear in the feed and under
-*Settings → Family members*.
+*Settings → Family members*. The same name is the same person: someone on an
+iPhone and a Mac is one row, "Matthew · iPhone, Mac", shares one personal list,
+and a new device of theirs shows as "started using the app on a Mac" rather
+than a new person joining. If a new device made its own personal list before
+the existing one synced in, the two are folded back into the original.
 
 After an app update, the feed also shows short **What's new** notes (with a ✨)
 saying what changed; they count on the bell until you've looked, and tapping one
@@ -198,9 +202,14 @@ open message stores that anyone can publish to and subscribe from.
   plus a 10-minute overlap for clocks that disagree. Measured against the real
   relays with 161 records and nothing changed: about 0.5 KB, down from 386 KB.
   Nothing a relay has confirmed is re-sent.
-- **Fortnightly health check**: relays that support NIP-45 COUNT are asked how
-  many records they hold; only a relay that is short, or can't count, gets a
-  full re-download and re-upload.
+- **Daily health check**: relays that support NIP-45 COUNT are asked how
+  many records they hold; when that differs from what the phone holds (the
+  relay is short, or the phone is), or the relay can't count, it gets a full
+  re-download and re-upload.
+- **Sync progress is kept with the records**: the per-relay cursors live in
+  localStorage and the records in IndexedDB. If a phone opens with no saved
+  records (site data cleared, a failed load), its cursors are dropped and it
+  reads every relay from the start instead of only "what's new".
 - **Relays that say "slow down"** get paused (5 s doubling to 2 min) and sent to
   more slowly (up to one write per 0.5 s), easing back after 10 accepted writes.
 

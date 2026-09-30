@@ -1,23 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { dedupeMembers, memberKey } from './members.js';
+import { memberKey, peopleWithDevices } from './members.js';
 
 const m = (id, name, device, joinedAt, leftAt = null) => ({ id, type: 'member', name, device, joinedAt, leftAt });
 
-describe('dedupeMembers', () => {
-  it('merges the same name on the same kind of device, keeps different devices apart', () => {
-    const out = dedupeMembers([
+describe('peopleWithDevices', () => {
+  it('one row per name, listing each kind of device once in join order', () => {
+    const out = peopleWithDevices([
       m('a', 'Matthew', 'iPhone', 10),
       m('b', 'Huishi', 'iPhone', 20),
       m('c', 'Matthew', 'iPhone', 30),
-      m('d', 'matthew ', 'iPhone', 40),
-      m('e', 'Huishi', 'Mac', 50),
+      m('d', 'matthew ', 'Mac', 40),
+      m('e', 'Huishi', 'Mac', 50, 60),
     ]);
-    expect(out.map((x) => `${x.name} ${x.device}`)).toEqual(['Matthew iPhone', 'Huishi iPhone', 'Huishi Mac']);
-    expect(out[0]).toMatchObject({ joinedAt: 10, installs: 3, leftAt: null });
+    expect(out.map((p) => `${p.name}: ${p.devices.join(', ')}`)).toEqual(['Matthew: iPhone, Mac', 'Huishi: iPhone']);
+    expect(out[0]).toMatchObject({ joinedAt: 10, leftAt: null });
   });
-  it('is still in the family if any install is, and left only if all left', () => {
-    expect(dedupeMembers([m('a', 'H', 'iPhone', 1, 5), m('b', 'H', 'iPhone', 6)])[0].leftAt).toBeNull();
-    expect(dedupeMembers([m('a', 'H', 'iPhone', 1, 5), m('b', 'H', 'iPhone', 6, 9)])[0].leftAt).toBe(9);
+  it('is left only once every install has left, and keeps the devices they used', () => {
+    expect(peopleWithDevices([m('a', 'H', 'iPhone', 1, 5), m('b', 'H', 'iPhone', 6)])[0].leftAt).toBeNull();
+    expect(peopleWithDevices([m('a', 'H', 'iPhone', 1, 5), m('b', 'H', 'Mac', 6, 9)])[0]).toMatchObject({ leftAt: 9, devices: ['iPhone', 'Mac'] });
     expect(memberKey({ name: ' Hui ', device: 'iPhone' })).toBe(memberKey({ name: 'hui', device: 'iPhone' }));
   });
 });

@@ -65,6 +65,9 @@ export function createStore({
 } = {}) {
   let state = emptyState();
   let loaded = false;
+  // True when this device has saved storage but nothing came back from it
+  // (first run, cleared site data, or a failed load). Sync then starts over.
+  let startedEmpty = false;
   // Timestamps for our own writes never repeat or go backwards, so records
   // created back to back (like the starter lists) keep their order.
   let lastStamp = 0;
@@ -75,6 +78,7 @@ export function createStore({
   const remoteChangeListeners = new Set();
   let saveTimer = null;
 
+  let restored = false;
   function mergeLoaded(raw) {
     if (!raw) return;
     let parsed;
@@ -85,6 +89,7 @@ export function createStore({
       return;
     }
     if (!parsed || !parsed.lists || !parsed.items) return;
+    restored = true;
     // Anything written while the load was in flight wins over the saved copy.
     for (const key of Object.values(BUCKETS)) {
       const saved = parsed[key] || {};
@@ -98,6 +103,7 @@ export function createStore({
 
   function finishLoad() {
     loaded = true;
+    startedEmpty = !!(storage && storageKey) && !restored;
     notify();
     if (pendingSave) save();
   }
@@ -647,6 +653,8 @@ export function createStore({
   return {
     ready,
     flushSave,
+    /** Nothing was restored from this device's storage when it opened (see startedEmpty). */
+    startedEmpty: () => startedEmpty,
     get: () => state,
     subscribe: (fn) => (listeners.add(fn), () => listeners.delete(fn)),
     onLocalChange: (fn) => (localChangeListeners.add(fn), () => localChangeListeners.delete(fn)),
