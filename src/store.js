@@ -518,9 +518,9 @@ export function createStore({
     return chores().filter((c) => c.listId === listId);
   }
 
-  /** True once this phone holds any chore record at all, deleted ones included. */
+  /** True once this phone holds any household chore record at all, deleted ones included (not repeating list items). */
   function hasAnyChores() {
-    return Object.keys(state.chores).length > 0;
+    return Object.values(state.chores).some((c) => !c.listId);
   }
 
   // ---- Daily summaries of compacted baby logs ----

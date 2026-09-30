@@ -23,6 +23,7 @@ import {
   timesOf,
   STARTER_CHORES,
   choreStatus,
+  orderForDisplay,
   doneList,
   dueLabel,
   missedLabel,
@@ -58,6 +59,7 @@ export function House({ focus }) {
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(null); // cadence
   const [flash, setFlash] = useState(null);
+  const [settling, settle] = useSettling();
   useStarterChores();
   useMarkSeen('house', newestOf(Object.values(store.get().chores).filter((c) => !c.listId)));
 
@@ -82,9 +84,10 @@ export function House({ focus }) {
 
   const now = Date.now();
   const chores = store.houseChores().map((c) => ({ chore: c, status: choreStatus(c, now) }));
-  const byCadence = Object.fromEntries(CADENCES.map((k) => [k, chores.filter((x) => x.status.cadence === k)]));
+  // Still to do first, then done, each in the family's own order.
+  const byCadence = Object.fromEntries(CADENCES.map((k) => [k, orderForDisplay(chores.filter((x) => x.status.cadence === k), settling)]));
 
-  const toggle = useChoreToggle(highlight);
+  const toggle = useChoreToggle(highlight, settle);
 
   return (
     <div class="screen has-tabs">
@@ -132,10 +135,32 @@ export function House({ focus }) {
   );
 }
 
+/**
+ * Rows just ticked off (or un-ticked) keep their old place for a moment before
+ * sliding into the done or to-do group, so the tick is seen landing.
+ */
+export function useSettling(ms = 900) {
+  const [settling, setSettling] = useState({});
+  const settle = (id, wasDone) => {
+    setSettling((s) => ({ ...s, [id]: wasDone }));
+    setTimeout(
+      () =>
+        setSettling((s) => {
+          const next = { ...s };
+          delete next[id];
+          return next;
+        }),
+      ms,
+    );
+  };
+  return [settling, settle];
+}
+
 /** Tap to tick off one more time; once it's all done, a tap takes the last one back. */
-export function useChoreToggle(highlight = () => {}) {
+export function useChoreToggle(highlight = () => {}, settle = () => {}) {
   const { store, session, deleted: showUndo } = useApp();
   return ({ chore, status }) => {
+    settle(chore.id, !!status.done);
     if (status.done) {
       store.unmarkChore(chore.id, status.done.at);
       return;

@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'done-sink-to-bottom',
+    at: '2026-09-29T23:26:12-04:00',
+    text: 'Repeating items and chores you’ve done now move below the ones still to do, in the order you arranged them. When they reset the next day (or week), your original order is back.',
+  },
+  {
     id: 'repeat-times-inline',
     at: '2026-09-29T15:14:25-04:00',
     text: 'When you make a list item repeat, “How many times” now appears right under it, so a “3× a day” habit can be set up in one go.',
