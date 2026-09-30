@@ -352,7 +352,7 @@ export function createStore({
 
   // ---- Baby log: feeds and sleeps ----
 
-  function addLog({ kind, startAt, endAt = null, note = '', createdBy = '' }) {
+  function addLog({ kind, startAt, endAt = null, note = '', createdBy = '', night = false }) {
     if (kind !== 'feed' && kind !== 'sleep') return null;
     return putLocal({
       id: newId(),
@@ -364,6 +364,7 @@ export function createStore({
       createdBy,
       createdAt: stamp(),
       deleted: false,
+      ...(kind === 'sleep' && night ? { night: true } : {}),
     });
   }
 

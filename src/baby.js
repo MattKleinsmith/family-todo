@@ -159,3 +159,51 @@ export function followFeedMove(sleep, feed, newStartAt) {
   if (!sleep || sleep.endedByFeed !== feed.id || sleep.endAt !== feed.startAt) return null;
   return newStartAt > sleep.startAt ? newStartAt : null;
 }
+
+// ---- Night sleep ("down for the night") ----
+// No feeds are expected during the long night sleep, so no countdowns run
+// while he's down for the night, and in the morning the next feed is due
+// when he wakes rather than hours "overdue".
+
+export const DEFAULT_BEDTIME_MIN = 21 * 60; // a sleep that starts after this is night sleep
+export const DEFAULT_NIGHT_AFTER_FEED = 5; // …as is one after this many feeds in the evening
+const EVENING_MIN = 18 * 60;
+const NIGHT_UNTIL_MIN = 5 * 60; // small hours still count as night
+
+const minutesOfDay = (ts) => {
+  const d = new Date(ts);
+  return d.getHours() * 60 + d.getMinutes();
+};
+
+/**
+ * Whether a sleep starting at `at` is his night sleep: after bedtime (or in the
+ * small hours), or in the evening once he's had his usual number of feeds.
+ * `nightAfterFeed` of 0 turns the feed rule off.
+ */
+export function isNightStart(at, logs, { bedtimeMin = DEFAULT_BEDTIME_MIN, nightAfterFeed = DEFAULT_NIGHT_AFTER_FEED } = {}) {
+  const m = minutesOfDay(at);
+  if (m >= bedtimeMin || m < NIGHT_UNTIL_MIN) return true;
+  if (!nightAfterFeed || m < EVENING_MIN) return false;
+  const day = dayKey(at);
+  const feeds = logs.filter((l) => l.kind === 'feed' && l.startAt <= at && dayKey(l.startAt) === day).length;
+  return feeds >= nightAfterFeed;
+}
+
+/** Whether the night-sleep link should be offered for a nap: only in the evening or at night. */
+export function couldBeNight(at) {
+  const m = minutesOfDay(at);
+  return m >= EVENING_MIN || m < NIGHT_UNTIL_MIN;
+}
+
+/**
+ * When the next feed is due, allowing for night sleep: none while he's down for
+ * the night; when he wakes if the last feed was before it; otherwise the usual
+ * interval after the last feed started.
+ */
+export function feedDueAt(state, intervalMin = DEFAULT_FEED_INTERVAL_MIN) {
+  if (!state.lastFeed) return null;
+  if (state.asleep && state.asleep.night) return null;
+  const night = state.lastSleep && state.lastSleep.night ? state.lastSleep : null;
+  if (!state.asleep && night && night.startAt > state.lastFeed.startAt) return night.endAt;
+  return nextFeedAt(state.lastFeed, intervalMin);
+}

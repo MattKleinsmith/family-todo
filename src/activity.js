@@ -59,7 +59,7 @@ export function describeChange(prev, next, ctx = {}) {
       if (!prev) {
         if (next.deleted) return null;
         if (next.kind === 'feed') return `logged a feed at ${formatTime(next.startAt)}${next.note ? ` (${next.note})` : ''}`;
-        if (next.endAt == null) return `logged ${baby} falling asleep at ${formatTime(next.startAt)}`;
+        if (next.endAt == null) return next.night ? `logged ${baby} going down for the night at ${formatTime(next.startAt)}` : `logged ${baby} falling asleep at ${formatTime(next.startAt)}`;
         return `logged ${baby} sleeping ${formatTime(next.startAt)} – ${formatTime(next.endAt)} (${formatDuration(next.endAt - next.startAt)})`;
       }
       if (next.deleted && !prev.deleted) return `removed the ${formatTime(prev.startAt)} ${kind(prev)}`;
@@ -72,6 +72,7 @@ export function describeChange(prev, next, ctx = {}) {
       else if (next.kind === 'sleep' && prev.endAt != null && next.endAt == null) parts.push(`marked the ${formatTime(next.startAt)} sleep as still going`);
       else if (next.kind === 'sleep' && prev.endAt != null && next.endAt !== prev.endAt)
         parts.push(`changed the ${formatTime(next.startAt)} sleep’s end to ${formatTime(next.endAt)}`);
+      if (next.kind === 'sleep' && !!next.night !== !!prev.night) parts.push(next.night ? `made the ${formatTime(next.startAt)} sleep his night sleep` : `made the ${formatTime(next.startAt)} sleep a nap`);
       if (next.startAt !== prev.startAt) parts.push(`moved the ${formatTime(prev.startAt)} ${kind(next)} to ${formatTime(next.startAt)}`);
       if ((next.note || '') !== (prev.note || ''))
         parts.push(next.note ? `noted ${q(next.note)} on the ${formatTime(next.startAt)} ${kind(next)}` : `cleared the note on the ${formatTime(next.startAt)} ${kind(next)}`);
@@ -89,6 +90,10 @@ export function describeChange(prev, next, ctx = {}) {
       const NAP_DEFAULT = 120;
       if ((next.napAfterFeedMin || NAP_DEFAULT) !== (p.napAfterFeedMin || NAP_DEFAULT))
         parts.push(`set naps to about ${every(next.napAfterFeedMin || NAP_DEFAULT)} after a feed`);
+      const bed = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      if ((next.bedtimeMin ?? 1260) !== (p.bedtimeMin ?? 1260)) parts.push(`set night sleep to start after ${bed(next.bedtimeMin ?? 1260)}`);
+      if ((next.nightAfterFeed ?? 5) !== (p.nightAfterFeed ?? 5))
+        parts.push(next.nightAfterFeed ? `set night sleep to start after ${next.nightAfterFeed} feeds in the evening` : 'stopped using the feed count for night sleep');
       return parts.length ? joinParts(parts) : null;
     }
     case 'chore': {
