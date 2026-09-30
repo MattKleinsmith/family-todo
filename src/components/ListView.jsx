@@ -10,8 +10,8 @@ import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
-import { ChoreRow, ChoreSheet, NewChoreSheet, TimesPicker, useChoreToggle, useSettling } from './House.jsx';
-import { CADENCES, CADENCE_LABEL, choreStatus, orderForDisplay } from '../house.js';
+import { ChoreRow, ChoreSheet, NewChoreSheet, TimesPicker, useChoreToggle } from './House.jsx';
+import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
 import { isOfficialPersonal, personalListFor } from '../personal.js';
 
@@ -39,8 +39,7 @@ export function ListView({ id, focus, asTab = false }) {
     setFlash(cid);
     setTimeout(() => setFlash((cur) => (cur === cid ? null : cur)), 1500);
   };
-  const [settling, settle] = useSettling();
-  const toggleChore = useChoreToggle(highlight, settle);
+  const toggleChore = useChoreToggle(highlight);
 
   // When the keyboard opens (the app shrinks to the space above it), keep the add row in view.
   useEffect(() => {
@@ -93,8 +92,8 @@ export function ListView({ id, focus, asTab = false }) {
   const open = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
   const now = Date.now();
-  // Still to do first, then done, each in your own order (which comes back as it was when they reset).
-  const repeating = orderForDisplay(store.choresFor(id).map((c) => ({ chore: c, status: choreStatus(c, now) })), settling);
+  // Always in your own order, done or not.
+  const repeating = store.choresFor(id).map((c) => ({ chore: c, status: choreStatus(c, now) }));
   const repeatingDone = repeating.filter((x) => x.status.done).length;
   const removeChore = (c) => {
     store.deleteChore(c.id);

@@ -157,20 +157,3 @@ export const DEFAULT_ICON = { daily: iconToken('broom'), weekly: iconToken('buck
 export function overdueChores(chores, now = Date.now()) {
   return chores.filter((c) => choreStatus(c, now).state === 'overdue');
 }
-
-/** Which group a row shows in: 0 overdue, 1 still to do, 2 done. */
-export function displayRank(status) {
-  return status.done ? 2 : status.state === 'overdue' ? 0 : 1;
-}
-
-/**
- * Display order for chores or repeating items: overdue first, then still to
- * do, then done, each group in the order the family arranged them (the input
- * order). When a new day, week or month resets everything to "to do", that
- * arranged order is simply back. `settling` maps ids ticked a moment ago to
- * the group they were in, so a row stays put briefly before sliding into place.
- */
-export function orderForDisplay(rows, settling = {}) {
-  const rank = (x) => (x.chore.id in settling ? settling[x.chore.id] : displayRank(x.status));
-  return [0, 1, 2].flatMap((r) => rows.filter((x) => rank(x) === r));
-}

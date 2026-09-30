@@ -23,8 +23,6 @@ import {
   timesOf,
   STARTER_CHORES,
   choreStatus,
-  orderForDisplay,
-  displayRank,
   doneList,
   dueLabel,
   missedLabel,
@@ -60,7 +58,6 @@ export function House({ focus }) {
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(null); // cadence
   const [flash, setFlash] = useState(null);
-  const [settling, settle] = useSettling();
   useStarterChores();
   useMarkSeen('house', newestOf(Object.values(store.get().chores).filter((c) => !c.listId)));
 
@@ -85,10 +82,10 @@ export function House({ focus }) {
 
   const now = Date.now();
   const chores = store.houseChores().map((c) => ({ chore: c, status: choreStatus(c, now) }));
-  // Still to do first, then done, each in the family's own order.
-  const byCadence = Object.fromEntries(CADENCES.map((k) => [k, orderForDisplay(chores.filter((x) => x.status.cadence === k), settling)]));
+  // Always in the family's own order, done or not.
+  const byCadence = Object.fromEntries(CADENCES.map((k) => [k, chores.filter((x) => x.status.cadence === k)]));
 
-  const toggle = useChoreToggle(highlight, settle);
+  const toggle = useChoreToggle(highlight);
 
   return (
     <div class="screen has-tabs">
@@ -136,32 +133,10 @@ export function House({ focus }) {
   );
 }
 
-/**
- * Rows just ticked off (or un-ticked) keep their old place for a moment before
- * sliding into the done or to-do group, so the tick is seen landing.
- */
-export function useSettling(ms = 900) {
-  const [settling, setSettling] = useState({});
-  const settle = (id, wasRank) => {
-    setSettling((s) => ({ ...s, [id]: wasRank }));
-    setTimeout(
-      () =>
-        setSettling((s) => {
-          const next = { ...s };
-          delete next[id];
-          return next;
-        }),
-      ms,
-    );
-  };
-  return [settling, settle];
-}
-
 /** Tap to tick off one more time; once it's all done, a tap takes the last one back. */
-export function useChoreToggle(highlight = () => {}, settle = () => {}) {
+export function useChoreToggle(highlight = () => {}) {
   const { store, session, deleted: showUndo } = useApp();
   return ({ chore, status }) => {
-    settle(chore.id, displayRank(status));
     if (status.done) {
       store.unmarkChore(chore.id, status.done.at);
       return;

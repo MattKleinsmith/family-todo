@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'arranged-order-only',
+    at: '2026-09-30T16:14:00-04:00',
+    text: 'Chores and repeating items stay in the order you arranged them again, done or not, so what you’ve already ticked off stays in view. Overdue ones keep their amber or red colour.',
+    href: '#/house',
+  },
+  {
     id: 'wake-nudges',
     at: '2026-09-30T14:40:00-04:00',
     text: 'When you fix a sleep, “Woke up at” now has the same −30m, −15m, −5m and +5m buttons as “Fell asleep at”.',
