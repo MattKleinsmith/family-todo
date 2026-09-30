@@ -295,22 +295,3 @@ describe('repeating items in a list', () => {
     expect(describeChange(r(), r({ deleted: true }), ctx)).toBe('removed the repeating item “Practice Chinese” from Matthew’s todos');
   });
 });
-
-describe('orderForDisplay', () => {
-  it('puts what is still to do first, keeping the arranged order in both groups', async () => {
-    const { orderForDisplay } = await import('./house.js');
-    const row = (id, done, overdue) => ({ chore: { id }, status: { done: done ? { at: 1 } : null, state: done ? 'done' : overdue ? 'overdue' : 'due' } });
-    const rows = [row('listening'), row('aquinas', true), row('basement'), row('catechism', true), row('vocab')];
-    expect(orderForDisplay(rows).map((x) => x.chore.id)).toEqual(['listening', 'basement', 'vocab', 'aquinas', 'catechism']);
-    // Next day nothing is done: the arranged order is back as it was.
-    const fresh = rows.map((x) => row(x.chore.id));
-    expect(orderForDisplay(fresh).map((x) => x.chore.id)).toEqual(['listening', 'aquinas', 'basement', 'catechism', 'vocab']);
-    // Just ticked off: it stays where it was for a moment.
-    const ticked = rows.map((x) => (x.chore.id === 'listening' ? row('listening', true) : x));
-    expect(orderForDisplay(ticked, { listening: 1 }).map((x) => x.chore.id)[0]).toBe('listening');
-    // Overdue ones go to the very top, still in the arranged order.
-    const behind = [row('listening'), row('aquinas', false, true), row('basement'), row('catechism', true), row('vocab', false, true)];
-    expect(orderForDisplay(behind).map((x) => x.chore.id)).toEqual(['aquinas', 'vocab', 'listening', 'basement', 'catechism']);
-    expect(orderForDisplay(ticked).map((x) => x.chore.id)).toEqual(['basement', 'vocab', 'listening', 'aquinas', 'catechism']);
-  });
-});

@@ -81,11 +81,10 @@ crosses midnight is split across the two days.
 
 ## The house tracker
 
-Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. Overdue chores (a whole day,
-week or month went by without them) come first, tinted amber or red; then the
-ones still to do; done ones drop below them (a moment after the tick), each group in the order
-you arranged; when a new day, week or month resets them, that order is simply
-back. Tap the
+Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. They stay in the order
+you arranged, done or not, so the ones already ticked off stay in view next to
+what's left. Overdue chores (a whole day, week or month went by without them)
+are tinted amber or red. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 
