@@ -149,6 +149,10 @@ describe('store chores', () => {
     store.deleteChore(a.id);
     expect(store.chores().map((c) => c.name)).toEqual(['Mow the lawn']);
     expect(store.hasAnyChores()).toBe(true);
+    // Repeating items in a list don't count as the household having chores.
+    const fresh = createStore({ storage: null });
+    fresh.addChore({ name: 'Practice Chinese', cadence: 'daily', listId: 'me' });
+    expect(fresh.hasAnyChores()).toBe(false);
     expect(store.tombstones(Infinity).map((e) => e.id)).toContain(a.id);
   });
   it('keeps more history for chores done several times a period', () => {
@@ -289,5 +293,21 @@ describe('repeating items in a list', () => {
     expect(describeChange(r(), r({ deleted: true, convertedTo: 'i2' }), ctx)).toBeNull();
     expect(describeChange(null, { ...item, id: 'i2', fromChore: 'c' }, ctx)).toBe('stopped repeating “Practice Chinese” in Matthew’s todos');
     expect(describeChange(r(), r({ deleted: true }), ctx)).toBe('removed the repeating item “Practice Chinese” from Matthew’s todos');
+  });
+});
+
+describe('orderForDisplay', () => {
+  it('puts what is still to do first, keeping the arranged order in both groups', async () => {
+    const { orderForDisplay } = await import('./house.js');
+    const row = (id, done) => ({ chore: { id }, status: { done: done ? { at: 1 } : null } });
+    const rows = [row('listening'), row('aquinas', true), row('basement'), row('catechism', true), row('vocab')];
+    expect(orderForDisplay(rows).map((x) => x.chore.id)).toEqual(['listening', 'basement', 'vocab', 'aquinas', 'catechism']);
+    // Next day nothing is done: the arranged order is back as it was.
+    const fresh = rows.map((x) => row(x.chore.id));
+    expect(orderForDisplay(fresh).map((x) => x.chore.id)).toEqual(['listening', 'aquinas', 'basement', 'catechism', 'vocab']);
+    // Just ticked off: it stays where it was for a moment.
+    const ticked = rows.map((x) => (x.chore.id === 'listening' ? row('listening', true) : x));
+    expect(orderForDisplay(ticked, { listening: false }).map((x) => x.chore.id)[0]).toBe('listening');
+    expect(orderForDisplay(ticked).map((x) => x.chore.id)).toEqual(['basement', 'vocab', 'listening', 'aquinas', 'catechism']);
   });
 });
