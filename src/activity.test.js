@@ -51,6 +51,7 @@ describe('describeChange', () => {
     expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterFeedMin: 60, updatedAt: 1 }, ctx)).toBe('set naps to about 1h after a feed');
     const m = { id: 'd1', type: 'member', name: 'Huishi', device: 'iPhone', joinedAt: 1, leftAt: null, updatedAt: 1 };
     expect(describeChange(null, m, ctx)).toBe('joined the family on an iPhone');
+    expect(describeChange(null, { ...m, device: 'Mac' }, { ...ctx, knownPerson: true })).toBe('started using the app on a Mac');
     expect(describeChange(null, { ...m, backfilled: true }, ctx)).toBeNull();
     expect(describeChange(m, { ...m, leftAt: 5 }, ctx)).toBe('left the family on an iPhone');
     expect(describeChange({ ...m, leftAt: 5 }, { ...m, leftAt: null }, ctx)).toBe('rejoined the family on an iPhone');
@@ -241,10 +242,11 @@ describe('reinstalls', () => {
     A.store.setMember('dNew', { name: 'Matthew', device: 'iPhone', joinedAt: clock.t, leftAt: null });
     await settle();
     expect(A.activity.entries().filter((e) => /joined the family/.test(e.text))).toHaveLength(1);
-    // A genuinely different device still announces.
+    // The same person on a new kind of device is announced as that, not as someone joining.
     A.store.setMember('dMac', { name: 'Matthew', device: 'Mac', joinedAt: clock.t, leftAt: null });
     await settle();
-    expect(A.activity.entries().filter((e) => /joined the family/.test(e.text)).map((e) => e.text)).toContain('joined the family on a Mac');
+    expect(A.activity.entries().map((e) => e.text)).toContain('started using the app on a Mac');
+    expect(A.activity.entries().filter((e) => /joined the family/.test(e.text))).toHaveLength(1);
   });
 });
 

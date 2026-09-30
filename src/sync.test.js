@@ -420,6 +420,59 @@ describe('bandwidth', () => {
     s.stop();
   });
 
+  it('health check: a relay holding more than this phone gets fully re-read', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays([URLS[0]]);
+    const other = createStore({});
+    const L = other.createList({ name: 'Groceries' });
+    const bStorage = memoryStorage();
+    let clock = 1_800_000_000_000;
+    const store = createStore({ storageKey: 'data', storage: bStorage, now: () => clock });
+    const opts = { keys, store, relays: [URLS[0]], WebSocketImpl: fake.FakeWebSocket, storage: bStorage, now: () => clock, fullSyncEveryMs: HOUR };
+    let s = createSync(opts);
+    s.start();
+    await waitFor(() => s.status().caughtUp);
+    s.stop();
+    // Another phone's list reached the relay but, as far as this phone's cursors go, it's in the past.
+    const a = createSync({ keys, store: other, relays: [URLS[0]], WebSocketImpl: fake.FakeWebSocket, storage: memoryStorage() });
+    a.start();
+    await waitFor(() => fake.relays.get(URLS[0]).events.size === 1);
+    a.stop();
+    const cur = JSON.parse(bStorage.getItem(`ft:sync:v${SYNC_SCHEMA}:${keys.pk}`));
+    cur[URLS[0]].newest = cur[URLS[0]].syncedAt = Math.floor(Date.now() / 1000) + 7200;
+    bStorage.setItem(`ft:sync:v${SYNC_SCHEMA}:${keys.pk}`, JSON.stringify(cur));
+    clock += 2 * HOUR;
+    s = createSync(opts);
+    s.start();
+    await waitFor(() => !!store.getEntity('list', L.id));
+    s.stop();
+  });
+
+  it('a phone whose saved records are gone but whose cursors survived reads everything again', async () => {
+    const keys = await keysPromise;
+    const fake = makeFakeRelays(URLS);
+    const a = phone(fake, keys);
+    const L = a.store.createList({ name: 'Groceries' });
+    await waitFor(() => [...fake.relays.values()].every((r) => r.events.size === 1));
+    const storage = memoryStorage();
+    const b = phone(fake, keys, storage);
+    await waitFor(() => !!b.store.getEntity('list', L.id));
+    await sleep(300);
+    b.sync.stop();
+    // Much later: the records (IndexedDB) are wiped but the cursors (localStorage) are not.
+    const key = `ft:sync:v${SYNC_SCHEMA}:${keys.pk}`;
+    const cur = JSON.parse(storage.getItem(key));
+    for (const u of URLS) cur[u].newest = cur[u].syncedAt = Math.floor(Date.now() / 1000) + 7200;
+    storage.setItem(key, JSON.stringify(cur));
+    storage.removeItem('data');
+    expect(storage.getItem(`ft:sync:v${SYNC_SCHEMA}:${keys.pk}`)).not.toBeNull();
+    const c = phone(fake, keys, storage);
+    expect(c.store.startedEmpty()).toBe(true);
+    await waitFor(() => !!c.store.getEntity('list', L.id));
+    a.sync.stop();
+    c.sync.stop();
+  });
+
   it('a relay that cannot count gets the full re-sync', async () => {
     const keys = await keysPromise;
     const fake = makeFakeRelays([URLS[0]], { noCount: true });

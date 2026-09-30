@@ -11,7 +11,7 @@ import { createKV, requestPersistence } from './kv.js';
 import { runMaintenance } from './maintenance.js';
 import { iconToken } from './icons.js';
 import { sameName } from './members.js';
-import { ensurePersonalList, personalListFor, renamePersonalList } from './personal.js';
+import { ensurePersonalList, mergeDuplicatePersonalLists, personalListFor, renamePersonalList } from './personal.js';
 import { useRoute, navigate } from './router.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
@@ -30,6 +30,7 @@ export function App() {
   const [family, setFamily] = useState(null); // { keys, store, sync, activity }
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const joinRef = useRef(null);
   const [status, setStatus] = useState({ connected: 0, total: 0, lastSyncAt: null, online: false });
   const [error, setError] = useState(null);
   const route = useRoute();
@@ -97,21 +98,11 @@ export function App() {
         };
         document.addEventListener('visibilitychange', onHide);
         window.addEventListener('pagehide', onHide);
-        // Make sure this phone is listed as a member of the family.
-        const me = store.getEntity('member', deviceId());
         const current = sessionRef.current;
-        if (!me || me.leftAt) {
-          store.setMember(deviceId(), {
-            name: current.name,
-            device: describeDevice(),
-            joinedAt: current.joinedAt || Date.now(),
-            leftAt: null,
-            // Existing installs upgrading to this version get a record without announcing a "join".
-            backfilled: !current.announceJoin,
-          });
-        } else if (me.name !== current.name) {
-          store.setMember(deviceId(), { name: current.name });
-        }
+        // This phone's member record is written once it has caught up (see
+        // below), so it can tell whether this is someone new or the same
+        // person on another device.
+        joinRef.current = { announce: !!current.announceJoin, joinedAt: current.joinedAt || Date.now() };
         // A brand-new family starts with a few lists rather than an empty screen.
         if (current.createDefaults && store.lists().length === 0) {
           store.createList({ name: 'Groceries', emoji: iconToken('broccoli'), createdBy: current.name });
@@ -153,10 +144,38 @@ export function App() {
     }
   }, [session?.code]);
 
+  const caughtUp = !!status.caughtUp;
+  // Make sure this phone is listed as a member of the family, once it has
+  // caught up (or after a few seconds offline).
+  useEffect(() => {
+    if (!family || !session?.name) return undefined;
+    const run = () => {
+      const join = joinRef.current || { announce: false, joinedAt: session.joinedAt || Date.now() };
+      const me = family.store.getEntity('member', deviceId());
+      if (!me || me.leftAt) {
+        family.store.setMember(deviceId(), {
+          name: session.name,
+          device: describeDevice(),
+          joinedAt: join.joinedAt,
+          leftAt: null,
+          // Existing installs upgrading to this version get a record without announcing a "join".
+          backfilled: !join.announce,
+        });
+      } else if (me.name !== session.name) {
+        family.store.setMember(deviceId(), { name: session.name });
+      }
+    };
+    if (caughtUp) {
+      run();
+      return undefined;
+    }
+    const t = setTimeout(run, 8000);
+    return () => clearTimeout(t);
+  }, [family, caughtUp, session?.name]);
+
   // Everyone has an official personal list. Set it up once this phone has
   // caught up (so an existing one is found rather than duplicated), or after a
   // few seconds offline.
-  const caughtUp = !!status.caughtUp;
   useEffect(() => {
     if (!family || !session?.name) return undefined;
     const run = () => ensurePersonalList(family.store, session.name);
@@ -167,6 +186,13 @@ export function App() {
     const t = setTimeout(run, 8000);
     return () => clearTimeout(t);
   }, [family, caughtUp, session?.name]);
+  // Two of them (this phone made one before the original synced in): fold the
+  // newer into the original. Checked on every change, since the original can
+  // arrive at any time; only the owner's phones do it.
+  const myListCount = family && session?.name ? family.store.lists().filter((l) => l.personal && sameName(l.owner, session.name)).length : 0;
+  useEffect(() => {
+    if (caughtUp && myListCount > 1) mergeDuplicatePersonalLists(family.store, session.name);
+  }, [caughtUp, myListCount]);
 
   // Re-render on every store or activity change.
   const [, bump] = useReducer((x) => x + 1, 0);

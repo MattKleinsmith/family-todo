@@ -1,29 +1,11 @@
 // Family members as people see them. Every install of the app is its own
 // member record (iOS gives each home-screen app fresh storage, so deleting and
-// re-adding it looks like a new phone), and a browser can't tell two installs
-// on the same phone apart. So records with the same name and device type are
-// shown as one member.
+// re-adding it looks like a new phone), and the same person may use a phone
+// and a laptop. People are told apart by name: the same name is the same
+// person, whatever device.
 
 export function memberKey(m) {
   return `${(m.name || '').trim().toLowerCase()}|${m.device || ''}`;
-}
-
-/** One entry per name + device type: earliest join, and still in the family if any install is. */
-export function dedupeMembers(members) {
-  const groups = new Map();
-  for (const m of members) {
-    const key = memberKey(m);
-    const g = groups.get(key);
-    if (!g) {
-      groups.set(key, { ...m, installs: 1 });
-      continue;
-    }
-    g.installs++;
-    if ((m.joinedAt || Infinity) < (g.joinedAt || Infinity)) g.joinedAt = m.joinedAt;
-    if (!m.leftAt) g.leftAt = null;
-    else if (g.leftAt) g.leftAt = Math.max(g.leftAt, m.leftAt);
-  }
-  return [...groups.values()].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
 }
 
 /**
@@ -53,4 +35,25 @@ export function familyNames(members, always = []) {
 /** Same person? Names are compared ignoring case and surrounding spaces. */
 export function sameName(a, b) {
   return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * One entry per person (same name = same person), with the kinds of device
+ * they use in the order they joined on them: "iPhone, Mac". Devices that have
+ * left are dropped; someone whose every install has left is kept, marked
+ * `leftAt`, with the devices they used.
+ */
+export function peopleWithDevices(members) {
+  const people = new Map();
+  for (const m of [...members].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))) {
+    const name = (m.name || '').trim();
+    const key = name.toLowerCase();
+    let p = people.get(key);
+    if (!p) people.set(key, (p = { key, name: name || 'Unnamed', joinedAt: m.joinedAt || null, leftAt: null, active: [], all: [] }));
+    const device = m.device || 'device';
+    if (!p.all.includes(device)) p.all.push(device);
+    if (!m.leftAt && !p.active.includes(device)) p.active.push(device);
+    if (m.leftAt) p.leftAt = Math.max(p.leftAt || 0, m.leftAt);
+  }
+  return [...people.values()].map(({ active, all, ...p }) => ({ ...p, leftAt: active.length ? null : p.leftAt, devices: active.length ? active : all }));
 }

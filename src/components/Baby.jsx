@@ -350,30 +350,48 @@ function EditLogSheet({ log, onClose }) {
 
 function BabyMenuSheet({ profile, onClose }) {
   const { store, navigate } = useApp();
+  // Every choice takes effect the moment it's made; closing the sheet (Save,
+  // a swipe down or a tap outside) just closes it. The name is written when
+  // the field is left or the sheet closes, not on every keystroke.
   const [name, setName] = useState(profile.name || '');
   const [feedEvery, setFeedEvery] = useState(profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN);
   const [napAfter, setNapAfter] = useState(profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN);
   const [bedtime, setBedtime] = useState(profile.bedtimeMin ?? DEFAULT_BEDTIME_MIN);
   const [nightAfter, setNightAfter] = useState(profile.nightAfterFeed ?? DEFAULT_NIGHT_AFTER_FEED);
-  const save = (e) => {
-    e.preventDefault();
-    store.setMeta('baby', { name: name.trim(), feedIntervalMin: feedEvery, napAfterFeedMin: napAfter, bedtimeMin: bedtime, nightAfterFeed: nightAfter });
+  const pick = (setter, field) => (v) => {
+    setter(v);
+    if ((store.getMeta('baby') || {})[field] !== v) store.setMeta('baby', { [field]: v });
+  };
+  const commitName = () => {
+    const n = name.trim();
+    if (n !== ((store.getMeta('baby') || {}).name || '')) store.setMeta('baby', { name: n });
+  };
+  const close = () => {
+    commitName();
     onClose();
   };
+  const save = (e) => {
+    e.preventDefault();
+    close();
+  };
+  const choose = { feedEvery: pick(setFeedEvery, 'feedIntervalMin'), napAfter: pick(setNapAfter, 'napAfterFeedMin'), bedtime: pick(setBedtime, 'bedtimeMin'), nightAfter: pick(setNightAfter, 'nightAfterFeed') };
   const clock = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const label = (m) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
   return (
-    <Sheet title="Baby settings" onClose={onClose}>
+    <Sheet title="Baby settings" onClose={close}>
       <form class="stack" onSubmit={save}>
+        <button class="btn settings-link" type="button" onClick={() => { close(); navigate('/settings'); }}>
+          <GearIcon /> <span>App settings</span> <span class="hint">family code, members, sync</span>
+        </button>
         <div class="field">
           <label for="baby-name">Name</label>
-          <input id="baby-name" type="text" placeholder="Baby" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+          <input id="baby-name" type="text" placeholder="Baby" value={name} onInput={(e) => setName(e.currentTarget.value)} onChange={commitName} />
         </div>
         <div class="field">
           <label>Feeds about every</label>
           <div class="chips" role="radiogroup">
             {INTERVALS.map((m) => (
-              <button type="button" key={m} role="radio" aria-checked={feedEvery === m} class={'chip' + (feedEvery === m ? ' on' : '')} onClick={() => setFeedEvery(m)}>{label(m)}</button>
+              <button type="button" key={m} role="radio" aria-checked={feedEvery === m} class={'chip' + (feedEvery === m ? ' on' : '')} onClick={() => choose.feedEvery(m)}>{label(m)}</button>
             ))}
           </div>
         </div>
@@ -381,7 +399,7 @@ function BabyMenuSheet({ profile, onClose }) {
           <label>Nap about this long after a feed starts</label>
           <div class="chips" role="radiogroup">
             {NAP_AFTER.map((m) => (
-              <button type="button" key={m} role="radio" aria-checked={napAfter === m} class={'chip' + (napAfter === m ? ' on' : '')} onClick={() => setNapAfter(m)}>{label(m)}</button>
+              <button type="button" key={m} role="radio" aria-checked={napAfter === m} class={'chip' + (napAfter === m ? ' on' : '')} onClick={() => choose.napAfter(m)}>{label(m)}</button>
             ))}
           </div>
           <p class="hint">Used only for the "next feed" and "next nap" hints, both counted from when the last feed started. Adjust as his rhythm changes.</p>
@@ -390,7 +408,7 @@ function BabyMenuSheet({ profile, onClose }) {
           <label>Night sleep: “Fell asleep” after this time</label>
           <div class="chips" role="radiogroup">
             {BEDTIMES.map((m) => (
-              <button type="button" key={m} role="radio" aria-checked={bedtime === m} class={'chip' + (bedtime === m ? ' on' : '')} onClick={() => setBedtime(m)}>{clock(m)}</button>
+              <button type="button" key={m} role="radio" aria-checked={bedtime === m} class={'chip' + (bedtime === m ? ' on' : '')} onClick={() => choose.bedtime(m)}>{clock(m)}</button>
             ))}
           </div>
         </div>
@@ -398,13 +416,13 @@ function BabyMenuSheet({ profile, onClose }) {
           <label>…or in the evening, after this many feeds that day</label>
           <div class="chips" role="radiogroup">
             {NIGHT_AFTER.map((n) => (
-              <button type="button" key={n} role="radio" aria-checked={nightAfter === n} class={'chip' + (nightAfter === n ? ' on' : '')} onClick={() => setNightAfter(n)}>{n ? `${n} feeds` : 'Don’t use'}</button>
+              <button type="button" key={n} role="radio" aria-checked={nightAfter === n} class={'chip' + (nightAfter === n ? ' on' : '')} onClick={() => choose.nightAfter(n)}>{n ? `${n} feeds` : 'Don’t use'}</button>
             ))}
           </div>
           <p class="hint">During night sleep there’s no feed countdown and nothing goes overdue; in the morning the next feed is due when he wakes. You can switch any sleep between nap and night sleep on the card or by tapping it.</p>
         </div>
+        <p class="hint">Changes apply as soon as you pick them.</p>
         <button class="btn primary big" type="submit">Save</button>
-        <button class="btn link" type="button" onClick={() => { onClose(); navigate('/settings'); }}>Family code, sync & app settings</button>
       </form>
     </Sheet>
   );

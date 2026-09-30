@@ -35,6 +35,23 @@ export function ensurePersonalList(store, name) {
   return store.createList({ name: personalListName(n), emoji: iconToken('seedling'), createdBy: n, personal: true, owner: n });
 }
 
+/**
+ * If a phone made its own list for `name` before the existing one reached it
+ * (the other phone's records hadn't synced yet), there are two. Keep the
+ * earliest, move anything in the others into it, and delete them. Returns how
+ * many were merged away.
+ */
+export function mergeDuplicatePersonalLists(store, name) {
+  const keep = personalListFor(store.lists(), name);
+  if (!keep) return 0;
+  const extras = store.lists().filter((l) => !l.deleted && l.personal && sameName(l.owner, name) && l.id !== keep.id);
+  for (const l of extras) {
+    store.moveAllItems(l.id, keep.id);
+    store.deleteList(l.id);
+  }
+  return extras.length;
+}
+
 /** Someone renamed themselves: their list follows, and so does its default name. */
 export function renamePersonalList(store, oldName, newName) {
   const list = personalListFor(store.lists(), oldName);

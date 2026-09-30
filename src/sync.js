@@ -16,9 +16,15 @@
 // fetches what changed since last time (plus a 10-minute overlap for clock
 // differences between phones) and re-sends nothing the relay already has.
 //
-// Every two weeks each relay gets a health check: relays that support NIP-45
-// COUNT are asked how many of our records they hold, and only a relay that is
-// short (or can't count) gets a full re-download and re-upload.
+// Every day each relay gets a health check: relays that support NIP-45 COUNT
+// are asked how many of our records they hold, and only when that differs
+// from what this phone holds (either side short) or the relay can't count do
+// we do a full re-download and re-upload.
+//
+// The cursors live in localStorage but the records in IndexedDB, so the two
+// can disagree (site data partly cleared, a load that failed). If the store
+// opened with nothing restored, the cursors are thrown away and every relay
+// is read from the start.
 //
 // Relays that say "slow down" get it: we pause, space our writes further apart,
 // and ease back once they're accepting again.
@@ -42,9 +48,11 @@ const PUBLISH_SPACING_MS = 25;
 const MAX_SPACING_MS = 500;
 const SINCE_MARGIN_S = 10 * 60; // overlap on reopen, to tolerate clocks that disagree a little
 const COUNT_TIMEOUT_MS = 4000;
-const FULL_SYNC_EVERY_MS = 14 * 24 * 3600 * 1000;
-// Bump when a build adds a record type (see cursorKey).
-export const SYNC_SCHEMA = 2;
+const FULL_SYNC_EVERY_MS = 24 * 3600 * 1000;
+// Bump when a build adds a record type (see cursorKey), or to have every phone
+// re-read and re-upload everything once. 3: heal phones that joined with
+// cursors ahead of their records.
+export const SYNC_SCHEMA = 3;
 
 export function dTagFor(entity) {
   return `${TAG_PREFIX}${entity.type}:${entity.id}`;
@@ -90,6 +98,13 @@ export function createSync({
     for (let v = 1; v < SYNC_SCHEMA; v++) storage && storage.removeItem(v === 1 ? `ft:sync:${keys.pk}` : `ft:sync:v${v}:${keys.pk}`);
   } catch {
     /* ignore */
+  }
+  if (store.startedEmpty && store.startedEmpty()) {
+    try {
+      storage && storage.removeItem(cursorKey);
+    } catch {
+      /* ignore */
+    }
   }
   let cursors = loadCursors();
 
@@ -468,7 +483,7 @@ export function createSync({
     }
   }
 
-  /** Health check before a periodic full re-sync: skip the download if the relay holds at least as many records as we do. */
+  /** Health check before a periodic full re-sync: skip it only if the relay holds exactly as many records as we do. */
   function startCountCheck(conn) {
     const id = `c${++subCounter}`;
     conn.countCheck = { id, timer: setTimeout(() => finishCountCheck(conn, null), COUNT_TIMEOUT_MS) };
@@ -482,7 +497,7 @@ export function createSync({
     conn.countCheck = null;
     const c = cursor(conn.url);
     conn.lastCount = count;
-    if (count !== null && count >= store.all().length) {
+    if (count !== null && count === store.all().length) {
       c.fullSyncAt = now();
       saveCursors();
       startBackfill(conn, false);

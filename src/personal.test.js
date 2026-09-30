@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from './store.js';
-import { ensurePersonalList, isOfficialPersonal, personalListFor, renamePersonalList } from './personal.js';
+import { ensurePersonalList, isOfficialPersonal, mergeDuplicatePersonalLists, personalListFor, renamePersonalList } from './personal.js';
 
 describe('personal lists', () => {
   it('adopts the list a new family starts with, or makes one', () => {
@@ -32,5 +32,18 @@ describe('personal lists', () => {
     store.updateList(l.id, { name: 'Reading & Chinese' });
     renamePersonalList(store, 'Hui', 'Huishi');
     expect(store.getEntity('list', l.id)).toMatchObject({ owner: 'Huishi', name: 'Reading & Chinese' }); // a chosen name stays
+  });
+  it('folds a second list for the same person into the original', () => {
+    let t = 1000;
+    const store = createStore({ now: () => (t += 10) });
+    const orig = store.createList({ name: 'Matthew’s todos', personal: true, owner: 'Matthew' });
+    store.addItem({ listId: orig.id, text: 'Practice Chinese' });
+    const dup = store.createList({ name: 'Matthew’s todos', personal: true, owner: 'matthew' });
+    store.addItem({ listId: dup.id, text: 'Call mom' });
+    const other = store.createList({ name: 'Huishi’s todos', personal: true, owner: 'Huishi' });
+    expect(mergeDuplicatePersonalLists(store, 'Matthew')).toBe(1);
+    expect(store.lists().map((l) => l.id)).toEqual([orig.id, other.id]);
+    expect(store.itemsFor(orig.id).map((i) => i.text).sort()).toEqual(['Call mom', 'Practice Chinese']);
+    expect(mergeDuplicatePersonalLists(store, 'Matthew')).toBe(0);
   });
 });

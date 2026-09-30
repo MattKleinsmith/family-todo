@@ -153,7 +153,7 @@ export function describeChange(prev, next, ctx = {}) {
     }
     case 'member': {
       const dev = next.device ? ` on ${/^[aeiou]/i.test(next.device) ? 'an' : 'a'} ${next.device}` : '';
-      if (!prev) return next.leftAt || next.backfilled ? null : `joined the family${dev}`;
+      if (!prev) return next.leftAt || next.backfilled ? null : ctx.knownPerson ? `started using the app${dev}` : `joined the family${dev}`;
       if (next.leftAt && !prev.leftAt) return `left the family${dev}`;
       if (!next.leftAt && prev.leftAt) return `rejoined the family${dev}`;
       if (next.name !== prev.name && prev.name) return `changed their name from ${prev.name} to ${next.name}`;
@@ -349,8 +349,14 @@ export function createActivity({
   function record(prev, next) {
     // Re-adding the app makes a new member record for the same person on the
     // same kind of device. That's a reinstall, not someone joining.
-    if (next.type === 'member' && !prev && store.members().some((m) => m.id !== next.id && memberKey(m) === memberKey(next))) return;
-    const text = describeChange(prev, next, { listName: ctx.listName, babyName: ctx.babyName() });
+    let knownPerson = false;
+    if (next.type === 'member' && !prev) {
+      const others = store.members().filter((m) => m.id !== next.id);
+      if (others.some((m) => memberKey(m) === memberKey(next))) return;
+      // Same name, new kind of device: the same person on their laptop, not someone new.
+      knownPerson = others.some((m) => !m.leftAt && sameName(m.name, next.name));
+    }
+    const text = describeChange(prev, next, { listName: ctx.listName, babyName: ctx.babyName(), knownPerson });
     if (!text) return;
     pending.push({
       id: `${next.id}:${next.updatedAt}`,
