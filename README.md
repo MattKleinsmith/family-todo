@@ -74,8 +74,8 @@ straight away and the countdowns pick up from there. A button on the sleep card
 switches a sleep between nap and night sleep if the guess is wrong, and the
 bedtime and feed count are set in the tab's menu.
 
-Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m nudges for
-the "I forgot to tap" case), add a note like "5 oz", change feed↔sleep, or delete
+Tap any entry in the timeline to fix its time (there are −30m/−15m/−5m/+5m nudges
+for the "I forgot to tap" case, on both the fell-asleep and woke-up times), add a note like "5 oz", change feed↔sleep, or delete
 it. Daily totals (feeds and hours slept) sit on each day's header. Sleep that
 crosses midnight is split across the two days.
 
