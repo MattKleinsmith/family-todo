@@ -272,6 +272,17 @@ function NextTile({ glyph, title, lead = '', value, note = '', state = 'later', 
   );
 }
 
+/** Quick fixes for "I forgot to tap it": the same row for any time field. */
+function Nudges({ onNudge }) {
+  return (
+    <div class="row nudges">
+      {[-30, -15, -5, 5].map((m) => (
+        <button key={m} type="button" class="btn" onClick={() => onNudge(m)}>{m < 0 ? `−${-m}m` : `+${m}m`}</button>
+      ))}
+    </div>
+  );
+}
+
 function EditLogSheet({ log, onClose }) {
   const { store, deleted } = useApp();
   const [kind, setKind] = useState(log.kind);
@@ -297,6 +308,8 @@ function EditLogSheet({ log, onClose }) {
   };
 
   const nudge = (min) => setStartAt((t) => t + min * 60_000);
+  // Waking can't come before falling asleep.
+  const nudgeEnd = (min) => setEndAt((t) => Math.max(startAt, t + min * 60_000));
 
   return (
     <Sheet title={log.kind === 'feed' ? 'Edit feed' : 'Edit sleep'} onClose={onClose}>
@@ -308,12 +321,7 @@ function EditLogSheet({ log, onClose }) {
         <div class="field">
           <label for="log-start">{kind === 'sleep' ? 'Fell asleep at' : 'Fed at'}</label>
           <input id="log-start" type="datetime-local" value={toInputValue(startAt)} onInput={(e) => { const t = fromInputValue(e.currentTarget.value); if (t != null) setStartAt(t); }} />
-          <div class="row nudges">
-            <button type="button" class="btn" onClick={() => nudge(-30)}>−30m</button>
-            <button type="button" class="btn" onClick={() => nudge(-15)}>−15m</button>
-            <button type="button" class="btn" onClick={() => nudge(-5)}>−5m</button>
-            <button type="button" class="btn" onClick={() => nudge(5)}>+5m</button>
-          </div>
+          <Nudges onNudge={nudge} />
         </div>
         {kind === 'sleep' && (
           <label class="toggle">
@@ -331,6 +339,7 @@ function EditLogSheet({ log, onClose }) {
               <>
                 <label for="log-end">Woke up at</label>
                 <input id="log-end" type="datetime-local" value={toInputValue(endAt)} onInput={(e) => { const t = fromInputValue(e.currentTarget.value); if (t != null) setEndAt(t); }} />
+                <Nudges onNudge={nudgeEnd} />
                 <p class="hint">Slept {formatDuration(endAt - startAt)}</p>
               </>
             )}

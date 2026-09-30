@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'wake-nudges',
+    at: '2026-09-30T14:40:00-04:00',
+    text: 'When you fix a sleep, “Woke up at” now has the same −30m, −15m, −5m and +5m buttons as “Fell asleep at”.',
+    href: '#/baby',
+  },
+  {
     id: 'sync-heal-members-by-person',
     at: '2026-09-30T14:10:00-04:00',
     text: 'Fixed a new phone or computer sometimes missing older lists and family members. Family members are now one row per person with their devices (“iPhone, Mac”), and a second “todos” list made on a new device is folded into your own.',
