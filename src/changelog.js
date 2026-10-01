@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'chore-days-of-week',
+    at: '2026-10-01T09:33:00-04:00',
+    text: 'Daily chores and repeating items can now be set to some days only: pick Weekdays or Weekends under “On these days”, or tap single days (say, weekdays but not Wednesday). On other days they’re tucked away and can’t be missed.',
+    href: '#/house',
+  },
+  {
     id: 'arranged-order-only',
     at: '2026-09-30T16:14:00-04:00',
     text: 'Chores and repeating items stay in the order you arranged them again, done or not, so what you’ve already ticked off stays in view. Overdue ones keep their amber or red colour.',

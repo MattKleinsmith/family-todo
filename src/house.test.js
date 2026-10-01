@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
-import { choreStatus, timesOf, dueLabel, missedLabel, periodBounds, periodIndex, whenLabel, STARTER_CHORES, overdueChores } from './house.js';
+import { choreStatus, timesOf, dueLabel, missedLabel, periodBounds, periodIndex, whenLabel, STARTER_CHORES, overdueChores, normalizeDays, daysLabel, repeatsText, nextDayLabel } from './house.js';
 import { createStore } from './store.js';
 import { describeChange, isQuiet } from './activity.js';
 import { ICONS, iconId } from './icons.js';
@@ -295,3 +295,63 @@ describe('repeating items in a list', () => {
     expect(describeChange(r(), r({ deleted: true }), ctx)).toBe('removed the repeating item “Practice Chinese” from Matthew’s todos');
   });
 });
+
+describe('chores on some days of the week', () => {
+  // Sep 25 2026 is a Friday, Sep 28 a Monday.
+  const weekdays = { id: 'w', name: 'Pack lunch', cadence: 'daily', days: [1, 2, 3, 4, 5], done: [], createdAt: at(2026, 9, 25, 9) };
+
+  it('is off on its days off, not due and not overdue', () => {
+    const sat = choreStatus(weekdays, at(2026, 9, 26));
+    expect(sat.state).toBe('off');
+    expect(nextDayLabel(sat.nextDay, at(2026, 9, 26))).toBe('back Monday');
+    expect(nextDayLabel(choreStatus(weekdays, at(2026, 9, 27)).nextDay, at(2026, 9, 27))).toBe('back tomorrow');
+    expect(overdueChores([weekdays], at(2026, 9, 27))).toHaveLength(0);
+  });
+
+  it('only its own days can be missed', () => {
+    // The weekend in between doesn't count against it.
+    expect(choreStatus(weekdays, at(2026, 9, 28)).state).toBe('due');
+    const tue = choreStatus(weekdays, at(2026, 9, 29));
+    expect(tue).toMatchObject({ state: 'overdue', missed: 1 });
+    expect(missedLabel('daily', tue.missed, tue.missedDay, at(2026, 9, 29))).toBe('Missed yesterday');
+    const monWed = { ...weekdays, days: [1, 3], done: [{ at: at(2026, 9, 28), by: 'M' }] };
+    expect(choreStatus(monWed, at(2026, 9, 30)).state).toBe('due'); // Tuesday was a day off
+    expect(choreStatus(monWed, at(2026, 10, 1)).state).toBe('off');
+    const mon = choreStatus(monWed, at(2026, 10, 5));
+    expect(mon).toMatchObject({ state: 'overdue', missed: 1 });
+    expect(missedLabel('daily', mon.missed, mon.missedDay, at(2026, 10, 5))).toBe('Missed Wednesday');
+    expect(missedLabel('daily', 2, at(2026, 9, 30), at(2026, 10, 7))).toBe('Missed 2 days');
+  });
+
+  it('can still be done on a day off', () => {
+    const c = { ...weekdays, done: [{ at: at(2026, 9, 26, 10), by: 'M' }] };
+    expect(choreStatus(c, at(2026, 9, 26, 11)).state).toBe('done');
+  });
+
+  it('names its days, and every day or a non-daily chore has none', () => {
+    expect(normalizeDays([5, 1, 1, 3])).toEqual([1, 3, 5]);
+    expect(normalizeDays([0, 1, 2, 3, 4, 5, 6])).toBeNull();
+    expect(normalizeDays([])).toBeNull();
+    expect(daysLabel([1, 2, 3, 4, 5])).toBe('Weekdays');
+    expect(daysLabel([6, 0])).toBe('Weekends');
+    expect(daysLabel([0, 1, 3])).toBe('Mon, Wed, Sun');
+    expect(daysLabel(null)).toBe('Every day');
+    expect(repeatsText(weekdays)).toBe('on weekdays');
+    expect(repeatsText({ cadence: 'daily', days: [1, 3] })).toBe('on Mon, Wed');
+    expect(repeatsText({ cadence: 'weekly', days: [1] })).toBe('weekly');
+    expect(choreStatus({ ...weekdays, cadence: 'weekly' }, at(2026, 9, 26)).state).toBe('due');
+  });
+
+  it('says so in the activity feed', () => {
+    const base = { id: 'c', type: 'chore', name: 'Pack lunch', cadence: 'daily', done: [], updatedAt: 1, updatedBy: 'M' };
+    expect(describeChange(null, { ...base, days: [1, 2, 3, 4, 5] }, {})).toBe('added the chore “Pack lunch” (weekdays)');
+    expect(describeChange(base, { ...base, days: [1, 3], updatedAt: 2 }, {})).toBe('set “Pack lunch” to Mon, Wed');
+    expect(describeChange({ ...base, days: [1, 3] }, { ...base, updatedAt: 2 }, {})).toBe('set “Pack lunch” to every day');
+    expect(describeChange({ ...base, cadence: 'weekly' }, { ...base, days: [1, 2, 3, 4, 5], updatedAt: 2 }, {})).toBe('made “Pack lunch” daily (weekdays)');
+    const store = createStore({});
+    expect(store.addChore({ name: 'Run', cadence: 'daily', days: [0, 1, 2, 3, 4, 5, 6] }).days).toBeUndefined();
+    expect(store.addChore({ name: 'Gym', cadence: 'daily', days: [3, 1] }).days).toEqual([1, 3]);
+    expect(store.addChore({ name: 'Mow', cadence: 'weekly', days: [6] }).days).toBeUndefined();
+  });
+});
+

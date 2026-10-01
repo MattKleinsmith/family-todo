@@ -8,7 +8,7 @@
 //
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
-import { cadenceText, periodIndex, periodWord, timesOf } from './house.js';
+import { cadenceText, daysOf, periodIndex, periodWord, repeatsText, timesOf } from './house.js';
 import { iconToText } from './icons.js';
 import { memberKey, sameName } from './members.js';
 
@@ -97,7 +97,7 @@ export function describeChange(prev, next, ctx = {}) {
       return parts.length ? joinParts(parts) : null;
     }
     case 'chore': {
-      const often = (c) => cadenceText(c.cadence).often;
+      const often = (c) => repeatsText(c);
       // Repeating items that live in a list read like list items, and say which list.
       const inList = !!next.listId;
       const where = inList ? ` in ${listName(next.listId)}` : '';
@@ -107,7 +107,9 @@ export function describeChange(prev, next, ctx = {}) {
           ? `added ${q(c.name)} to ${listName(c.listId)}, repeating ${often(c)}`
           : c.cadence === 'biweekly'
             ? `added the chore ${q(c.name)} (every 2 weeks)`
-            : `added the ${often(c)} chore ${q(c.name)}`;
+            : daysOf(c)
+              ? `added the chore ${q(c.name)} (${often(c).replace(/^on /, '')})`
+              : `added the ${often(c)} chore ${q(c.name)}`;
       if (!prev && next.fromItem && !next.deleted) return `made ${q(next.name)} repeat ${often(next)}${where}`;
       if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.convertedTo) return null; // turned back into a one-off item; that record tells the story
@@ -134,7 +136,9 @@ export function describeChange(prev, next, ctx = {}) {
       const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
       if (next.name !== prev.name) parts.push(`renamed ${noun} ${q(prev.name)} to ${q(next.name)}`);
-      if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${often(next)}`);
+      const onDays = (c) => (daysOf(c) ? often(c).replace(/^on /, '') : 'every day');
+      if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadenceText(next.cadence).often}${daysOf(next) ? ` (${onDays(next)})` : ''}`);
+      else if ((daysOf(next) || []).join() !== (daysOf(prev) || []).join()) parts.push(`set ${q(next.name)} to ${onDays(next)}`);
       if (timesOf(next) !== timesOf(prev)) {
         const { per } = cadenceText(next.cadence);
         parts.push(timesOf(next) === 1 ? `set ${q(next.name)} to once ${per}` : `set ${q(next.name)} to ${timesOf(next)} times ${per}`);
