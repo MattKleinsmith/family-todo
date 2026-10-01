@@ -95,6 +95,11 @@ export function House({ focus }) {
   const byCadence = Object.fromEntries(CADENCES.map((k) => [k, chores.filter((x) => x.status.cadence === k)]));
 
   const toggle = useChoreToggle(highlight);
+  // From the summary card: scroll to a chore and highlight it.
+  const jumpTo = (id) => {
+    document.getElementById(`chore-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    highlight(id, 2000);
+  };
 
   return (
     <div class="screen has-tabs">
@@ -108,7 +113,7 @@ export function House({ focus }) {
       </header>
 
       <div class="content">
-        <Summary chores={chores} now={now} />
+        <Summary chores={chores} now={now} onJump={jumpTo} />
         {CADENCES.map((k) => (
           <Section
             key={k}
@@ -158,7 +163,7 @@ export function useChoreToggle(highlight = () => {}) {
   };
 }
 
-function Summary({ chores, now }) {
+function Summary({ chores, now, onJump }) {
   if (chores.length === 0) return null;
   const overdue = chores.filter((x) => x.status.state === 'overdue').sort((a, b) => b.status.missed - a.status.missed);
   // A chore having its day off (not on today) isn't part of today.
@@ -192,8 +197,24 @@ function Summary({ chores, now }) {
     sub = 'Nothing overdue.';
   }
 
+  // Tapping "N overdue" goes to the first one, in the order they're shown on the page.
+  const first = overdue.length ? CADENCES.flatMap((k) => chores.filter((x) => x.status.cadence === k)).find((x) => x.status.state === 'overdue') : null;
+  const jump = first
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `${title}: ${sub}. Go to ${first.chore.name}`,
+        onClick: () => onJump(first.chore.id),
+        onKeyDown: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onJump(first.chore.id);
+          }
+        },
+      }
+    : {};
   return (
-    <section class={'status house-status' + (overdue.length ? ' behind' : allDone ? ' clear' : '')} aria-live="polite">
+    <section class={'status house-status' + (overdue.length ? ' behind jump' : allDone ? ' clear' : '')} aria-live="polite" {...jump}>
       <div class="status-main">
         <span class="status-emoji"><Glyph name={glyph} size={32} /></span>
         <div>
