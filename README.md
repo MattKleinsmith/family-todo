@@ -84,7 +84,9 @@ crosses midnight is split across the two days.
 Chores are grouped into **Every day**, **Every week**, **Every 2 weeks** and **Every month**. They stay in the order
 you arranged, done or not, so the ones already ticked off stay in view next to
 what's left. Overdue chores (a whole day, week or month went by without them)
-are tinted amber or red. Tap the
+are tinted amber or red. That includes the round a chore was added in (a monthly
+chore added in September and not done shows "Missed last month" on October 1st),
+unless it was added on that round's last day. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 Ticking it says you did it; to credit someone else, open it and tap the name
