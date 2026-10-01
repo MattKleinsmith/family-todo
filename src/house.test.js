@@ -335,11 +335,14 @@ describe('chores on some days of the week', () => {
     expect(daysLabel([1, 2, 3, 4, 5])).toBe('Weekdays');
     expect(daysLabel([6, 0])).toBe('Weekends');
     expect(daysLabel([0, 1, 3])).toBe('Mon, Wed, Sun');
+    expect(daysLabel([3])).toBe('Wednesdays');
     expect(daysLabel(null)).toBe('Every day');
     expect(repeatsText(weekdays)).toBe('on weekdays');
     expect(repeatsText({ cadence: 'daily', days: [1, 3] })).toBe('on Mon, Wed');
-    expect(repeatsText({ cadence: 'weekly', days: [1] })).toBe('weekly');
-    expect(choreStatus({ ...weekdays, cadence: 'weekly' }, at(2026, 9, 26)).state).toBe('due');
+    expect(repeatsText({ cadence: 'weekly', days: [3] })).toBe('on Wednesdays');
+    expect(repeatsText({ cadence: 'weekly' })).toBe('weekly');
+    expect(repeatsText({ cadence: 'monthly', days: [3] })).toBe('monthly');
+    expect(choreStatus({ ...weekdays, cadence: 'monthly' }, at(2026, 9, 26)).state).toBe('due');
   });
 
   it('says so in the activity feed', () => {
@@ -351,7 +354,24 @@ describe('chores on some days of the week', () => {
     const store = createStore({});
     expect(store.addChore({ name: 'Run', cadence: 'daily', days: [0, 1, 2, 3, 4, 5, 6] }).days).toBeUndefined();
     expect(store.addChore({ name: 'Gym', cadence: 'daily', days: [3, 1] }).days).toEqual([1, 3]);
-    expect(store.addChore({ name: 'Mow', cadence: 'weekly', days: [6] }).days).toBeUndefined();
+    expect(store.addChore({ name: 'Mow', cadence: 'weekly', days: [6] }).days).toEqual([6]);
+    expect(store.addChore({ name: 'Filter', cadence: 'monthly', days: [6] }).days).toBeUndefined();
+  });
+
+  it('weekly on a set day is "every Wednesday": due, missed and done by the day', () => {
+    // Sep 30 2026 is a Wednesday.
+    const theology = { id: 't', name: 'Theology class', cadence: 'weekly', days: [3], times: 1, done: [], createdAt: at(2026, 9, 28, 9) };
+    expect(choreStatus(theology, at(2026, 9, 29)).state).toBe('off');
+    const wed = choreStatus(theology, at(2026, 9, 30));
+    expect(wed).toMatchObject({ state: 'due', cadence: 'weekly', period: 'daily' });
+    expect(dueLabel(wed)).toBe('Due today');
+    const nextWed = choreStatus(theology, at(2026, 10, 7));
+    expect(nextWed).toMatchObject({ state: 'overdue', missed: 1 });
+    expect(missedLabel(nextWed.cadence, nextWed.missed, nextWed.missedDay, at(2026, 10, 7))).toBe('Missed Wednesday');
+    const done = { ...theology, done: [{ at: at(2026, 9, 30, 19), by: 'M' }] };
+    expect(choreStatus(done, at(2026, 9, 30, 20)).state).toBe('done');
+    expect(choreStatus(done, at(2026, 10, 1)).state).toBe('off');
+    expect(choreStatus(done, at(2026, 10, 7)).state).toBe('due');
   });
 });
 

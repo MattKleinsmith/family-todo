@@ -82,9 +82,15 @@ export function periodBounds(cadence, ts) {
   return { start: start.getTime(), end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() };
 }
 
-// ---- Days of the week, for daily chores that only come up on some days ----
+// ---- Days of the week, for chores that only come up on some days ----
 // `days` holds weekday numbers as Date#getDay gives them (0 Sunday … 6 Saturday).
-// Missing, empty or all seven means every day. Only daily chores use it.
+// Missing, empty or all seven means no particular days. Daily and weekly
+// chores can have them, and then they work the same way: the chore comes up on
+// those days ("every Wednesday" is weekly on Wednesday, "weekdays" is daily on
+// Monday to Friday), each of those days is its own period, and only those days
+// can be missed. Everything else about a chore (lists, House, history, times)
+// is the same either way.
+export const DAY_CADENCES = ['daily', 'weekly'];
 
 /** Monday first, the way the app's weeks run. */
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -100,17 +106,24 @@ export function normalizeDays(days) {
   return set.length === 0 || set.length === 7 ? null : set;
 }
 
-/** The days a chore comes up on, or null if it's every day (or not a daily chore). */
+/** The days a chore comes up on, or null if it has no particular days. */
 export function daysOf(chore) {
-  return chore && chore.cadence === 'daily' ? normalizeDays(chore.days) : null;
+  return chore && DAY_CADENCES.includes(chore.cadence) ? normalizeDays(chore.days) : null;
 }
 
-/** "Every day", "Weekdays", "Weekends", or "Mon, Wed". */
+/** The period a chore's counting runs on: a day for one on set days, otherwise its cadence. */
+export function periodCadence(chore) {
+  if (daysOf(chore)) return 'daily';
+  return CADENCES.includes(chore && chore.cadence) ? chore.cadence : 'weekly';
+}
+
+/** "Every day", "Weekdays", "Weekends", "Wednesdays", or "Mon, Wed". */
 export function daysLabel(days) {
   const d = normalizeDays(days);
   if (!d) return 'Every day';
   if (d.join() === WEEKDAYS.join()) return 'Weekdays';
   if (d.join() === WEEKENDS.join()) return 'Weekends';
+  if (d.length === 1) return `${DAY_LONG[d[0]]}s`;
   return WEEK_ORDER.filter((x) => d.includes(x)).map((x) => DAY_SHORT[x]).join(', ');
 }
 
@@ -141,21 +154,24 @@ export function doneList(chore) {
  *  - `daysLeft`: whole days left in the current period, counting today.
  */
 export function choreStatus(chore, now = Date.now()) {
+  // `cadence` is what the family picked (and which House section it's in);
+  // `period` is what the counting runs on, a day for a chore on set days.
   const cadence = CADENCES.includes(chore.cadence) ? chore.cadence : 'weekly';
-  const days = cadence === 'daily' ? normalizeDays(chore.days) : null;
-  const current = periodIndex(cadence, now);
+  const days = daysOf(chore);
+  const period = periodCadence(chore);
+  const current = periodIndex(period, now);
   const list = doneList(chore).filter((d) => d.at <= now + 60_000);
   const last = list[0] || null;
   const target = timesOf(chore);
-  const count = list.filter((d) => periodIndex(cadence, d.at) === current).length;
+  const count = list.filter((d) => periodIndex(period, d.at) === current).length;
   const latest = count ? last : null;
   const done = count >= target ? last : null;
-  const baseline = last ? periodIndex(cadence, last.at) : periodIndex(cadence, chore.createdAt || now);
-  const { end } = periodBounds(cadence, now);
+  const baseline = last ? periodIndex(period, last.at) : periodIndex(period, chore.createdAt || now);
+  const { end } = periodBounds(period, now);
   const daysLeft = Math.max(1, dayNumber(end - 1) - dayNumber(now) + 1);
   if (!days) {
     const missed = count ? 0 : Math.max(0, current - baseline - 1);
-    return { cadence, days, done, latest, last, count, target, missed, daysLeft, state: done ? 'done' : missed > 0 ? 'overdue' : 'due' };
+    return { cadence, period, days, done, latest, last, count, target, missed, daysLeft, state: done ? 'done' : missed > 0 ? 'overdue' : 'due' };
   }
   // Only some days: a day it isn't on is a day off, and only its own days can be missed.
   const today = days.includes(weekdayOfDay(current));
@@ -173,6 +189,7 @@ export function choreStatus(chore, now = Date.now()) {
   while (!days.includes(weekdayOfDay(next))) next++;
   return {
     cadence,
+    period,
     days,
     done,
     latest,
@@ -192,7 +209,7 @@ export function choreStatus(chore, now = Date.now()) {
 /** "Missed yesterday", "Missed 2 weeks", "Missed Friday" (for one that's only on some days), … */
 export function missedLabel(cadence, missed, missedDay = null, now = Date.now()) {
   if (missed <= 0) return '';
-  if (cadence === 'daily' && missedDay !== null) {
+  if (missedDay !== null) {
     if (missed > 1) return `Missed ${missed} days`;
     return dayNumber(now) - dayNumber(missedDay) === 1 ? 'Missed yesterday' : `Missed ${DAY_LONG[new Date(missedDay).getDay()]}`;
   }
@@ -221,7 +238,7 @@ export function nextDayLabel(nextDay, now = Date.now()) {
 /** How much of the current period is left, as a hint for chores still to do. */
 export function dueLabel(status) {
   const { cadence, daysLeft } = status;
-  if (cadence === 'daily') return 'Due today';
+  if (cadence === 'daily' || status.days) return 'Due today';
   if (daysLeft <= 1) return 'Due by tonight';
   if (cadence === 'biweekly') return `${daysLeft} days left`;
   return `${daysLeft} days left this ${cadence === 'weekly' ? 'week' : 'month'}`;

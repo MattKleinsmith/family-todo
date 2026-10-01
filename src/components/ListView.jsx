@@ -10,8 +10,8 @@ import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
-import { ChoreRow, ChoreSheet, DaysPicker, NewChoreSheet, TimesPicker, useChoreToggle, useDaysOff } from './House.jsx';
-import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
+import { ChoreRow, ChoreSheet, NewChoreSheet, RepeatFields, useChoreToggle, useDaysOff } from './House.jsx';
+import { choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
 import { isOfficialPersonal, personalListFor } from '../personal.js';
 
@@ -327,24 +327,13 @@ function EditItemSheet({ item, onClose, onRepeat }) {
           <input type="text" value={text} onInput={(e) => setText(e.currentTarget.value)} autoFocus />
           {item.createdBy && <p class="hint">Added by {item.createdBy}</p>}
         </div>
-        <div class="field">
-          <label>Repeat</label>
-          <div class="chips" role="radiogroup" aria-label="Repeat">
-            {[null, ...CADENCES].map((k) => (
-              <button type="button" key={k || 'never'} role="radio" aria-checked={repeat === k} class={'chip' + (repeat === k ? ' on' : '')} onClick={() => setRepeat(k)}>
-                {k ? (k === 'biweekly' ? 'Every 2 weeks' : CADENCE_LABEL[k]) : 'Never'}
-              </button>
-            ))}
-          </div>
-          <p class="hint">
-            {repeat
-              ? 'It moves to “Repeating” at the top of this list and comes back every time. It won’t show on the House tab.'
-              : 'For habits like practicing a language: repeating items reset every day, week or month.'}
-          </p>
-        </div>
-        {/* Shown as soon as it repeats, so it can be set up in one go. */}
-        {repeat === 'daily' && <DaysPicker value={days} onChange={setDays} />}
-        {repeat && <TimesPicker cadence={repeat} value={times} onChange={setTimes} />}
+        {/* The same repeat controls as everywhere else, shown as soon as it repeats so it's set up in one go. */}
+        <RepeatFields never cadence={repeat} days={days} times={times} onCadence={setRepeat} onDays={setDays} onTimes={setTimes} />
+        <p class="hint">
+          {repeat
+            ? 'It moves to “Repeating” at the top of this list and comes back every time. It won’t show on the House tab.'
+            : 'For habits like practicing a language: repeating items reset every day, week or month.'}
+        </p>
         <button class="btn primary big" type="submit" disabled={!text.trim()}>{repeat ? 'Make it repeat' : 'Save'}</button>
         <button
           class="btn danger big"
