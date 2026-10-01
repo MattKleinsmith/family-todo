@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'overdue-from-the-start',
+    at: '2026-10-01T15:40:00-04:00',
+    text: 'A chore or repeating item now counts as overdue from its very first round: a monthly one added in September and not done by October shows “Missed last month”, the same for weekly and every 2 weeks. (Only something added on the last day of its round gets a pass.)',
+    href: '#/house',
+  },
+  {
     id: 'item-links',
     at: '2026-10-01T12:38:00-04:00',
     text: 'Items and chores can have a link, like the Google Form for a daily check-in. Tap the item and paste it under “Link”; a ↗ then shows on the item to open it straight from the list. Fill it in, come back, and tick it off.',

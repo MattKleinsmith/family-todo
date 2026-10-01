@@ -74,12 +74,20 @@ describe('choreStatus', () => {
     const c = chore({ done: [{ at: MON, by: 'Huishi' }, { at: at(2026, 9, 5), by: 'Matthew' }] });
     expect(choreStatus(c, MON + 60_000).state).toBe('done');
   });
-  it('a new chore is not overdue for the period it was added in', () => {
+  it('a new chore counts the period it was added in, unless it was added on its last day', () => {
     const daily = chore({ cadence: 'daily', createdAt: at(2026, 9, 27, 21) });
     expect(choreStatus(daily, MON).state).toBe('due'); // added last night: today is its first full day
     expect(choreStatus(daily, at(2026, 9, 29, 8))).toMatchObject({ state: 'overdue', missed: 1 });
     const weekly = chore({ createdAt: at(2026, 9, 27, 21) }); // added on a Sunday night
     expect(choreStatus(weekly, MON).state).toBe('due');
+    expect(choreStatus(chore({ createdAt: at(2026, 9, 23) }), MON)).toMatchObject({ state: 'overdue', missed: 1 }); // added Wednesday, not done that week
+    // A monthly chore added in September and not done by October.
+    const monthly = chore({ cadence: 'monthly', createdAt: at(2026, 9, 28) });
+    expect(choreStatus(monthly, at(2026, 9, 29)).state).toBe('due');
+    expect(choreStatus(monthly, at(2026, 10, 1))).toMatchObject({ state: 'overdue', missed: 1 });
+    expect(choreStatus(chore({ cadence: 'monthly', createdAt: at(2026, 9, 30, 20) }), at(2026, 10, 1)).state).toBe('due');
+    const sheets = chore({ cadence: 'biweekly', createdAt: at(2026, 9, 16) });
+    expect(choreStatus(sheets, at(2026, 9, 29)).state).toBe('overdue');
   });
   it('daily and monthly chores', () => {
     const daily = chore({ cadence: 'daily', done: [{ at: at(2026, 9, 27, 20), by: 'x' }] });

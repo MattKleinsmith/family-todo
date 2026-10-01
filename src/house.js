@@ -147,8 +147,8 @@ export function doneList(chore) {
  *  - `count` of `target`: completions so far this period, and how many it takes;
  *  - `done`: once the target is reached, the latest completion this period;
  *  - `latest`: the latest completion this period, if any;
- *  - `missed`: how many whole periods before this one went by without it.
- *    The period a chore was added in doesn't count against it;
+ *  - `missed`: how many periods before this one went by without it,
+ *    including the one it was added in unless it was added on its last day;
  *    Any completion this period, even one of two, means it's under way;
  *  - `state`: 'done', 'due', or 'overdue' (none yet this period and missed ≥ 1);
  *  - `daysLeft`: whole days left in the current period, counting today.
@@ -166,7 +166,12 @@ export function choreStatus(chore, now = Date.now()) {
   const count = list.filter((d) => periodIndex(period, d.at) === current).length;
   const latest = count ? last : null;
   const done = count >= target ? last : null;
-  const baseline = last ? periodIndex(period, last.at) : periodIndex(period, chore.createdAt || now);
+  // Before it's ever done, the period it was added in counts too (a monthly
+  // chore added in September and not done by October is overdue), unless it
+  // was added on that period's last day: no time left to do it.
+  const created = chore.createdAt || now;
+  const addedOnLastDay = dayNumber(periodBounds(period, created).end - 1) === dayNumber(created);
+  const baseline = last ? periodIndex(period, last.at) : periodIndex(period, created) - (addedOnLastDay ? 0 : 1);
   const { end } = periodBounds(period, now);
   const daysLeft = Math.max(1, dayNumber(end - 1) - dayNumber(now) + 1);
   if (!days) {
