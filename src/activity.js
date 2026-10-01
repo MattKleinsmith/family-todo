@@ -437,7 +437,9 @@ export function createActivity({
 
   // ---- reading ----
 
-  const isMine = (e) => (e.device ? e.device === device() : !!self() && e.actor === self());
+  // Yours if it came from this device, or from any device of yours (same name
+  // = same person): your Mac's changes don't light up your phone's bell.
+  const isMine = (e) => (!!e.device && e.device === device()) || (!!self() && sameName(e.actor, self()));
 
   function entries() {
     if (cache && cacheVersion === version) return cache;
