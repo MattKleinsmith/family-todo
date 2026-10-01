@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'item-links',
+    at: '2026-10-01T12:38:00-04:00',
+    text: 'Items and chores can have a link, like the Google Form for a daily check-in. Tap the item and paste it under “Link”; a ↗ then shows on the item to open it straight from the list. Fill it in, come back, and tick it off.',
+  },
+  {
     id: 'who-did-it',
     at: '2026-10-01T11:29:00-04:00',
     text: 'Ticking something off says you did it, but you can change that: open the chore or repeating item and tap the name next to a day under “Done” to hand it to the other person (or pick from a menu if there are more of you). The “Done” history is now at the top of that sheet.',

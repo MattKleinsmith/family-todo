@@ -11,6 +11,7 @@ import { formatTime, formatDuration } from './baby.js';
 import { cadenceText, daysOf, periodCadence, periodIndex, periodWord, repeatsText, timesOf } from './house.js';
 import { iconToText } from './icons.js';
 import { memberKey, sameName } from './members.js';
+import { linkLabel } from './links.js';
 
 const MAX_ENTRIES = 500;
 
@@ -19,6 +20,13 @@ const possessive = (s) => `${s}’${/s$/i.test(s) ? '' : 's'}`;
 const joinParts = (parts) => (parts.length <= 2 ? parts.join(' and ') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);
 
 /** Describe the change from `prev` (what we had, or null) to `next`. Returns null when nothing worth telling changed. */
+/** "added a link to “Daily form” (docs.google.com)", "changed …", "removed …". */
+function linkChange(prev, next, name) {
+  if (!next.link) return `removed the link from ${q(name)}`;
+  const site = linkLabel(next.link);
+  return `${prev.link ? 'changed the link on' : 'added a link to'} ${q(name)}${site ? ` (${site})` : ''}`;
+}
+
 export function describeChange(prev, next, ctx = {}) {
   if (next.type === 'summary' || next.type === 'activity' || next.compacted) return null; // housekeeping, not news
   const listName = (id) => ctx.listName?.(id) || 'a list';
@@ -36,6 +44,7 @@ export function describeChange(prev, next, ctx = {}) {
       const parts = [];
       if (next.text !== prev.text) parts.push(`renamed ${q(prev.text)} to ${q(next.text)}`);
       if (next.done !== prev.done) parts.push(`${next.done ? 'checked off' : 'unchecked'} ${q(next.text)}`);
+      if ((next.link || '') !== (prev.link || '')) parts.push(linkChange(prev, next, next.text));
       if (next.listId !== prev.listId) parts.push(`moved ${q(next.text)} to ${listName(next.listId)}`);
       else if (next.order !== prev.order && !next.renumbered) parts.push(`reordered ${q(next.text)}`);
       if (parts.length === 0) return null;
@@ -158,6 +167,7 @@ export function describeChange(prev, next, ctx = {}) {
               ? `took on ${q(next.name)}`
               : `gave ${q(next.name)} to ${next.owner}`,
         );
+      if ((next.link || '') !== (prev.link || '')) parts.push(linkChange(prev, next, next.name));
       if ((next.icon || '') !== (prev.icon || '')) parts.push(`changed ${possessive(next.name)} icon to ${next.icon ? iconToText(next.icon) : 'none'}`);
       if (next.order !== prev.order && !next.renumbered) parts.push(`reordered ${noun} ${q(next.name)}`);
       return parts.length ? `${joinParts(parts)}${where}` : null;

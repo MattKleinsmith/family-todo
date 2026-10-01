@@ -3,6 +3,7 @@
 // offline and converge once they both reach the relays. Deletes are tombstones
 // (`deleted: true`) so a delete on one phone beats a stale edit on the other.
 import { DAY_CADENCES, normalizeDays } from './house.js';
+import { normalizeLink } from './links.js';
 
 export function newId() {
   const buf = new Uint8Array(12);
@@ -417,11 +418,12 @@ export function createStore({
   // ---- House chores: daily, weekly and monthly, with their recent completions ----
 
   /** A chore for the House tab, or, with `listId`, a repeating item that lives in that list instead. */
-  function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, days = null, createdBy = '', listId = null }) {
+  function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, days = null, link = null, createdBy = '', listId = null }) {
     const n = (name || '').trim();
     if (!n) return null;
     const d = DAY_CADENCES.includes(cadence) ? normalizeDays(days) : null;
-    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, ...(d ? { days: d } : {}), done: [], createdBy, createdAt: stamp(), deleted: false, ...(listId ? { listId } : {}) });
+    const l = normalizeLink(link);
+    return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, ...(d ? { days: d } : {}), ...(l ? { link: l } : {}), done: [], createdBy, createdAt: stamp(), deleted: false, ...(listId ? { listId } : {}) });
   }
 
   /**
@@ -443,6 +445,7 @@ export function createStore({
       owner: null,
       times: Math.min(99, Math.max(1, Math.round(Number(times) || 1))),
       ...(DAY_CADENCES.includes(cadence) && normalizeDays(days) ? { days: normalizeDays(days) } : {}),
+      ...(item.link ? { link: item.link } : {}),
       done: item.done && item.doneAt ? [{ at: item.doneAt, by: item.updatedBy || '' }] : [],
       createdBy: item.createdBy || '',
       createdAt: stamp(),
@@ -463,6 +466,7 @@ export function createStore({
       type: 'item',
       listId: c.listId,
       text: c.name,
+      ...(c.link ? { link: c.link } : {}),
       done: false,
       doneAt: null,
       createdBy: c.createdBy || '',

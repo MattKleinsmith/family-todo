@@ -9,6 +9,7 @@ import { Glyph } from './Glyph.jsx';
 import { Bell } from './Bell.jsx';
 import { GearIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { LinkButton, LinkField } from './Link.jsx';
 import { swipeDelete } from './SwipeAction.jsx';
 import { familyNames, sameName } from '../members.js';
 import { newestOf, useMarkSeen } from './useSeen.js';
@@ -323,6 +324,7 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
           </span>
         </span>
       </button>
+      <LinkButton link={chore.link} name={chore.name} />
       {grip && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
       {swipe.action}
     </li>
@@ -710,6 +712,7 @@ export function ChoreSheet({ chore, onClose }) {
           <label for="chore-edit-name">Name</label>
           <input id="chore-edit-name" type="text" value={name} enterkeyhint="done" onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} />
         </div>
+        <LinkField value={chore.link || null} onCommit={(link) => change({ link })} />
         <div class="field">
           <label>Done</label>
           {history.length === 0 ? (
