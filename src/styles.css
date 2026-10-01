@@ -685,3 +685,15 @@ li:last-child > .act { border-bottom: none; }
 .off-toggle:active { background: var(--surface-2); }
 .off-action { color: var(--accent); font-weight: 700; }
 .chore.off .chore-name, .chore.off .chore-icon { opacity: 0.55; }
+
+/* Who did one completion: a tap hands it to the other person (or opens a menu). */
+.history li .history-when { flex: 1; min-width: 0; }
+.who-pill {
+  flex: none; min-height: 34px; padding: 4px 14px; margin-right: 4px; border-radius: 999px;
+  border: 1.5px solid var(--border); background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 700;
+}
+.who-pill:active { background: var(--surface-3); }
+select.who-pill { -webkit-appearance: none; appearance: none; padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: right 14px center, right 9px center; background-size: 5px 5px; background-repeat: no-repeat; }

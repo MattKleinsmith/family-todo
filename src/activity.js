@@ -135,6 +135,13 @@ export function describeChange(prev, next, ctx = {}) {
       // Only the history cap trimming the oldest entry isn't news.
       const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
+      // Same completion, someone else did it.
+      const byAt = new Map((prev.done || []).map((d) => [d.at, d.by || '']));
+      for (const d of next.done || []) {
+        if (!byAt.has(d.at) || byAt.get(d.at) === (d.by || '')) continue;
+        const day = new Date(d.at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        parts.push(d.by ? `said ${d.by} did ${q(next.name)} (${day})` : `cleared who did ${q(next.name)} (${day})`);
+      }
       if (next.name !== prev.name) parts.push(`renamed ${noun} ${q(prev.name)} to ${q(next.name)}`);
       const onDays = (c) => (daysOf(c) ? often(c).replace(/^on /, '') : 'every day');
       if (next.cadence !== prev.cadence) parts.push(`made ${q(next.name)} ${cadenceText(next.cadence).often}${daysOf(next) ? ` (${onDays(next)})` : ''}`);

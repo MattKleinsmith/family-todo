@@ -375,3 +375,17 @@ describe('chores on some days of the week', () => {
   });
 });
 
+describe('who did it', () => {
+  it('changes who did one completion, leaving the rest, and says so', () => {
+    const store = createStore({});
+    const c = store.addChore({ name: 'Wash the bottles', cadence: 'daily', times: 2 });
+    store.markChore(c.id, { at: at(2026, 9, 30, 8), by: 'Matthew' });
+    const before = store.markChore(c.id, { at: at(2026, 9, 30, 20), by: 'Matthew' });
+    const after = store.setDoneBy(c.id, at(2026, 9, 30, 8), 'Huishi');
+    expect(after.done.map((d) => d.by)).toEqual(['Matthew', 'Huishi']);
+    expect(store.setDoneBy(c.id, at(2026, 9, 30, 8), 'Huishi')).toBeNull(); // no change
+    expect(store.setDoneBy(c.id, 12345, 'Huishi')).toBeNull(); // no such completion
+    expect(describeChange(before, after, {})).toBe('said Huishi did “Wash the bottles” (Wed, Sep 30)');
+  });
+});
+

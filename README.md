@@ -87,6 +87,9 @@ what's left. Overdue chores (a whole day, week or month went by without them)
 are tinted amber or red. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
+Ticking it says you did it; to credit someone else, open it and tap the name
+beside that day under **Done** (it flips to the other person, or opens a menu
+with more than two of you).
 
 Any chore or repeating item (House or any list: they're the same thing and use
 the same controls) can be on **set days of the week**. Daily ones get "On these

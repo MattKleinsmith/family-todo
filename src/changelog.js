@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'who-did-it',
+    at: '2026-10-01T11:29:00-04:00',
+    text: 'Ticking something off says you did it, but you can change that: open the chore or repeating item and tap the name next to a day under “Done” to hand it to the other person (or pick from a menu if there are more of you). The “Done” history is now at the top of that sheet.',
+    href: '#/house',
+  },
+  {
     id: 'weekly-on-a-day',
     at: '2026-10-01T10:50:00-04:00',
     text: 'Anything that repeats, in any list or on the House tab, can now be “every Wednesday”: choose Weekly, then tap the day under “On a set day”. Picking days works the same everywhere, including when you first make an item repeat.',
