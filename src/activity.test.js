@@ -101,6 +101,26 @@ describe('createActivity (synced)', () => {
     expect(B.activity.unseenCount()).toBe(0);
   });
 
+  it('changes made on your other devices are yours too: no bell for them', async () => {
+    const clock = { t: T };
+    const relay = [];
+    const mac = phone({ name: 'Matthew', device: 'dMac', joinedAt: T - 1, relay, clock });
+    const g = mac.store.createList({ name: 'Groceries' });
+    mac.store.addItem({ listId: g.id, text: 'Milk' });
+    await settle();
+    const iphone = phone({ name: 'matthew ', device: 'dPhone', joinedAt: T - 2, relay: [], clock });
+    const huishi = phone({ name: 'Huishi', device: 'dH', joinedAt: T - 2, relay: [], clock });
+    for (const p of [iphone, huishi]) {
+      await p.activity.ready;
+      deliver(relay, p);
+    }
+    expect(iphone.activity.unseenCount()).toBe(0);
+    expect(iphone.activity.unseenForList(g.id)).toBe(0);
+    expect(iphone.activity.visibleEntries()).toHaveLength(0);
+    expect(iphone.activity.entries().every((e) => e.mine)).toBe(true);
+    expect(huishi.activity.unseenCount()).toBe(2);
+  });
+
   it('looking at a list or tab counts as seeing its changes, and only those', async () => {
     const clock = { t: T };
     const relay = [];

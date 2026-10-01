@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'own-devices-not-news',
+    at: '2026-10-01T10:37:00-04:00',
+    text: 'Changes you make on your other devices (say, your Mac) no longer light up the bell or a list’s “new changes” note on your phone. They’re yours, so they’re not news.',
+  },
+  {
     id: 'chore-days-of-week',
     at: '2026-10-01T09:33:00-04:00',
     text: 'Daily chores and repeating items can now be set to some days only: pick Weekdays or Weekends under “On these days”, or tap single days (say, weekdays but not Wednesday). On other days they’re tucked away and can’t be missed.',

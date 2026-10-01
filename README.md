@@ -151,8 +151,10 @@ including one that joins later, sees the whole history. Entries are kept for
 
 What you've seen is per phone. The bell counts other people's entries newer
 than the last time you opened Activity; list cards flag unseen changes. A phone
-that just joined sees the full history already marked as seen. Your own changes
-are hidden unless you turn on "Show my own changes".
+that just joined sees the full history already marked as seen. Your own changes,
+from this device or any other device under your name (your Mac's changes on your
+phone, say), never count on the bell or a list's "new changes" note, and are
+hidden unless you turn on "Show my own changes".
 
 People and devices: each phone publishes a small synced "member" record when it
 joins, changes its name, or leaves. Those appear in the feed and under
