@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'jump-to-overdue',
+    at: '2026-10-01T15:44:00-04:00',
+    text: 'Tap “2 overdue” at the top of the House tab to jump straight to the first overdue chore.',
+    href: '#/house',
+  },
+  {
     id: 'overdue-from-the-start',
     at: '2026-10-01T15:40:00-04:00',
     text: 'A chore or repeating item now counts as overdue from its very first round: a monthly one added in September and not done by October shows “Missed last month”, the same for weekly and every 2 weeks. (Only something added on the last day of its round gets a pass.)',

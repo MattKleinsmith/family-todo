@@ -708,3 +708,8 @@ select.who-pill { -webkit-appearance: none; appearance: none; padding-right: 28p
 .link-field input { flex: 1; min-width: 0; }
 .link-field .btn.link-open { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; }
 .link-field .btn.link-open svg { width: 18px; height: 18px; }
+
+/* "N overdue" on the House tab is a shortcut to the first one. */
+.house-status.jump { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.house-status.jump:active { transform: scale(0.99); }
+.house-status.jump .status-title::after { content: ' ›'; color: var(--muted); }
