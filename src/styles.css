@@ -667,3 +667,21 @@ li:last-child > .act { border-bottom: none; }
 .btn.settings-link svg { width: 20px; height: 20px; flex: none; }
 .btn.settings-link .hint { margin-left: auto; font-weight: 500; }
 
+
+/* Days of the week for a daily chore: seven round toggles, Monday first. */
+.weekdays { display: flex; gap: 6px; margin-top: 10px; }
+.weekday {
+  flex: 1; max-width: 46px; aspect-ratio: 1; border-radius: 50%;
+  border: 1.5px solid var(--border); background: var(--surface); font-weight: 800;
+}
+.weekday.on { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+
+/* A chore on its day off: kept out of the way, shown on request. */
+.off-row { border-top: 1px solid var(--border); }
+.off-toggle {
+  width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; border: none; background: transparent; color: var(--muted); font-weight: 600; font-size: 15px;
+}
+.off-toggle:active { background: var(--surface-2); }
+.off-action { color: var(--accent); font-weight: 700; }
+.chore.off .chore-name, .chore.off .chore-icon { opacity: 0.55; }

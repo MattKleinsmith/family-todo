@@ -88,6 +88,12 @@ are tinted amber or red. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 
+A daily chore (or repeating item) can be limited to **some days of the week**:
+under "On these days" pick Weekdays or Weekends, or tap single days to fine-tune
+(say, weekdays but not Wednesday). On its days off it's tucked behind a
+"1 not on today · Show" row, it doesn't count toward today or the badge, and only
+its own days can be missed ("Missed Friday" on a Monday, not "Missed 3 days").
+
 Some chores happen more than once a period, like washing the bottles twice a day.
 Set **How many times** (once, 2×, 3×, 4×, or type any number up to 99 under
 **Other…**) and the circle splits into that many segments (a smooth ring past 8):

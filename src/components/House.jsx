@@ -27,6 +27,13 @@ import {
   dueLabel,
   missedLabel,
   whenLabel,
+  daysLabel,
+  nextDayLabel,
+  normalizeDays,
+  WEEK_ORDER,
+  WEEKDAYS,
+  WEEKENDS,
+  DAY_LONG,
 } from '../house.js';
 
 
@@ -152,8 +159,9 @@ export function useChoreToggle(highlight = () => {}) {
 function Summary({ chores, now }) {
   if (chores.length === 0) return null;
   const overdue = chores.filter((x) => x.status.state === 'overdue').sort((a, b) => b.status.missed - a.status.missed);
-  const left = (k) => chores.filter((x) => x.status.cadence === k && x.status.state !== 'done').length;
-  const total = (k) => chores.filter((x) => x.status.cadence === k).length;
+  // A chore having its day off (not on today) isn't part of today.
+  const left = (k) => chores.filter((x) => x.status.cadence === k && x.status.state !== 'done' && x.status.state !== 'off').length;
+  const total = (k) => chores.filter((x) => x.status.cadence === k && x.status.state !== 'off').length;
   const month = new Date(now).toLocaleDateString([], { month: 'long' });
   const periods = [
     { k: 'daily', label: 'Today' },
@@ -215,17 +223,18 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
   };
   const listRef = useRef(null);
   const grip = gripProps(() => ({ container: listRef.current, onDrop: (ids, moved) => store.moveTo('chore', moved, ids) }));
-  const doneCount = rows.filter((x) => x.status.done).length;
+  const days = useDaysOff(rows);
   return (
     <section class="day chores">
       <div class="day-head">
         <span>{cadenceText(cadence).section}</span>
-        {rows.length > 0 && <span class="day-stats">{doneCount} of {rows.length} done</span>}
+        {rows.length > 0 && <span class="day-stats">{days.stats}</span>}
       </div>
       <ul class="items" ref={listRef}>
-        {rows.map((x) => (
-          <ChoreRow key={x.chore.id} {...x} now={now} flash={flash === x.chore.id} grip={rows.length > 1 ? grip : null} onToggle={() => onToggle(x)} onEdit={() => onEdit(x.chore.id)} onDelete={() => remove(x.chore)} />
+        {days.shown.map((x) => (
+          <ChoreRow key={x.chore.id} {...x} now={now} flash={flash === x.chore.id} grip={days.shown.length > 1 ? grip : null} onToggle={() => onToggle(x)} onEdit={() => onEdit(x.chore.id)} onDelete={() => remove(x.chore)} />
         ))}
+        {days.toggle}
         <li class="add-row">
           <button class="add-chore" onClick={onAdd}>
             <span class="add-plus" aria-hidden="true">+</span> {cadenceText(cadence).add}
@@ -234,6 +243,30 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
       </ul>
     </section>
   );
+}
+
+/**
+ * Chores that only come up on some days are left out on their days off, with
+ * a quiet row at the end to show them (to tick one anyway, or to edit it).
+ * `stats` is "2 of 3 done" for what's on today.
+ */
+export function useDaysOff(rows) {
+  const [showOff, setShowOff] = useState(false);
+  const today = rows.filter((x) => x.status.state !== 'off');
+  const off = rows.length - today.length;
+  const done = today.filter((x) => x.status.done).length;
+  return {
+    shown: showOff ? rows : today,
+    stats: today.length ? `${done} of ${today.length} done` : 'Nothing today',
+    toggle: off ? (
+      <li class="off-row">
+        <button type="button" class="off-toggle" aria-expanded={showOff} onClick={() => setShowOff((v) => !v)}>
+          <span>{off} not on today</span>
+          <span class="off-action">{showOff ? 'Hide' : 'Show'}</span>
+        </button>
+      </li>
+    ) : null,
+  };
 }
 
 /** One chore. `showCadence` prefixes the status line with how often it repeats, for lists that mix them. */
@@ -254,17 +287,18 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
         <b class="progress">{status.count} of {status.target}</b> · last {whenLabel(status.latest.at, now)}{by(status.latest)}
       </>
     );
+  else if (status.state === 'off') sub = <>Not today · {nextDayLabel(status.nextDay, now)}{status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}</>;
   else if (status.state === 'overdue')
     sub = (
       <>
-        <b class="missed">{missedLabel(status.cadence, status.missed)}</b>
+        <b class="missed">{missedLabel(status.cadence, status.missed, status.missedDay, now)}</b>
         {status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}
       </>
     );
   else sub = <>{dueLabel(status)}{status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}</>;
 
   return (
-    <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
+    <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (status.state === 'off' ? ' off' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
       <button
         class={'check' + (multi && !status.done ? ' multi' : '')}
         aria-label={status.done ? `Take back the last ${chore.name}` : multi ? `Mark ${chore.name} done (${status.count} of ${status.target} so far)` : `Mark ${chore.name} done`}
@@ -279,7 +313,11 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
           <span class="chore-name">{chore.name}</span>
           <span class="item-by chore-sub">
             {chore.owner && <span class={'owner-pill' + (mine ? ' mine' : '')} aria-label={mine ? 'Yours:' : `${chore.owner}’s:`}>{mine ? 'You' : chore.owner}</span>}
-            {showCadence && <span class="cadence-tag">{{ daily: 'Daily', weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' }[status.cadence]} · </span>}
+            {status.days ? (
+              <span class="cadence-tag">{daysLabel(status.days)} · </span>
+            ) : (
+              showCadence && <span class="cadence-tag">{{ daily: 'Daily', weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly' }[status.cadence]} · </span>
+            )}
             {sub}
           </span>
         </span>
@@ -424,6 +462,47 @@ export function TimesPicker({ cadence, value, onChange }) {
   );
 }
 
+/**
+ * Which days a daily chore comes up on. Quick picks for every day, weekdays
+ * and weekends, then one toggle per day to fine-tune (say, weekdays but not
+ * Wednesday). `value` is null for every day.
+ */
+export function DaysPicker({ value, onChange }) {
+  const days = normalizeDays(value) || [0, 1, 2, 3, 4, 5, 6];
+  const set = (d) => onChange(normalizeDays(d));
+  const quick = [
+    { label: 'Every day', days: null },
+    { label: 'Weekdays', days: WEEKDAYS },
+    { label: 'Weekends', days: WEEKENDS },
+  ];
+  const current = (normalizeDays(value) || []).join();
+  const toggle = (d) => {
+    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
+    if (next.length) set(next); // at least one day
+  };
+  return (
+    <div class="field">
+      <label>On these days</label>
+      <div class="chips" role="radiogroup" aria-label="On these days">
+        {quick.map((q) => {
+          const on = (q.days || []).join() === current;
+          return (
+            <button type="button" key={q.label} role="radio" aria-checked={on} class={'chip' + (on ? ' on' : '')} onClick={() => set(q.days)}>{q.label}</button>
+          );
+        })}
+      </div>
+      <div class="weekdays" role="group" aria-label="Days of the week">
+        {WEEK_ORDER.map((d) => (
+          <button type="button" key={d} class={'weekday' + (days.includes(d) ? ' on' : '')} aria-pressed={days.includes(d)} aria-label={DAY_LONG[d]} onClick={() => toggle(d)}>
+            {DAY_LONG[d].slice(0, 1)}
+          </button>
+        ))}
+      </div>
+      {normalizeDays(value) && <p class="hint">It only shows on {daysLabel(value) === 'Weekdays' || daysLabel(value) === 'Weekends' ? daysLabel(value).toLowerCase() : daysLabel(value)}, and only those days count if it’s missed.</p>}
+    </div>
+  );
+}
+
 // Icons that suit household chores, shown first in the chore icon picker.
 const CHORE_ICONS = ['sponge', 'plate', 'broom', 'soap', 'bubbles', 'bucket', 'droplet', 'shower', 'bed', 'wastebasket', 'basket', 'toilet-paper', 'clover', 'potted-plant', 'cat', 'dog', 'tools', 'cooking'];
 
@@ -445,10 +524,11 @@ export function NewChoreSheet({ cadence: initial, onClose, onCreated, listId = n
   const [icon, setIcon] = useState(null); // null: follow the cadence's default
   const [owner, setOwner] = useState(null); // null: anyone
   const [times, setTimes] = useState(1);
+  const [days, setDays] = useState(null); // null: every day
 
   const submit = (e) => {
     e.preventDefault();
-    const c = store.addChore({ name, cadence, icon: icon || (listId ? '' : DEFAULT_ICON[cadence]), owner, times, createdBy: session.name, listId });
+    const c = store.addChore({ name, cadence, icon: icon || (listId ? '' : DEFAULT_ICON[cadence]), owner, times, days, createdBy: session.name, listId });
     if (!c) return;
     onClose();
     onCreated(c);
@@ -473,6 +553,7 @@ export function NewChoreSheet({ cadence: initial, onClose, onCreated, listId = n
           <label>How often</label>
           <CadencePicker value={cadence} onChange={setCadence} />
         </div>
+        {cadence === 'daily' && <DaysPicker value={days} onChange={setDays} />}
         <TimesPicker cadence={cadence} value={times} onChange={setTimes} />
         {!listId && <OwnerPicker value={owner} onChange={setOwner} />}
         <EmojiPicker value={icon || (listId ? '' : DEFAULT_ICON[cadence])} onChange={setIcon} prefer={listId ? [] : CHORE_ICONS} />
@@ -505,6 +586,11 @@ export function ChoreSheet({ chore, onClose }) {
   };
   const pickTimes = (n) => {
     if (n !== timesOf(chore)) change({ times: n });
+  };
+  const [days, setDays] = useState(normalizeDays(chore.days));
+  const pickDays = (d) => {
+    setDays(d);
+    if ((d || []).join() !== (normalizeDays(chore.days) || []).join()) change({ days: d });
   };
   const pickOwner = (v) => {
     const same = v ? sameName(v, chore.owner) : !chore.owner;
@@ -547,11 +633,13 @@ export function ChoreSheet({ chore, onClose }) {
         <div class="field">
           <label>How often</label>
           <CadencePicker value={cadence} onChange={pickCadence} />
-          <p class="hint">
+          {cadence !== 'daily' && <p class="hint">
             {{ daily: 'Resets every morning.', weekly: 'Weeks run Monday to Sunday.', biweekly: 'Runs in two-week blocks, Monday to Sunday.', monthly: 'Any day in the month counts.' }[cadence]}{' '}
             {cadence === 'biweekly' ? 'If two whole weeks go by' : `If a whole ${cadenceText(cadence).span} goes by`} without it, it’s flagged as overdue.
-          </p>
+          </p>}
+          {cadence === 'daily' && !days && <p class="hint">Resets every morning. If a whole day goes by without it, it’s flagged as overdue.</p>}
         </div>
+        {cadence === 'daily' && <DaysPicker value={days} onChange={pickDays} />}
         <div class="field">
           <label>Done</label>
           {history.length === 0 ? (

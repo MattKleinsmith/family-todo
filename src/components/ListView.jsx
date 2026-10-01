@@ -10,7 +10,7 @@ import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
 import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
-import { ChoreRow, ChoreSheet, NewChoreSheet, TimesPicker, useChoreToggle } from './House.jsx';
+import { ChoreRow, ChoreSheet, DaysPicker, NewChoreSheet, TimesPicker, useChoreToggle, useDaysOff } from './House.jsx';
 import { CADENCES, CADENCE_LABEL, choreStatus } from '../house.js';
 import { TabBar } from './TabBar.jsx';
 import { isOfficialPersonal, personalListFor } from '../personal.js';
@@ -94,7 +94,6 @@ export function ListView({ id, focus, asTab = false }) {
   const now = Date.now();
   // Always in your own order, done or not.
   const repeating = store.choresFor(id).map((c) => ({ chore: c, status: choreStatus(c, now) }));
-  const repeatingDone = repeating.filter((x) => x.status.done).length;
   const removeChore = (c) => {
     store.deleteChore(c.id);
     deleted(`Deleted “${c.name}”`, () => store.updateChore(c.id, { deleted: false }));
@@ -151,27 +150,16 @@ export function ListView({ id, focus, asTab = false }) {
 
       {/* Only lists that have repeating items get this group; it's how they're told apart from one-offs. */}
       {repeating.length > 0 && (
-        <section class="list-group">
-          <div class="day-head">
-            <span>Repeating</span>
-            <span class="day-stats">{repeatingDone} of {repeating.length} done</span>
-          </div>
-          <ul class="items" ref={repRef}>
-            {repeating.map((x) => (
-              <ChoreRow
-                key={x.chore.id}
-                {...x}
-                now={now}
-                showCadence
-                flash={flash === x.chore.id}
-                grip={repeating.length > 1 ? repGrip : null}
-                onToggle={() => toggleChore(x)}
-                onEdit={() => setEditingChore(x.chore.id)}
-                onDelete={() => removeChore(x.chore)}
-              />
-            ))}
-          </ul>
-        </section>
+        <RepeatingGroup
+          rows={repeating}
+          now={now}
+          flash={flash}
+          listRef={repRef}
+          grip={repGrip}
+          onToggle={toggleChore}
+          onEdit={(cid) => setEditingChore(cid)}
+          onDelete={removeChore}
+        />
       )}
       {repeating.length > 0 && open.length > 0 && (
         <div class="day-head list-head"><span>To do</span></div>
@@ -287,15 +275,45 @@ function ItemRow({ item, flash, grip, onToggle, onEdit, onDelete }) {
   );
 }
 
+/** The list's repeating items, in your order; ones not on today wait behind a "Show" row. */
+function RepeatingGroup({ rows, now, flash, listRef, grip, onToggle, onEdit, onDelete }) {
+  const days = useDaysOff(rows);
+  return (
+    <section class="list-group">
+      <div class="day-head">
+        <span>Repeating</span>
+        <span class="day-stats">{days.stats}</span>
+      </div>
+      <ul class="items" ref={listRef}>
+        {days.shown.map((x) => (
+          <ChoreRow
+            key={x.chore.id}
+            {...x}
+            now={now}
+            showCadence
+            flash={flash === x.chore.id}
+            grip={days.shown.length > 1 ? grip : null}
+            onToggle={() => onToggle(x)}
+            onEdit={() => onEdit(x.chore.id)}
+            onDelete={() => onDelete(x.chore)}
+          />
+        ))}
+        {days.toggle}
+      </ul>
+    </section>
+  );
+}
+
 function EditItemSheet({ item, onClose, onRepeat }) {
   const { store, deleted } = useApp();
   const [text, setText] = useState(item.text);
   const [repeat, setRepeat] = useState(null); // null: a one-off; otherwise a cadence
   const [times, setTimes] = useState(1);
+  const [days, setDays] = useState(null); // null: every day
   const save = (e) => {
     e.preventDefault();
     if (repeat) {
-      const c = store.repeatItem(item.id, { cadence: repeat, name: text.trim() || item.text, times });
+      const c = store.repeatItem(item.id, { cadence: repeat, name: text.trim() || item.text, times, days });
       if (c) onRepeat(c);
       return;
     }
@@ -325,6 +343,7 @@ function EditItemSheet({ item, onClose, onRepeat }) {
           </p>
         </div>
         {/* Shown as soon as it repeats, so it can be set up in one go. */}
+        {repeat === 'daily' && <DaysPicker value={days} onChange={setDays} />}
         {repeat && <TimesPicker cadence={repeat} value={times} onChange={setTimes} />}
         <button class="btn primary big" type="submit" disabled={!text.trim()}>{repeat ? 'Make it repeat' : 'Save'}</button>
         <button
