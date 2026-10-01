@@ -506,6 +506,13 @@ export function createStore({
     return patch('chore', id, { done });
   }
 
+  /** Change who did one completion (ticking it off says you did, but someone else may have). */
+  function setDoneBy(id, at, by) {
+    const c = state.chores[id];
+    if (!c || !(c.done || []).some((d) => d.at === at && d.by !== by)) return null;
+    return patch('chore', id, { done: c.done.map((d) => (d.at === at ? { ...d, by } : d)) });
+  }
+
   function unmarkChore(id, at) {
     const c = state.chores[id];
     if (!c) return null;
@@ -698,6 +705,7 @@ export function createStore({
     updateChore,
     deleteChore,
     markChore,
+    setDoneBy,
     unmarkChore,
     chores,
     hasAnyChores,

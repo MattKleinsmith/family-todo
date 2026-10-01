@@ -329,6 +329,36 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
   );
 }
 
+/**
+ * Who did one completion. Ticking something off says you did it; a tap here
+ * hands it to the other person (with two in the family), or, with more,
+ * picks from a menu.
+ */
+function WhoPill({ value, onChange }) {
+  const { store, session } = useApp();
+  const people = familyNames(store.members(), [session.name]);
+  // Someone who has since left still shows on what they did.
+  if (value && !people.some((p) => sameName(p, value))) people.push(value);
+  const label = (p) => (sameName(p, session.name) ? `${p} (you)` : p);
+  const at = people.findIndex((p) => sameName(p, value));
+  if (people.length <= 2) {
+    const next = people[(at + 1) % people.length];
+    return (
+      <button type="button" class="who-pill" aria-label={value ? `Done by ${value}. Tap to make it ${next}` : `Who did it? Tap for ${next}`} disabled={people.length < 2 && !!value} onClick={() => onChange(next)}>
+        {value ? label(value) : 'Who?'}
+      </button>
+    );
+  }
+  return (
+    <select class="who-pill" aria-label="Done by" value={at >= 0 ? people[at] : ''} onChange={(e) => onChange(e.currentTarget.value)}>
+      {at < 0 && <option value="">Who?</option>}
+      {people.map((p) => (
+        <option key={p} value={p}>{label(p)}</option>
+      ))}
+    </select>
+  );
+}
+
 /** Who looks after a chore: anyone, or one person in the family. */
 function OwnerPicker({ value, onChange }) {
   const { store, session } = useApp();
@@ -680,7 +710,6 @@ export function ChoreSheet({ chore, onClose }) {
           <label for="chore-edit-name">Name</label>
           <input id="chore-edit-name" type="text" value={name} enterkeyhint="done" onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} />
         </div>
-        <RepeatFields cadence={cadence} days={days} times={timesOf(chore)} onCadence={pickCadence} onDays={pickDays} onTimes={pickTimes} />
         <div class="field">
           <label>Done</label>
           {history.length === 0 ? (
@@ -689,10 +718,13 @@ export function ChoreSheet({ chore, onClose }) {
             <ul class="history">
               {history.map((d) => (
                 <li key={d.at}>
-                  <span>
+                  <span class="history-when">
                     {new Date(d.at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {d.by ? <span class="muted"> · {d.by}</span> : null}
+                    {history.filter((x) => dateInput(x.at) === dateInput(d.at)).length > 1 && (
+                      <span class="muted"> {new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                    )}
                   </span>
+                  <WhoPill value={d.by || ''} onChange={(by) => store.setDoneBy(chore.id, d.at, by)} />
                   <button type="button" class="icon-btn small" aria-label="Remove this one" onClick={() => store.unmarkChore(chore.id, d.at)}>✕</button>
                 </li>
               ))}
@@ -702,8 +734,9 @@ export function ChoreSheet({ chore, onClose }) {
             <input type="date" aria-label="Day it was done" value={pastDay} max={today} onInput={(e) => setPastDay(e.currentTarget.value)} />
             <button type="button" class="btn" onClick={logPast} disabled={!pastDay || pastDay > today}>Mark done</button>
           </div>
-          <p class="hint">Forgot to tick it off? Pick the day it was done.</p>
+          <p class="hint">Forgot to tick it off? Pick the day it was done. Tap a name to change who did it.</p>
         </div>
+        <RepeatFields cadence={cadence} days={days} times={timesOf(chore)} onCadence={pickCadence} onDays={pickDays} onTimes={pickTimes} />
         {(!inList || chore.owner) && <OwnerPicker value={chore.owner || null} onChange={pickOwner} />}
         <EmojiPicker value={icon} onChange={pickIcon} prefer={inList ? [] : CHORE_ICONS} />
         <button class="btn primary big" type="submit">Done</button>
