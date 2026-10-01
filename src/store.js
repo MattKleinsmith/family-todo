@@ -2,7 +2,7 @@
 // timestamp; records merge with last-writer-wins, so two phones can edit
 // offline and converge once they both reach the relays. Deletes are tombstones
 // (`deleted: true`) so a delete on one phone beats a stale edit on the other.
-import { normalizeDays } from './house.js';
+import { DAY_CADENCES, normalizeDays } from './house.js';
 
 export function newId() {
   const buf = new Uint8Array(12);
@@ -420,7 +420,7 @@ export function createStore({
   function addChore({ name, cadence = 'weekly', icon = '', owner = null, times = 1, days = null, createdBy = '', listId = null }) {
     const n = (name || '').trim();
     if (!n) return null;
-    const d = cadence === 'daily' ? normalizeDays(days) : null;
+    const d = DAY_CADENCES.includes(cadence) ? normalizeDays(days) : null;
     return putLocal({ id: newId(), type: 'chore', name: n, cadence, icon, owner: owner || null, times, ...(d ? { days: d } : {}), done: [], createdBy, createdAt: stamp(), deleted: false, ...(listId ? { listId } : {}) });
   }
 
@@ -442,7 +442,7 @@ export function createStore({
       icon: '',
       owner: null,
       times: Math.min(99, Math.max(1, Math.round(Number(times) || 1))),
-      ...(cadence === 'daily' && normalizeDays(days) ? { days: normalizeDays(days) } : {}),
+      ...(DAY_CADENCES.includes(cadence) && normalizeDays(days) ? { days: normalizeDays(days) } : {}),
       done: item.done && item.doneAt ? [{ at: item.doneAt, by: item.updatedBy || '' }] : [],
       createdBy: item.createdBy || '',
       createdAt: stamp(),

@@ -8,7 +8,7 @@
 //
 // What you've already seen is per phone: a single "seen up to" time, kept locally.
 import { formatTime, formatDuration } from './baby.js';
-import { cadenceText, daysOf, periodIndex, periodWord, repeatsText, timesOf } from './house.js';
+import { cadenceText, daysOf, periodCadence, periodIndex, periodWord, repeatsText, timesOf } from './house.js';
 import { iconToText } from './icons.js';
 import { memberKey, sameName } from './members.js';
 
@@ -126,7 +126,7 @@ export function describeChange(prev, next, ctx = {}) {
         // Ticked off now, or filled in afterwards for an earlier day.
         // Chores done several times a period say which time this was.
         const target = timesOf(next);
-        const cad = next.cadence || 'weekly';
+        const cad = periodCadence(next);
         const nth = (next.done || []).filter((x) => x.at <= d.at && periodIndex(cad, x.at) === periodIndex(cad, d.at)).length;
         const of = target > 1 ? ` (${nth} of ${target} ${periodWord(cad)})` : '';
         if (next.updatedAt - d.at < 3600_000) parts.push(`checked off ${q(next.name)}${of}`);

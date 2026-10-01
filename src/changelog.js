@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'weekly-on-a-day',
+    at: '2026-10-01T10:50:00-04:00',
+    text: 'Anything that repeats, in any list or on the House tab, can now be “every Wednesday”: choose Weekly, then tap the day under “On a set day”. Picking days works the same everywhere, including when you first make an item repeat.',
+  },
+  {
     id: 'own-devices-not-news',
     at: '2026-10-01T10:37:00-04:00',
     text: 'Changes you make on your other devices (say, your Mac) no longer light up the bell or a list’s “new changes” note on your phone. They’re yours, so they’re not news.',
