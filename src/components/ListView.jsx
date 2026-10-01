@@ -5,6 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon, GearIcon, GripIcon, PlusIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { LinkButton, LinkField } from './Link.jsx';
 import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
 import { iconToken } from '../icons.js';
@@ -265,6 +266,7 @@ function ItemRow({ item, flash, grip, onToggle, onEdit, onDelete }) {
         <span>{item.text}</span>
         {item.createdBy && <span class="item-by">{item.createdBy}</span>}
       </button>
+      <LinkButton link={item.link} name={item.text} />
       {grip && (
         <span class="grip" role="button" aria-label={`Drag to reorder ${item.text}`} {...grip}>
           <GripIcon />
@@ -327,6 +329,7 @@ function EditItemSheet({ item, onClose, onRepeat }) {
           <input type="text" value={text} onInput={(e) => setText(e.currentTarget.value)} autoFocus />
           {item.createdBy && <p class="hint">Added by {item.createdBy}</p>}
         </div>
+        <LinkField value={item.link || null} onCommit={(link) => store.updateItem(item.id, { link })} />
         {/* The same repeat controls as everywhere else, shown as soon as it repeats so it's set up in one go. */}
         <RepeatFields never cadence={repeat} days={days} times={times} onCadence={setRepeat} onDays={setDays} onTimes={setTimes} />
         <p class="hint">

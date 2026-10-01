@@ -52,3 +52,12 @@ export const PlusIcon = () => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+/** Opens a link (a box with an arrow leaving it). */
+export const LinkOutIcon = () => (
+  <svg {...base}>
+    <path d="M14 4h6v6" />
+    <path d="M20 4l-9 9" />
+    <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+  </svg>
+);

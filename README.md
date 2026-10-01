@@ -134,6 +134,11 @@ tab to drag them into another order (kept per phone).
 
 ### Repeating items in any list
 
+Any item or chore, repeating or not, can carry a **link** (say, the Google Form
+for a daily check-in): tap it and paste the link under "Link". The row then shows
+a ↗ that opens the page in the browser; the app stays as it was, so you can come
+back and tick it off. Only web (http/https) links are ever opened.
+
 For personal habits that the rest of the family doesn't need front and centre
 (practicing a language, reading), any list can have **repeating items**. Tap an
 item and choose **Repeat** (daily, weekly, every 2 weeks or monthly), or pick
