@@ -47,8 +47,8 @@ describe('describeChange', () => {
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', updatedAt: 1 }, ctx)).toBe('named the baby Theo');
     expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 150, updatedAt: 1 }, ctx)).toBe('set feeds to about every 2h 30m');
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 180, napAfterFeedMin: 120, updatedAt: 1 }, ctx)).toBe('named the baby Theo');
-    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterFeedMin: 90, updatedAt: 1 }, ctx)).toBe('set naps to about 1h 30m after a feed');
-    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterFeedMin: 60, updatedAt: 1 }, ctx)).toBe('set naps to about 1h after a feed');
+    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 90, updatedAt: 1 }, ctx)).toBe('set naps to about 1h 30m after waking up');
+    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 60, updatedAt: 1 }, ctx)).toBe('set naps to about 1h after waking up');
     const m = { id: 'd1', type: 'member', name: 'Huishi', device: 'iPhone', joinedAt: 1, leftAt: null, updatedAt: 1 };
     expect(describeChange(null, m, ctx)).toBe('joined the family on an iPhone');
     expect(describeChange(null, { ...m, device: 'Mac' }, { ...ctx, knownPerson: true })).toBe('started using the app on a Mac');

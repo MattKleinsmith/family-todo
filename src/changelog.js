@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'nap-after-waking',
+    at: '2026-10-02T12:30:00-04:00',
+    text: 'The next-nap countdown now starts when the baby wakes up (2 hours awake, by default), not when he was last fed. You can change how long in the Baby tab’s settings.',
+    href: '#/baby',
+  },
+  {
     id: 'skipped-to-bottom',
     at: '2026-10-02T10:09:00-04:00',
     text: 'Skipped chores and repeating items now drop to the bottom of their group so they’re out of the way. Everything else keeps your order, and a skipped one goes back to its place when the next round starts (or if you un-skip it).',
