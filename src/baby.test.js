@@ -32,14 +32,15 @@ describe('currentState', () => {
     expect(st.asleep).toBeNull();
     expect(st.awakeSince).toBe(now - 90 * M);
     expect(nextFeedAt(st.lastFeed, 180)).toBe(now + 140 * M);
-    // Nap is due a set time after the last feed started (fed 40m ago).
-    expect(nextNapAt(st, 120)).toBe(now + 80 * M);
-    expect(nextNapAt(st, 90)).toBe(now + 50 * M);
-    expect(nextNapAt(st)).toBe(now + 80 * M); // default 2h
-    // Nothing due while asleep, before any feed, or once he's napped since the feed.
+    // Nap is due a set time after he woke up (90m ago), whenever he was fed.
+    expect(nextNapAt(st, 120)).toBe(now + 30 * M);
+    expect(nextNapAt(st, 90)).toBe(now);
+    expect(nextNapAt(st)).toBe(now + 30 * M); // default 2h
+    // After waking from the night too, and a feed in between changes nothing.
+    expect(nextNapAt(currentState([feed('f', now - 10 * M), { ...sleep('n', now - 11 * H, now - 20 * M), night: true }], now))).toBe(now + 100 * M);
+    // Nothing due while asleep, or before any sleep has been logged.
     expect(nextNapAt(currentState([sleep('s2', now - 20 * M, null), feed('f', now - H)], now))).toBeNull();
-    expect(nextNapAt(currentState([sleep('s1', now - 3 * H, now - 2 * H)], now))).toBeNull();
-    expect(nextNapAt(currentState([sleep('s3', now - 30 * M, now - 10 * M), feed('f', now - 2 * H)], now))).toBeNull();
+    expect(nextNapAt(currentState([feed('f', now - H)], now))).toBeNull();
   });
   it('picks the earliest of two accidentally open sleeps', () => {
     const logs = [sleep('b', now - 5 * M, null), sleep('a', now - 30 * M, null)];

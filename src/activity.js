@@ -97,8 +97,8 @@ export function describeChange(prev, next, ctx = {}) {
       const DEFAULT = 180;
       if ((next.feedIntervalMin || DEFAULT) !== (p.feedIntervalMin || DEFAULT)) parts.push(`set feeds to about every ${every(next.feedIntervalMin || DEFAULT)}`);
       const NAP_DEFAULT = 120;
-      if ((next.napAfterFeedMin || NAP_DEFAULT) !== (p.napAfterFeedMin || NAP_DEFAULT))
-        parts.push(`set naps to about ${every(next.napAfterFeedMin || NAP_DEFAULT)} after a feed`);
+      if ((next.napAfterWakeMin || NAP_DEFAULT) !== (p.napAfterWakeMin || NAP_DEFAULT))
+        parts.push(`set naps to about ${every(next.napAfterWakeMin || NAP_DEFAULT)} after waking up`);
       const bed = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       if ((next.bedtimeMin ?? 1260) !== (p.bedtimeMin ?? 1260)) parts.push(`set night sleep to start after ${bed(next.bedtimeMin ?? 1260)}`);
       if ((next.nightAfterFeed ?? 5) !== (p.nightAfterFeed ?? 5))

@@ -10,7 +10,7 @@ import { swipeDelete } from './SwipeAction.jsx';
 import { newestOf, useMarkSeen } from './useSeen.js';
 import {
   DEFAULT_FEED_INTERVAL_MIN,
-  DEFAULT_NAP_AFTER_FEED_MIN,
+  DEFAULT_NAP_AFTER_WAKE_MIN,
   currentState,
   dayLabel,
   dayStart,
@@ -69,7 +69,7 @@ export function Baby({ focus }) {
   const profile = store.getMeta('baby') || {};
   const name = profile.name || 'Baby';
   const feedEvery = profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN;
-  const napAfter = profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN;
+  const napAfter = profile.napAfterWakeMin || DEFAULT_NAP_AFTER_WAKE_MIN;
   const nightRules = {
     bedtimeMin: profile.bedtimeMin ?? DEFAULT_BEDTIME_MIN,
     nightAfterFeed: profile.nightAfterFeed ?? DEFAULT_NIGHT_AFTER_FEED,
@@ -136,7 +136,7 @@ export function Baby({ focus }) {
           ) : sleepDue ? (
             <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} />
           ) : (
-            <NextTile glyph="sleeping" title="Next nap" value="—" note={afterNight ? 'after the morning feed' : state.lastFeed ? 'napped since the last feed' : 'log a feed to see'} quiet />
+            <NextTile glyph="sleeping" title="Next nap" value="—" note="log a sleep to see" quiet />
           )}
           {downForNight ? (
             // No feeds during the night sleep, so nothing counts down or goes overdue.
@@ -364,7 +364,7 @@ function BabyMenuSheet({ profile, onClose }) {
   // the field is left or the sheet closes, not on every keystroke.
   const [name, setName] = useState(profile.name || '');
   const [feedEvery, setFeedEvery] = useState(profile.feedIntervalMin || DEFAULT_FEED_INTERVAL_MIN);
-  const [napAfter, setNapAfter] = useState(profile.napAfterFeedMin || DEFAULT_NAP_AFTER_FEED_MIN);
+  const [napAfter, setNapAfter] = useState(profile.napAfterWakeMin || DEFAULT_NAP_AFTER_WAKE_MIN);
   const [bedtime, setBedtime] = useState(profile.bedtimeMin ?? DEFAULT_BEDTIME_MIN);
   const [nightAfter, setNightAfter] = useState(profile.nightAfterFeed ?? DEFAULT_NIGHT_AFTER_FEED);
   const pick = (setter, field) => (v) => {
@@ -383,7 +383,7 @@ function BabyMenuSheet({ profile, onClose }) {
     e.preventDefault();
     close();
   };
-  const choose = { feedEvery: pick(setFeedEvery, 'feedIntervalMin'), napAfter: pick(setNapAfter, 'napAfterFeedMin'), bedtime: pick(setBedtime, 'bedtimeMin'), nightAfter: pick(setNightAfter, 'nightAfterFeed') };
+  const choose = { feedEvery: pick(setFeedEvery, 'feedIntervalMin'), napAfter: pick(setNapAfter, 'napAfterWakeMin'), bedtime: pick(setBedtime, 'bedtimeMin'), nightAfter: pick(setNightAfter, 'nightAfterFeed') };
   const clock = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const label = (m) => (m < 60 ? `${m}m` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h ${m % 60}m`);
   return (
@@ -405,13 +405,13 @@ function BabyMenuSheet({ profile, onClose }) {
           </div>
         </div>
         <div class="field">
-          <label>Nap about this long after a feed starts</label>
+          <label>Nap about this long after waking up</label>
           <div class="chips" role="radiogroup">
             {NAP_AFTER.map((m) => (
               <button type="button" key={m} role="radio" aria-checked={napAfter === m} class={'chip' + (napAfter === m ? ' on' : '')} onClick={() => choose.napAfter(m)}>{label(m)}</button>
             ))}
           </div>
-          <p class="hint">Used only for the "next feed" and "next nap" hints, both counted from when the last feed started. Adjust as his rhythm changes.</p>
+          <p class="hint">Used only for the countdowns: the next feed counts from when the last feed started, the next nap from when he last woke up. Adjust as his rhythm changes.</p>
         </div>
         <div class="field">
           <label>Night sleep: “Fell asleep” after this time</label>

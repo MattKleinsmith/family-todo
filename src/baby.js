@@ -2,7 +2,8 @@
 // totals, and time formatting. Kept free of UI so they can be unit tested.
 
 export const DEFAULT_FEED_INTERVAL_MIN = 180;
-export const DEFAULT_NAP_AFTER_FEED_MIN = 120;
+/** How long he's awake before the next nap: counted from when he last woke up. */
+export const DEFAULT_NAP_AFTER_WAKE_MIN = 120;
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -82,14 +83,13 @@ export function nextFeedAt(lastFeed, intervalMin = DEFAULT_FEED_INTERVAL_MIN) {
 }
 
 /**
- * The next nap is due `afterFeedMin` after the last feed started. Nothing is
- * due while he's asleep, or once he has already napped since that feed; the
- * next feed starts the next countdown.
+ * The next nap is due `afterWakeMin` after he last woke up (from a nap or the
+ * night). Nothing is due while he's asleep, or before any sleep has been
+ * logged, since there's no wake-up to count from.
  */
-export function nextNapAt(state, afterFeedMin = DEFAULT_NAP_AFTER_FEED_MIN) {
-  if (state.asleep || !state.lastFeed) return null;
-  if (state.lastSleep && state.lastSleep.startAt >= state.lastFeed.startAt) return null;
-  return state.lastFeed.startAt + afterFeedMin * MIN;
+export function nextNapAt(state, afterWakeMin = DEFAULT_NAP_AFTER_WAKE_MIN) {
+  if (state.asleep || state.awakeSince == null) return null;
+  return state.awakeSince + afterWakeMin * MIN;
 }
 
 /** "in 45m" / "20m ago" / "now" for a target timestamp. */
