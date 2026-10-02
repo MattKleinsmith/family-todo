@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'skip-a-round',
+    at: '2026-10-02T09:55:00-04:00',
+    text: 'Not doing a chore or repeating item this time? Swipe it right to skip it (or tap it and choose Skip). Skipped ones don’t count as missed and clear anything overdue; swipe again to un-skip. Swiping left still deletes.',
+    href: '#/house',
+  },
+  {
     id: 'jump-to-overdue',
     at: '2026-10-01T15:44:00-04:00',
     text: 'Tap “2 overdue” at the top of the House tab to jump straight to the first overdue chore.',

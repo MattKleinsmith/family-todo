@@ -2,6 +2,10 @@
 // a red Delete button showing, a long swipe deletes straight away, and a tap
 // anywhere else (or a scroll) closes the open row without doing anything else.
 //
+// A row can also have a leading action (`onLead`, like Skip on a chore):
+// swipe it right past the button's width and let go, and the action runs and
+// the row springs back, like iOS Mail's swipe right.
+//
 // The row itself slides; its `.swipe-action` child sits just past its right
 // edge and grows to fill the gap. Vertical scrolling is left to the browser
 // (touch-action: pan-y), and touches that start on a drag grip or a text
@@ -17,15 +21,20 @@ let swallowUntil = 0; // swallow the click that follows a tap which only closed 
 function actionOf(row) {
   return row.querySelector(':scope > .swipe-action');
 }
+function leadOf(row) {
+  return row.querySelector(':scope > .swipe-lead');
+}
 
 function place(row, x, animate) {
   const action = actionOf(row);
+  const lead = leadOf(row);
   const t = animate ? 'transform 0.22s ease, height 0.22s ease' : 'none';
   row.style.transition = t;
   row.style.transform = x ? `translate3d(${x}px, 0, 0)` : '';
-  if (action) {
-    action.style.transition = animate ? 'width 0.22s ease' : 'none';
-    action.style.width = `${Math.max(0, -x)}px`;
+  for (const [el, w] of [[action, Math.max(0, -x)], [lead, Math.max(0, x)]]) {
+    if (!el) continue;
+    el.style.transition = animate ? 'width 0.22s ease' : 'none';
+    el.style.width = `${w}px`;
   }
   if (x) row.dataset.swipe = row.dataset.swipe === 'armed' ? 'armed' : 'moving';
   else delete row.dataset.swipe;
@@ -93,7 +102,7 @@ function removeRow(row, done) {
  * long swipe or by pressing its Delete button. With `confirm`, the row
  * springs back instead of folding away, because `onDelete` will ask first.
  */
-export function swipeHandlers({ onDelete, confirm = false }) {
+export function swipeHandlers({ onDelete, confirm = false, onLead = null }) {
   const commit = (row) => {
     open = null;
     removeDocListeners();
@@ -107,7 +116,7 @@ export function swipeHandlers({ onDelete, confirm = false }) {
     onPointerDown(e) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       const row = e.currentTarget;
-      if (e.target.closest('.grip, input, textarea, .swipe-action')) return;
+      if (e.target.closest('.grip, input, textarea, .swipe-action, .swipe-lead')) return;
       const startX = e.clientX;
       const startY = e.clientY;
       const base = open && open.row === row ? -ACTION_W : 0;
@@ -122,7 +131,7 @@ export function swipeHandlers({ onDelete, confirm = false }) {
         const dx = ev.clientX - startX;
         const dy = ev.clientY - startY;
         if (!mode) {
-          if (Math.abs(dx) > DECIDE && Math.abs(dx) > Math.abs(dy) * 1.2 && (dx < 0 || base < 0)) {
+          if (Math.abs(dx) > DECIDE && Math.abs(dx) > Math.abs(dy) * 1.2 && (dx < 0 || base < 0 || onLead)) {
             mode = 'swipe';
             if (open && open.row !== row) closeOpenRow();
             try {
@@ -140,9 +149,10 @@ export function swipeHandlers({ onDelete, confirm = false }) {
         velocity = (ev.clientX - lastX) / Math.max(1, now - lastT);
         lastX = ev.clientX;
         lastT = now;
-        x = Math.min(0, base + dx);
+        // Rightwards only for a row with a leading action, and only from closed.
+        x = onLead && base === 0 ? Math.min(row.offsetWidth * 0.8, base + dx) : Math.min(0, base + dx);
         place(row, x, false);
-        setArmed(row, -x > row.offsetWidth * FULL_SWIPE);
+        setArmed(row, x > 0 ? x > ACTION_W : -x > row.offsetWidth * FULL_SWIPE);
       };
 
       const finish = (commitGesture) => {
@@ -154,6 +164,14 @@ export function swipeHandlers({ onDelete, confirm = false }) {
         setTimeout(() => delete row.dataset.swiped, 400);
         if (!commitGesture) {
           place(row, base, true);
+          return;
+        }
+        if (x > 0) {
+          // The leading action runs once it's pulled past its button's width; the row always springs back.
+          const go = x > ACTION_W || (velocity > 0.8 && x > ACTION_W / 2);
+          setArmed(row, false);
+          place(row, 0, true);
+          if (go) setTimeout(onLead, 0);
           return;
         }
         const width = row.offsetWidth;

@@ -147,6 +147,20 @@ export function House({ focus }) {
   );
 }
 
+/** Skip this round of a chore (or take the skip back), with an Undo. */
+export function useChoreSkip() {
+  const { store, session, deleted: showUndo } = useApp();
+  return ({ chore, status }) => {
+    if (status.skipped) {
+      store.unskipChore(chore.id, status.skipped.at);
+      return;
+    }
+    const at = Date.now();
+    store.skipChore(chore.id, { at, by: session.name });
+    showUndo(`Skipped “${chore.name}” ${periodWord(status.period)}`, () => store.unskipChore(chore.id, at));
+  };
+}
+
 /** Tap to tick off one more time; once it's all done, a tap takes the last one back. */
 export function useChoreToggle(highlight = () => {}) {
   const { store, session, deleted: showUndo } = useApp();
@@ -167,8 +181,10 @@ function Summary({ chores, now, onJump }) {
   if (chores.length === 0) return null;
   const overdue = chores.filter((x) => x.status.state === 'overdue').sort((a, b) => b.status.missed - a.status.missed);
   // A chore having its day off (not on today) isn't part of today.
-  const left = (k) => chores.filter((x) => x.status.cadence === k && x.status.state !== 'done' && x.status.state !== 'off').length;
-  const total = (k) => chores.filter((x) => x.status.cadence === k && x.status.state !== 'off').length;
+  // Skipped ones are let go for now: not left to do, and not part of the count.
+  const counts = (x) => x.status.state !== 'off' && x.status.state !== 'skipped';
+  const left = (k) => chores.filter((x) => x.status.cadence === k && counts(x) && x.status.state !== 'done').length;
+  const total = (k) => chores.filter((x) => x.status.cadence === k && counts(x)).length;
   const month = new Date(now).toLocaleDateString([], { month: 'long' });
   const periods = [
     { k: 'daily', label: 'Today' },
@@ -277,10 +293,12 @@ export function useDaysOff(rows) {
   const [showOff, setShowOff] = useState(false);
   const today = rows.filter((x) => x.status.state !== 'off');
   const off = rows.length - today.length;
-  const done = today.filter((x) => x.status.done).length;
+  // Skipped ones stay in view but don't count either way.
+  const counted = today.filter((x) => x.status.state !== 'skipped');
+  const done = counted.filter((x) => x.status.done).length;
   return {
     shown: showOff ? rows : today,
-    stats: today.length ? `${done} of ${today.length} done` : 'Nothing today',
+    stats: counted.length ? `${done} of ${counted.length} done` : today.length ? 'All skipped' : 'Nothing today',
     toggle: off ? (
       <li class="off-row">
         <button type="button" class="off-toggle" aria-expanded={showOff} onClick={() => setShowOff((v) => !v)}>
@@ -295,7 +313,9 @@ export function useDaysOff(rows) {
 /** One chore. `showCadence` prefixes the status line with how often it repeats, for lists that mix them. */
 export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, onDelete, showCadence = false }) {
   const { session } = useApp();
-  const swipe = swipeDelete(onDelete);
+  const skip = useChoreSkip();
+  // Swipe right to skip this round (or take the skip back); not once it's done.
+  const swipe = swipeDelete(onDelete, { lead: status.done ? null : { label: status.skipped ? 'Un-skip' : 'Skip', onCommit: () => skip({ chore, status }) } });
   const mine = sameName(chore.owner, session.name);
   const level = status.state === 'overdue' ? (status.missed >= 2 ? 'late' : 'behind') : '';
   const multi = status.target > 1;
@@ -310,6 +330,7 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
         <b class="progress">{status.count} of {status.target}</b> · last {whenLabel(status.latest.at, now)}{by(status.latest)}
       </>
     );
+  else if (status.skipped) sub = <>Skipped {periodWord(status.period)}{by(status.skipped)}</>;
   else if (status.state === 'off') sub = <>Not today · {nextDayLabel(status.nextDay, now)}{status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}</>;
   else if (status.state === 'overdue')
     sub = (
@@ -321,14 +342,15 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
   else sub = <>{dueLabel(status)}{status.last ? ` · last done ${whenLabel(status.last.at, now)}` : ''}</>;
 
   return (
-    <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (status.state === 'off' ? ' off' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
+    <li id={`chore-${chore.id}`} data-id={chore.id} {...swipe.row} class={'item chore swipe-row' + (status.done ? ' is-done' : '') + (status.state === 'off' ? ' off' : '') + (status.skipped ? ' skipped' : '') + (level ? ` ${level}` : '') + (flash ? ' flash' : '')}>
+      {swipe.lead}
       <button
         class={'check' + (multi && !status.done ? ' multi' : '')}
         aria-label={status.done ? `Take back the last ${chore.name}` : multi ? `Mark ${chore.name} done (${status.count} of ${status.target} so far)` : `Mark ${chore.name} done`}
         aria-pressed={!!status.done}
         onClick={onToggle}
       >
-        {multi && !status.done ? <ProgressRing count={status.count} target={status.target} /> : <span class="check-mark">{status.done ? '✓' : ''}</span>}
+        {multi && !status.done && !status.skipped ? <ProgressRing count={status.count} target={status.target} /> : <span class="check-mark">{status.done ? '✓' : status.skipped ? '–' : ''}</span>}
       </button>
       <button class="item-text chore-text" onClick={onEdit}>
         {chore.icon && <span class="chore-icon"><ListIcon value={chore.icon} size={26} /></span>}
@@ -680,6 +702,8 @@ export function ChoreSheet({ chore, onClose }) {
   const [pastDay, setPastDay] = useState(dateInput(Date.now() - 24 * 3600 * 1000));
   const history = doneList(chore);
   const today = dateInput(Date.now());
+  const status = choreStatus(chore, Date.now());
+  const skip = useChoreSkip();
 
   // Changes save as they're made, so closing the sheet any way at all keeps them.
   const change = (changes) => store.updateChore(chore.id, changes);
@@ -760,6 +784,14 @@ export function ChoreSheet({ chore, onClose }) {
           </div>
           <p class="hint">Forgot to tick it off? Pick the day it was done. Tap a name to change who did it.</p>
         </div>
+        {!status.done && (
+          <div class="field">
+            <button class="btn big skip-btn" type="button" onClick={() => skip({ chore, status })}>
+              {status.skipped ? `Un-skip (skipped ${periodWord(status.period)}${status.skipped.by ? ` by ${status.skipped.by}` : ''})` : `Skip ${periodWord(status.period)}`}
+            </button>
+            <p class="hint">{status.skipped ? 'It’s back to “to do” for this round.' : 'Not doing it this time? Skip it: it won’t count as missed. Or swipe the row right.'}</p>
+          </div>
+        )}
         <RepeatFields cadence={cadence} days={days} times={timesOf(chore)} onCadence={pickCadence} onDays={pickDays} onTimes={pickTimes} />
         {(!inList || chore.owner) && <OwnerPicker value={chore.owner || null} onChange={pickOwner} />}
         <EmojiPicker value={icon} onChange={pickIcon} prefer={inList ? [] : CHORE_ICONS} />

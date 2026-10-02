@@ -137,6 +137,11 @@ export function repeatsText(chore) {
 
 const weekdayOfDay = (n) => new Date(n * DAY).getUTCDay();
 
+/** Skips (a round let go on purpose), newest first, ignoring anything malformed. */
+export function skipList(chore) {
+  return (Array.isArray(chore.skipped) ? chore.skipped : []).filter((d) => d && typeof d.at === 'number').sort((a, b) => b.at - a.at);
+}
+
 /** Completions, newest first, ignoring anything malformed. */
 export function doneList(chore) {
   return (Array.isArray(chore.done) ? chore.done : []).filter((d) => d && typeof d.at === 'number').sort((a, b) => b.at - a.at);
@@ -150,7 +155,9 @@ export function doneList(chore) {
  *  - `missed`: how many periods before this one went by without it,
  *    including the one it was added in unless it was added on its last day;
  *    Any completion this period, even one of two, means it's under way;
- *  - `state`: 'done', 'due', or 'overdue' (none yet this period and missed ≥ 1);
+ *  - `skipped`: the skip covering this period, if it was let go on purpose;
+ *  - `state`: 'done', 'skipped', 'due', 'overdue' (none yet this period and
+ *    missed ≥ 1), or 'off' (a chore on set days, on a day it isn't on);
  *  - `daysLeft`: whole days left in the current period, counting today.
  */
 export function choreStatus(chore, now = Date.now()) {
@@ -166,23 +173,28 @@ export function choreStatus(chore, now = Date.now()) {
   const count = list.filter((d) => periodIndex(period, d.at) === current).length;
   const latest = count ? last : null;
   const done = count >= target ? last : null;
+  // Skipping lets a round go on purpose: it's not done, but not missed either,
+  // and like doing it, it clears anything overdue before it.
+  const lastSkip = skipList(chore).find((d) => d.at <= now + 60_000) || null;
+  const skipped = !done && lastSkip && periodIndex(period, lastSkip.at) === current ? lastSkip : null;
   // Before it's ever done, the period it was added in counts too (a monthly
   // chore added in September and not done by October is overdue), unless it
   // was added on that period's last day: no time left to do it.
   const created = chore.createdAt || now;
   const addedOnLastDay = dayNumber(periodBounds(period, created).end - 1) === dayNumber(created);
-  const baseline = last ? periodIndex(period, last.at) : periodIndex(period, created) - (addedOnLastDay ? 0 : 1);
+  const acted = [last, lastSkip].filter(Boolean).map((d) => periodIndex(period, d.at));
+  const baseline = acted.length ? Math.max(...acted) : periodIndex(period, created) - (addedOnLastDay ? 0 : 1);
   const { end } = periodBounds(period, now);
   const daysLeft = Math.max(1, dayNumber(end - 1) - dayNumber(now) + 1);
   if (!days) {
-    const missed = count ? 0 : Math.max(0, current - baseline - 1);
-    return { cadence, period, days, done, latest, last, count, target, missed, daysLeft, state: done ? 'done' : missed > 0 ? 'overdue' : 'due' };
+    const missed = count || skipped ? 0 : Math.max(0, current - baseline - 1);
+    return { cadence, period, days, done, skipped, latest, last, count, target, missed, daysLeft, state: done ? 'done' : skipped ? 'skipped' : missed > 0 ? 'overdue' : 'due' };
   }
   // Only some days: a day it isn't on is a day off, and only its own days can be missed.
   const today = days.includes(weekdayOfDay(current));
   let missed = 0;
   let lastMissed = null;
-  if (today && !count) {
+  if (today && !count && !skipped) {
     for (let n = Math.max(baseline + 1, current - 400); n < current; n++) {
       if (days.includes(weekdayOfDay(n))) {
         missed++;
@@ -197,6 +209,7 @@ export function choreStatus(chore, now = Date.now()) {
     period,
     days,
     done,
+    skipped,
     latest,
     last,
     count,
@@ -207,7 +220,7 @@ export function choreStatus(chore, now = Date.now()) {
     missedDay: lastMissed === null ? null : dayStartOf(lastMissed),
     // The next day it comes up, for a day off ("Next Monday").
     nextDay: dayStartOf(next),
-    state: done ? 'done' : !today ? 'off' : missed > 0 ? 'overdue' : 'due',
+    state: done ? 'done' : skipped ? 'skipped' : !today ? 'off' : missed > 0 ? 'overdue' : 'due',
   };
 }
 

@@ -144,6 +144,10 @@ export function describeChange(prev, next, ctx = {}) {
       // Only the history cap trimming the oldest entry isn't news.
       const trimmed = added.length > 0 && removed.length === 1 && (prev.done || []).length >= 20 && removed[0].at === Math.min(...(prev.done || []).map((d) => d.at));
       if (removed.length && !trimmed) parts.push(`unchecked ${q(next.name)}`);
+      const hadSkip = new Set((prev.skipped || []).map((d) => d.at));
+      const hasSkip = new Set((next.skipped || []).map((d) => d.at));
+      if ((next.skipped || []).some((d) => !hadSkip.has(d.at))) parts.push(`skipped ${q(next.name)} ${periodWord(periodCadence(next))}`);
+      else if ((prev.skipped || []).some((d) => !hasSkip.has(d.at))) parts.push(`un-skipped ${q(next.name)}`);
       // Same completion, someone else did it.
       const byAt = new Map((prev.done || []).map((d) => [d.at, d.by || '']));
       for (const d of next.done || []) {
@@ -200,7 +204,7 @@ export function areaOf(e) {
  */
 export function isQuiet(prev, next) {
   if (!prev || next.type !== 'chore' || !next.listId || next.deleted) return false;
-  const skip = new Set(['done', 'updatedAt', 'updatedBy']);
+  const skip = new Set(['done', 'skipped', 'updatedAt', 'updatedBy']);
   const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
   for (const k of keys) if (!skip.has(k) && JSON.stringify(prev[k]) !== JSON.stringify(next[k])) return false;
   return true;

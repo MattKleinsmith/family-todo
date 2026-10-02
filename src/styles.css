@@ -21,6 +21,8 @@
   --sun-soft: #fdf0c9;
   --danger: #d9776b;
   --swipe-red: #d4473a;
+  --skip: #6f86a6;
+  --skip-strong: #56708f;
   --ok: #6f9d72;
   --warn: #d99a4b;
   --radius: 22px;
@@ -55,7 +57,11 @@
     --sun-soft: #5c4d2b;
     --danger: #e9958a;
   --swipe-red: #c7473b;
+  --skip: #5f7898;
+  --skip-strong: #4d6584;
     --swipe-red: #c7473b;
+    --skip: #5f7898;
+    --skip-strong: #4d6584;
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 10px 26px rgba(0, 0, 0, 0.28);
     --bubble: rgba(255, 255, 255, 0.1);
     color-scheme: dark;
@@ -713,3 +719,19 @@ select.who-pill { -webkit-appearance: none; appearance: none; padding-right: 28p
 .house-status.jump { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .house-status.jump:active { transform: scale(0.99); }
 .house-status.jump .status-title::after { content: ' ›'; color: var(--muted); }
+
+/* Swipe a chore right to skip it this time: a slate-blue panel on the left, as in iOS Mail. */
+.swipe-lead {
+  position: absolute; top: 0; bottom: 0; right: 100%; width: 0;
+  display: flex; overflow: hidden; pointer-events: none;
+}
+.swipe-row:not([data-swipe]) .swipe-lead { visibility: hidden; }
+.swipe-lead-fill {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px;
+  background: var(--skip); color: #fff; font-weight: 700; font-size: 16px; white-space: nowrap;
+}
+.swipe-row[data-swipe="armed"] .swipe-lead-fill { background: var(--skip-strong); }
+.items > .swipe-row:first-child .swipe-lead { top: -4px; }
+.items > .swipe-row:last-child .swipe-lead { bottom: -4px; }
+.chore.skipped .chore-name, .chore.skipped .chore-icon { opacity: 0.55; }
+.chore.skipped .check::before { border-style: dashed; }
