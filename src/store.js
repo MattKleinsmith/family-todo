@@ -510,6 +510,20 @@ export function createStore({
     return patch('chore', id, { done });
   }
 
+  /** Let this round of a chore go on purpose: not done, but not missed. */
+  function skipChore(id, { at = now(), by = '' } = {}) {
+    const c = state.chores[id];
+    if (!c) return null;
+    const skipped = [{ at, by }, ...(c.skipped || []).filter((d) => d.at !== at)].sort((a, b) => b.at - a.at).slice(0, CHORE_HISTORY);
+    return patch('chore', id, { skipped });
+  }
+
+  function unskipChore(id, at) {
+    const c = state.chores[id];
+    if (!c) return null;
+    return patch('chore', id, { skipped: (c.skipped || []).filter((d) => d.at !== at) });
+  }
+
   /** Change who did one completion (ticking it off says you did, but someone else may have). */
   function setDoneBy(id, at, by) {
     const c = state.chores[id];
@@ -710,6 +724,8 @@ export function createStore({
     deleteChore,
     markChore,
     setDoneBy,
+    skipChore,
+    unskipChore,
     unmarkChore,
     chores,
     hasAnyChores,

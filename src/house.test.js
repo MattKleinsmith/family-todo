@@ -397,3 +397,36 @@ describe('who did it', () => {
   });
 });
 
+describe('skipping', () => {
+  it('lets a round go: not done, not missed, and it clears what was overdue', () => {
+    // Weekly, last done two weeks back, so it's overdue on Monday Sep 28.
+    const base = chore({ done: [{ at: at(2026, 9, 12), by: 'M' }] });
+    expect(choreStatus(base, MON).state).toBe('overdue');
+    const skipped = { ...base, skipped: [{ at: MON, by: 'Huishi' }] };
+    expect(choreStatus(skipped, MON + 3600_000)).toMatchObject({ state: 'skipped', missed: 0, done: null });
+    expect(choreStatus(skipped, MON + 3600_000).skipped.by).toBe('Huishi');
+    expect(choreStatus(skipped, at(2026, 10, 5)).state).toBe('due'); // next week: a fresh round
+    expect(choreStatus(skipped, at(2026, 10, 12)).state).toBe('overdue'); // and that one can be missed
+    // Doing it anyway wins over the skip.
+    expect(choreStatus({ ...skipped, done: [{ at: MON + 60_000, by: 'M' }, ...skipped.done] }, MON + 3600_000).state).toBe('done');
+  });
+
+  it('works for chores on set days and in the store, and says so', () => {
+    const lunch = { id: 'w', name: 'Pack lunch', cadence: 'daily', days: [1, 2, 3, 4, 5], done: [], createdAt: at(2026, 9, 21, 9) };
+    const thu = at(2026, 10, 1, 9);
+    expect(choreStatus(lunch, thu).state).toBe('overdue');
+    const s = { ...lunch, skipped: [{ at: thu, by: 'M' }] };
+    expect(choreStatus(s, thu).state).toBe('skipped');
+    expect(choreStatus(s, at(2026, 10, 2, 9)).state).toBe('due'); // Friday: the skip cleared the earlier misses
+    const store = createStore({});
+    const c = store.addChore({ name: 'Mow the lawn', cadence: 'weekly' });
+    const after = store.skipChore(c.id, { at: MON, by: 'Matthew' });
+    expect(after.skipped).toEqual([{ at: MON, by: 'Matthew' }]);
+    expect(describeChange(c, after, {})).toBe('skipped “Mow the lawn” this week');
+    const back = store.unskipChore(c.id, MON);
+    expect(back.skipped).toEqual([]);
+    expect(describeChange(after, back, {})).toBe('un-skipped “Mow the lawn”');
+    expect(isQuiet({ ...c, listId: 'l' }, { ...after, listId: 'l' })).toBe(true);
+  });
+});
+
