@@ -92,8 +92,9 @@ circle when one is done; it counts for the current day, week (Monday to Sunday),
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
 Not doing one this time? **Swipe it right to skip** this round (or open it
 and tap **Skip today / this week / this month**). A skipped chore isn't done,
-but it isn't missed either, it clears anything overdue before it, and it drops
-out of the "N of M done" counts; swipe right again (or **Un-skip**) to take it
+but it isn't missed either, it clears anything overdue before it, it drops
+out of the "N of M done" counts, and it moves to the bottom of its group (the
+one exception to your order, until the next round); swipe right again (or **Un-skip**) to take it
 back. Swiping left still deletes.
 
 Ticking it says you did it; to credit someone else, open it and tap the name

@@ -286,7 +286,8 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
 
 /**
  * Chores that only come up on some days are left out on their days off, with
- * a quiet row at the end to show them (to tick one anyway, or to edit it).
+ * a quiet row at the end to show them (to tick one anyway, or to edit it), and
+ * skipped ones go to the bottom.
  * `stats` is "2 of 3 done" for what's on today.
  */
 export function useDaysOff(rows) {
@@ -296,8 +297,11 @@ export function useDaysOff(rows) {
   // Skipped ones stay in view but don't count either way.
   const counted = today.filter((x) => x.status.state !== 'skipped');
   const done = counted.filter((x) => x.status.done).length;
+  // Skipped ones drop to the end, out of the way (the one exception to your
+  // order); they're back in place when the next round starts.
+  const visible = showOff ? rows : today;
   return {
-    shown: showOff ? rows : today,
+    shown: [...visible.filter((x) => !x.status.skipped), ...visible.filter((x) => x.status.skipped)],
     stats: counted.length ? `${done} of ${counted.length} done` : today.length ? 'All skipped' : 'Nothing today',
     toggle: off ? (
       <li class="off-row">
@@ -368,7 +372,7 @@ export function ChoreRow({ chore, status, now, flash, grip, onToggle, onEdit, on
         </span>
       </button>
       <LinkButton link={chore.link} name={chore.name} />
-      {grip && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
+      {grip && !status.skipped && <span class="grip" role="button" aria-label={`Drag to reorder ${chore.name}`} {...grip}><GripIcon /></span>}
       {swipe.action}
     </li>
   );

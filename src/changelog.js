@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'skipped-to-bottom',
+    at: '2026-10-02T10:09:00-04:00',
+    text: 'Skipped chores and repeating items now drop to the bottom of their group so they’re out of the way. Everything else keeps your order, and a skipped one goes back to its place when the next round starts (or if you un-skip it).',
+  },
+  {
     id: 'skip-a-round',
     at: '2026-10-02T09:55:00-04:00',
     text: 'Not doing a chore or repeating item this time? Swipe it right to skip it (or tap it and choose Skip). Skipped ones don’t count as missed and clear anything overdue; swipe again to un-skip. Swiping left still deletes.',
