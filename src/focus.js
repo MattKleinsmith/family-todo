@@ -3,8 +3,10 @@
 // the field is already clear of it, and the app then moves back: a bounce.
 // Taking over the tap and focusing with preventScroll leaves everything still;
 // the keyboard just slides up.
-export function focusWithoutScrolling(event) {
-  const el = event.currentTarget;
+// `el` is the field to focus, when the tap landed on something next to it
+// (like the + beside "Add an item…").
+export function focusWithoutScrolling(event, el = event.currentTarget) {
+  if (!el) return;
   if (document.activeElement === el) return; // already typing: let taps move the caret
   if (event.cancelable) event.preventDefault(); // stops Safari's own focus-and-scroll
   try {

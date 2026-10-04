@@ -173,7 +173,13 @@ export function ListView({ id, focus, asTab = false }) {
           <ItemRow key={item.id} item={item} grip={open.length > 1 ? grip : null} flash={flash === item.id} onToggle={() => store.toggleItem(item.id)} onEdit={() => setEditing(item.id)} onDelete={() => remove(item)} />
         ))}
         <li class="add-row">
-          <form class="add-item" onSubmit={add}>
+          {/* A tap anywhere on the row (the +, the padding) starts typing, not just on the text. */}
+          <form
+            class="add-item"
+            onSubmit={add}
+            onTouchEnd={(e) => !e.target.closest('input, button') && focusWithoutScrolling(e, inputRef.current)}
+            onClick={(e) => !e.target.closest('input, button') && focusWithoutScrolling(e, inputRef.current)}
+          >
             <span class="add-plus" aria-hidden="true">+</span>
             <input
               ref={inputRef}
