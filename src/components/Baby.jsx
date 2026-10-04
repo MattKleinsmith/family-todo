@@ -81,29 +81,39 @@ export function Baby({ focus }) {
     setTimeout(() => setJustAdded((cur) => (cur === log.id ? null : cur)), 1500);
   };
 
-  const fedNow = () => {
+  // `fromTile`: tapped on a countdown tile rather than its button. Those get
+  // an Undo every time, since a tile is easy to tap just to look.
+  const fedNow = (fromTile = false) => {
     const at = Date.now();
     const feed = store.addLog({ kind: 'feed', startAt: at, createdBy: session.name });
     flash(feed);
     // Fed while the app thinks he's asleep: someone forgot "Woke up", so the nap ends now.
     // A dream feed (fed without waking) is the exception, hence Undo.
     const nap = sleepEndedByFeed(logs, at);
-    if (nap) {
-      store.updateLog(nap.id, { endAt: at, endedByFeed: feed.id });
-      deleted(`Also ended the nap: woke by ${formatTime(at)} (slept ${formatDuration(at - nap.startAt)})`, () =>
-        store.updateLog(nap.id, { endAt: null, endedByFeed: null }),
-      );
-    }
+    if (nap) store.updateLog(nap.id, { endAt: at, endedByFeed: feed.id });
+    const undoNap = () => nap && store.updateLog(nap.id, { endAt: null, endedByFeed: null });
+    if (fromTile)
+      deleted(`Logged a feed at ${formatTime(at)}${nap ? ' and ended the nap' : ''}`, () => {
+        store.deleteLog(feed.id);
+        undoNap();
+      });
+    else if (nap) deleted(`Also ended the nap: woke by ${formatTime(at)} (slept ${formatDuration(at - nap.startAt)})`, undoNap);
   };
-  const sleepNow = () => {
+  const sleepNow = (fromTile = false) => {
     if (state.asleep) return;
     const at = Date.now();
     // After bedtime, or after his usual number of feeds in the evening, this is his night sleep.
-    flash(store.addLog({ kind: 'sleep', startAt: at, createdBy: session.name, night: isNightStart(at, logs, nightRules) }));
+    const night = isNightStart(at, logs, nightRules);
+    const log = store.addLog({ kind: 'sleep', startAt: at, createdBy: session.name, night });
+    flash(log);
+    if (fromTile) deleted(`Logged ${night ? 'night sleep' : 'a nap'} from ${formatTime(at)}`, () => store.deleteLog(log.id));
   };
-  const wokeNow = () => {
+  const wokeNow = (fromTile = false) => {
     if (!state.asleep) return;
-    store.updateLog(state.asleep.id, { endAt: Date.now() });
+    const id = state.asleep.id;
+    const at = Date.now();
+    store.updateLog(id, { endAt: at });
+    if (fromTile) deleted(`Woke up at ${formatTime(at)}`, () => store.updateLog(id, { endAt: null }));
   };
 
   const feedDue = feedDueAt(state, feedEvery);
@@ -130,21 +140,21 @@ export function Baby({ focus }) {
         {/* What's coming up leads; how things stand now is the small print. */}
         <div class="next-tiles">
           {downForNight ? (
-            <NextTile glyph="moon" title="Night sleep" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} />
+            <NextTile glyph="moon" title="Night sleep" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="end the sleep now" />
           ) : state.asleep ? (
-            <NextTile glyph="sleeping" title="Napping" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} />
+            <NextTile glyph="sleeping" title="Napping" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="end the sleep now" />
           ) : sleepDue ? (
-            <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} />
+            <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} onPress={() => sleepNow(true)} action="start a sleep now" />
           ) : (
-            <NextTile glyph="sleeping" title="Next nap" value="—" note="log a sleep to see" quiet />
+            <NextTile glyph="sleeping" title="Next nap" value="—" note="log a sleep to see" quiet onPress={() => sleepNow(true)} action="start a sleep now" />
           )}
           {downForNight ? (
             // No feeds during the night sleep, so nothing counts down or goes overdue.
-            <NextTile glyph="bottle" title="Next feed" value="—" note={`when ${name} wakes`} quiet />
+            <NextTile glyph="bottle" title="Next feed" value="—" note={`when ${name} wakes`} quiet onPress={() => fedNow(true)} action="log a feed now" />
           ) : feedDue ? (
-            <NextTile glyph="bottle" title="Next feed" {...(afterNight ? { ...countdown(feedDue, now), note: 'morning feed' } : countdown(feedDue, now))} />
+            <NextTile glyph="bottle" title="Next feed" {...(afterNight ? { ...countdown(feedDue, now), note: 'morning feed' } : countdown(feedDue, now))} onPress={() => fedNow(true)} action="log a feed now" />
           ) : (
-            <NextTile glyph="bottle" title="Next feed" value="—" note="no feeds logged yet" quiet />
+            <NextTile glyph="bottle" title="Next feed" value="—" note="no feeds logged yet" quiet onPress={() => fedNow(true)} action="log a feed now" />
           )}
         </div>
         {state.asleep && (downForNight || couldBeNight(state.asleep.startAt)) && (
@@ -245,11 +255,11 @@ export function Baby({ focus }) {
       </div>
 
       <div class="bottom-bar actions">
-        <button class="btn primary big" onClick={fedNow}><Glyph name="bottle" size={24} /> Fed now</button>
+        <button class="btn primary big" onClick={() => fedNow()}><Glyph name="bottle" size={24} /> Fed now</button>
         {state.asleep ? (
-          <button class="btn big wake" onClick={wokeNow}><Glyph name="sun" size={24} /> Woke up</button>
+          <button class="btn big wake" onClick={() => wokeNow()}><Glyph name="sun" size={24} /> Woke up</button>
         ) : (
-          <button class="btn big sleep" onClick={sleepNow}><Glyph name="sleeping" size={24} /> Fell asleep</button>
+          <button class="btn big sleep" onClick={() => sleepNow()}><Glyph name="sleeping" size={24} /> Fell asleep</button>
         )}
       </div>
       <TabBar active="baby" />
@@ -261,14 +271,21 @@ export function Baby({ focus }) {
 }
 
 /** One of the two big countdowns at the top: next nap, next feed. */
-function NextTile({ glyph, title, lead = '', value, note = '', state = 'later', quiet = false }) {
+/** One of the countdown tiles. With `onPress` a tap does `action`, the same as the button below it. */
+function NextTile({ glyph, title, lead = '', value, note = '', state = 'later', quiet = false, onPress = null, action = '' }) {
+  const Tag = onPress ? 'button' : 'div';
   return (
-    <div class={'next-tile ' + state + (quiet ? ' quiet' : '')}>
+    <Tag
+      type={onPress ? 'button' : undefined}
+      class={'next-tile ' + state + (quiet ? ' quiet' : '') + (onPress ? ' pressable' : '')}
+      onClick={onPress || undefined}
+      aria-label={onPress ? `${title}: ${[lead, value, note].filter(Boolean).join(' ')}. Tap to ${action}` : undefined}
+    >
       <div class="next-head"><Glyph name={glyph} size={20} /> {title}</div>
       {lead && <div class="next-lead">{lead}</div>}
       <div class="next-value">{value}</div>
       {note && <div class="next-note">{note}</div>}
-    </div>
+    </Tag>
   );
 }
 

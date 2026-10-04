@@ -59,7 +59,9 @@ with "overdue by" once late), with how long he's been awake or asleep and when h
 last ate in smaller type underneath. The next feed is counted from when the last
 feed started (the feed cycle, default 3 hours); the next nap from when he last
 woke up, from a nap or the night (default 2 hours awake). Both are set in the
-tab's menu, along with his name.
+tab's menu, along with his name. The tiles are buttons too: tapping **Next feed** logs a
+feed, **Next nap** logs that he fell asleep, and **Napping** / **Night sleep**
+logs that he woke up, the same as the buttons below, each with an Undo.
 
 A feed means he's awake: tapping **Fed now** while a nap is still running ends
 the nap at that moment (someone forgot to tap **Woke up**), with an Undo for a

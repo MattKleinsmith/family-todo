@@ -735,3 +735,10 @@ select.who-pill { -webkit-appearance: none; appearance: none; padding-right: 28p
 .items > .swipe-row:last-child .swipe-lead { bottom: -4px; }
 .chore.skipped .chore-name, .chore.skipped .chore-icon { opacity: 0.55; }
 .chore.skipped .check::before { border-style: dashed; }
+
+/* A countdown tile that logs what it's counting down to (Next feed → Fed now). */
+.next-tile.pressable {
+  border: none; text-align: left; width: 100%; align-items: stretch; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease;
+}
+.next-tile.pressable:active { transform: scale(0.97); }
