@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'add-row-tap-anywhere',
+    at: '2026-10-04T14:27:00-04:00',
+    text: 'Tapping the + next to “Add an item…” (or anywhere on that row) now starts typing, not just tapping the words.',
+  },
+  {
     id: 'nap-after-waking',
     at: '2026-10-02T12:30:00-04:00',
     text: 'The next-nap countdown now starts when the baby wakes up (2 hours awake, by default), not when he was last fed. You can change how long in the Baby tab’s settings.',

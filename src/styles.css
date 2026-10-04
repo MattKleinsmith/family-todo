@@ -643,7 +643,7 @@ li:last-child > .act { border-bottom: none; }
 .move-target.on .move-radio { background: var(--accent); border-color: var(--accent); }
 
 /* The add row at the end of a list: part of the list, not floating over it */
-.add-item { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px 6px 16px; }
+.add-item { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px 6px 16px; cursor: text; }
 .add-item .add-plus { margin: 0 5px 0 1px; color: var(--muted); }
 .add-item input[type="text"] {
   flex: 1; min-width: 0; min-height: 44px; padding: 0; border: none; background: transparent; box-shadow: none; font-size: 17px;
