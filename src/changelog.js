@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'tap-countdown-tiles',
+    at: '2026-10-04T18:22:00-04:00',
+    text: 'The big countdowns on the Baby tab are now buttons too: tap “Next feed” to log a feed, “Next nap” to log that he fell asleep, and “Napping” to log that he woke up. Each tap shows an Undo, in case you only meant to look.',
+    href: '#/baby',
+  },
+  {
     id: 'add-row-tap-anywhere',
     at: '2026-10-04T14:27:00-04:00',
     text: 'Tapping the + next to “Add an item…” (or anywhere on that row) now starts typing, not just tapping the words.',
