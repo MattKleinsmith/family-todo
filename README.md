@@ -51,20 +51,22 @@ not guessable in practice.
 
 ## The baby tracker
 
-Two buttons, always at the bottom of the Baby tab: **Fed now** and **Fell asleep**
-(which turns into **Woke up** while a nap is running). Either parent taps; both
+Two buttons, always at the bottom of the Baby tab: **Fed now** and **In bed**
+(which turns into **Out of bed** while he's down). They log what you can see,
+putting him in bed and taking him out, not the moment he actually fell asleep
+or woke up. Either parent taps; both
 phones update within a second. The top of the tab leads with two big countdowns,
 **next nap** and **next feed** ("in 1h 20m", amber in the last 15 minutes, red
-with "overdue by" once late), with how long he's been awake or asleep and when he
+with "overdue by" once late), with how long he's been out of bed or in bed and when he
 last ate in smaller type underneath. The next feed is counted from when the last
 feed started (the feed cycle, default 3 hours); the next nap from when he last
-woke up, from a nap or the night (default 2 hours awake). Both are set in the
+came out of bed, from a nap or the night (default 2 hours). Both are set in the
 tab's menu, along with his name. The tiles are buttons too: tapping **Next feed** logs a
-feed, **Next nap** logs that he fell asleep, and **Napping** / **Night sleep**
-logs that he woke up, the same as the buttons below, each with an Undo.
+feed, **Next nap** puts him in bed, and **Nap** / **Night sleep** takes him out
+of bed, the same as the buttons below, each with an Undo.
 
 A feed means he's awake: tapping **Fed now** while a nap is still running ends
-the nap at that moment (someone forgot to tap **Woke up**), with an Undo for a
+the nap at that moment (someone forgot to tap **Out of bed**), with an Undo for a
 dream feed. Moving that feed's time moves the wake-up with it.
 
 **Night sleep.** A sleep started from 9 PM on (or in the evening once he's had

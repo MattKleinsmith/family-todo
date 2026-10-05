@@ -68,8 +68,8 @@ export function describeChange(prev, next, ctx = {}) {
       if (!prev) {
         if (next.deleted) return null;
         if (next.kind === 'feed') return `logged a feed at ${formatTime(next.startAt)}${next.note ? ` (${next.note})` : ''}`;
-        if (next.endAt == null) return next.night ? `logged ${baby} going down for the night at ${formatTime(next.startAt)}` : `logged ${baby} falling asleep at ${formatTime(next.startAt)}`;
-        return `logged ${baby} sleeping ${formatTime(next.startAt)} – ${formatTime(next.endAt)} (${formatDuration(next.endAt - next.startAt)})`;
+        if (next.endAt == null) return next.night ? `put ${baby} in bed for the night at ${formatTime(next.startAt)}` : `put ${baby} in bed for a nap at ${formatTime(next.startAt)}`;
+        return `logged ${baby} in bed ${formatTime(next.startAt)} – ${formatTime(next.endAt)} (${formatDuration(next.endAt - next.startAt)})`;
       }
       if (next.deleted && !prev.deleted) return `removed the ${formatTime(prev.startAt)} ${kind(prev)}`;
       if (prev.deleted && !next.deleted) return `put back the ${formatTime(next.startAt)} ${kind(next)}`;
@@ -77,10 +77,10 @@ export function describeChange(prev, next, ctx = {}) {
       const parts = [];
       if (next.kind !== prev.kind) parts.push(`changed the ${formatTime(prev.startAt)} ${kind(prev)} to a ${kind(next)}`);
       if (next.kind === 'sleep' && prev.endAt == null && next.endAt != null)
-        parts.push(`logged ${baby} waking up at ${formatTime(next.endAt)} (slept ${formatDuration(next.endAt - next.startAt)})`);
-      else if (next.kind === 'sleep' && prev.endAt != null && next.endAt == null) parts.push(`marked the ${formatTime(next.startAt)} sleep as still going`);
+        parts.push(`took ${baby} out of bed at ${formatTime(next.endAt)} (in bed ${formatDuration(next.endAt - next.startAt)})`);
+      else if (next.kind === 'sleep' && prev.endAt != null && next.endAt == null) parts.push(`marked ${baby} as still in bed since ${formatTime(next.startAt)}`);
       else if (next.kind === 'sleep' && prev.endAt != null && next.endAt !== prev.endAt)
-        parts.push(`changed the ${formatTime(next.startAt)} sleep’s end to ${formatTime(next.endAt)}`);
+        parts.push(`moved the ${formatTime(next.startAt)} ${next.night ? 'night sleep' : 'nap'}’s out-of-bed time to ${formatTime(next.endAt)}`);
       if (next.kind === 'sleep' && !!next.night !== !!prev.night) parts.push(next.night ? `made the ${formatTime(next.startAt)} sleep his night sleep` : `made the ${formatTime(next.startAt)} sleep a nap`);
       if (next.startAt !== prev.startAt) parts.push(`moved the ${formatTime(prev.startAt)} ${kind(next)} to ${formatTime(next.startAt)}`);
       if ((next.note || '') !== (prev.note || ''))
@@ -98,7 +98,7 @@ export function describeChange(prev, next, ctx = {}) {
       if ((next.feedIntervalMin || DEFAULT) !== (p.feedIntervalMin || DEFAULT)) parts.push(`set feeds to about every ${every(next.feedIntervalMin || DEFAULT)}`);
       const NAP_DEFAULT = 120;
       if ((next.napAfterWakeMin || NAP_DEFAULT) !== (p.napAfterWakeMin || NAP_DEFAULT))
-        parts.push(`set naps to about ${every(next.napAfterWakeMin || NAP_DEFAULT)} after waking up`);
+        parts.push(`set naps to about ${every(next.napAfterWakeMin || NAP_DEFAULT)} after he’s out of bed`);
       const bed = (m) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
       if ((next.bedtimeMin ?? 1260) !== (p.bedtimeMin ?? 1260)) parts.push(`set night sleep to start after ${bed(next.bedtimeMin ?? 1260)}`);
       if ((next.nightAfterFeed ?? 5) !== (p.nightAfterFeed ?? 5))

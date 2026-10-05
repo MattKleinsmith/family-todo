@@ -98,7 +98,7 @@ export function Baby({ focus }) {
         store.deleteLog(feed.id);
         undoNap();
       });
-    else if (nap) deleted(`Also ended the nap: woke by ${formatTime(at)} (slept ${formatDuration(at - nap.startAt)})`, undoNap);
+    else if (nap) deleted(`Also ended the nap: out of bed by ${formatTime(at)} (in bed ${formatDuration(at - nap.startAt)})`, undoNap);
   };
   const sleepNow = (fromTile = false) => {
     if (state.asleep) return;
@@ -107,14 +107,14 @@ export function Baby({ focus }) {
     const night = isNightStart(at, logs, nightRules);
     const log = store.addLog({ kind: 'sleep', startAt: at, createdBy: session.name, night });
     flash(log);
-    if (fromTile) deleted(`Logged ${night ? 'night sleep' : 'a nap'} from ${formatTime(at)}`, () => store.deleteLog(log.id));
+    if (fromTile) deleted(`In bed ${night ? 'for the night' : 'for a nap'} at ${formatTime(at)}`, () => store.deleteLog(log.id));
   };
   const wokeNow = (fromTile = false) => {
     if (!state.asleep) return;
     const id = state.asleep.id;
     const at = Date.now();
     store.updateLog(id, { endAt: at });
-    if (fromTile) deleted(`Woke up at ${formatTime(at)}`, () => store.updateLog(id, { endAt: null }));
+    if (fromTile) deleted(`Out of bed at ${formatTime(at)}`, () => store.updateLog(id, { endAt: null }));
   };
 
   const feedDue = feedDueAt(state, feedEvery);
@@ -141,17 +141,17 @@ export function Baby({ focus }) {
         {/* What's coming up leads; how things stand now is the small print. */}
         <div class="next-tiles">
           {downForNight ? (
-            <NextTile glyph="moon" title="Night sleep" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="end the sleep now" />
+            <NextTile glyph="moon" title="Night sleep" value={formatDuration(now - state.asleep.startAt)} lead="in bed for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="take him out of bed now" />
           ) : state.asleep ? (
-            <NextTile glyph="sleeping" title="Napping" value={formatDuration(now - state.asleep.startAt)} lead="asleep for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="end the sleep now" />
+            <NextTile glyph="sleeping" title="Nap" value={formatDuration(now - state.asleep.startAt)} lead="in bed for" note={`since ${formatTime(state.asleep.startAt)}`} onPress={() => wokeNow(true)} action="take him out of bed now" />
           ) : sleepDue ? (
-            <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} onPress={() => sleepNow(true)} action="start a sleep now" />
+            <NextTile glyph="sleeping" title="Next nap" {...countdown(sleepDue, now)} onPress={() => sleepNow(true)} action="put him in bed now" />
           ) : (
-            <NextTile glyph="sleeping" title="Next nap" value="—" note="log a sleep to see" quiet onPress={() => sleepNow(true)} action="start a sleep now" />
+            <NextTile glyph="sleeping" title="Next nap" value="—" note="log a sleep to see" quiet onPress={() => sleepNow(true)} action="put him in bed now" />
           )}
           {downForNight ? (
             // No feeds during the night sleep, so nothing counts down or goes overdue.
-            <NextTile glyph="bottle" title="Next feed" value="—" note={`when ${name} wakes`} quiet onPress={() => fedNow(true)} action="log a feed now" />
+            <NextTile glyph="bottle" title="Next feed" value="—" note={`when ${name}’s out of bed`} quiet onPress={() => fedNow(true)} action="log a feed now" />
           ) : feedDue ? (
             <NextTile glyph="bottle" title="Next feed" {...(afterNight ? { ...countdown(feedDue, now), note: 'morning feed' } : countdown(feedDue, now))} onPress={() => fedNow(true)} action="log a feed now" />
           ) : (
@@ -168,7 +168,7 @@ export function Baby({ focus }) {
           <span>
             {[
               // While he's asleep the nap tile already says so.
-              state.asleep ? null : state.awakeSince ? `Awake ${formatDuration(now - state.awakeSince)} (since ${formatTime(state.awakeSince)})` : 'Awake · no sleep logged yet',
+              state.asleep ? null : state.awakeSince ? `Out of bed ${formatDuration(now - state.awakeSince)} (since ${formatTime(state.awakeSince)})` : 'No sleep logged yet',
               state.lastFeed ? `${state.asleep ? 'Last' : 'last'} fed ${formatTime(state.lastFeed.startAt)} (${relative(state.lastFeed.startAt, now)})` : state.asleep ? 'No feeds logged yet' : null,
             ]
               .filter(Boolean)
@@ -179,7 +179,7 @@ export function Baby({ focus }) {
 
       {logs.length === 0 && (
         <div class="empty">
-          <p>Tap a button below when {name} eats or falls asleep. Both phones see it right away.</p>
+          <p>Tap a button below when {name} eats, goes in bed, or comes out. Both phones see it right away.</p>
         </div>
       )}
 
@@ -190,7 +190,7 @@ export function Baby({ focus }) {
             <div class="day-head">
               <span>{dayLabel(g.key, now)}</span>
               <span class="day-stats">
-                {st.feeds} feed{st.feeds === 1 ? '' : 's'} · {formatDuration(st.sleepMs)} sleep
+                {st.feeds} feed{st.feeds === 1 ? '' : 's'} · {formatDuration(st.sleepMs)} in bed
               </span>
             </div>
             <ul class="items">
@@ -208,8 +208,8 @@ export function Baby({ focus }) {
                         {l.kind === 'feed'
                           ? 'Feed'
                           : l.endAt == null
-                            ? l.night ? 'Night sleep…' : 'Sleeping…'
-                            : `${l.night ? 'Night sleep' : 'Slept'} ${formatDuration(l.endAt - l.startAt)}`}
+                            ? l.night ? 'Night sleep…' : 'In bed…'
+                            : `${l.night ? 'Night sleep' : 'Nap'} ${formatDuration(l.endAt - l.startAt)}`}
                         {l.note ? <span class="log-note"> · {l.note}</span> : null}
                       </span>
                       <span class="log-sub">
@@ -242,7 +242,7 @@ export function Baby({ focus }) {
                     <span class="log-body">
                       <span class="log-title">{new Date(dayStart(s.day)).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <span class="log-sub">
-                        {s.feeds} feed{s.feeds === 1 ? '' : 's'} · {s.sleeps} nap{s.sleeps === 1 ? '' : 's'} · {formatDuration(s.sleepMs)} sleep
+                        {s.feeds} feed{s.feeds === 1 ? '' : 's'} · {s.sleeps} nap{s.sleeps === 1 ? '' : 's'} · {formatDuration(s.sleepMs)} in bed
                       </span>
                     </span>
                   </div>
@@ -258,9 +258,9 @@ export function Baby({ focus }) {
       <div class="bottom-bar actions">
         <button class="btn primary big" onClick={() => fedNow()}><Glyph name="bottle" size={24} /> Fed now</button>
         {state.asleep ? (
-          <button class="btn big wake" onClick={() => wokeNow()}><Glyph name="sun" size={24} /> Woke up</button>
+          <button class="btn big wake" onClick={() => wokeNow()}><Glyph name="sun" size={24} /> Out of bed</button>
         ) : (
-          <button class="btn big sleep" onClick={() => sleepNow()}><Glyph name="sleeping" size={24} /> Fell asleep</button>
+          <button class="btn big sleep" onClick={() => sleepNow()}><Glyph name="sleeping" size={24} /> In bed</button>
         )}
       </div>
       <TabBar active="baby" />
@@ -337,7 +337,7 @@ function EditLogSheet({ log, onClose }) {
           <button type="button" role="radio" aria-checked={kind === 'sleep'} class={kind === 'sleep' ? 'on' : ''} onClick={() => setKind('sleep')}><Glyph name="sleeping" size={20} /> Sleep</button>
         </div>
         <div class="field">
-          <label for="log-start">{kind === 'sleep' ? 'Fell asleep at' : 'Fed at'}</label>
+          <label for="log-start">{kind === 'sleep' ? 'In bed at' : 'Fed at'}</label>
           <input id="log-start" type="datetime-local" value={toInputValue(startAt)} onInput={(e) => { const t = fromInputValue(e.currentTarget.value); if (t != null) setStartAt(t); }} />
           <Nudges onNudge={nudge} />
         </div>
@@ -351,14 +351,14 @@ function EditLogSheet({ log, onClose }) {
           <div class="field">
             <label class="toggle">
               <input type="checkbox" checked={ongoing} onChange={(e) => setEndAt(e.currentTarget.checked ? null : Math.max(startAt, Date.now()))} />
-              <span>Still asleep</span>
+              <span>Still in bed</span>
             </label>
             {!ongoing && (
               <>
-                <label for="log-end">Woke up at</label>
+                <label for="log-end">Out of bed at</label>
                 <input id="log-end" type="datetime-local" value={toInputValue(endAt)} onInput={(e) => { const t = fromInputValue(e.currentTarget.value); if (t != null) setEndAt(t); }} />
                 <Nudges onNudge={nudgeEnd} />
-                <p class="hint">Slept {formatDuration(endAt - startAt)}</p>
+                <p class="hint">In bed {formatDuration(endAt - startAt)}</p>
               </>
             )}
           </div>
@@ -423,16 +423,16 @@ function BabyMenuSheet({ profile, onClose }) {
           </div>
         </div>
         <div class="field">
-          <label>Nap about this long after waking up</label>
+          <label>Nap about this long after he’s out of bed</label>
           <div class="chips" role="radiogroup">
             {NAP_AFTER.map((m) => (
               <button type="button" key={m} role="radio" aria-checked={napAfter === m} class={'chip' + (napAfter === m ? ' on' : '')} onClick={() => choose.napAfter(m)}>{label(m)}</button>
             ))}
           </div>
-          <p class="hint">Used only for the countdowns: the next feed counts from when the last feed started, the next nap from when he last woke up. Adjust as his rhythm changes.</p>
+          <p class="hint">Used only for the countdowns: the next feed counts from when the last feed started, the next nap from when he last came out of bed. Adjust as his rhythm changes.</p>
         </div>
         <div class="field">
-          <label>Night sleep: “Fell asleep” after this time</label>
+          <label>Night sleep: in bed after this time</label>
           <div class="chips" role="radiogroup">
             {BEDTIMES.map((m) => (
               <button type="button" key={m} role="radio" aria-checked={bedtime === m} class={'chip' + (bedtime === m ? ' on' : '')} onClick={() => choose.bedtime(m)}>{clock(m)}</button>
@@ -446,7 +446,7 @@ function BabyMenuSheet({ profile, onClose }) {
               <button type="button" key={n} role="radio" aria-checked={nightAfter === n} class={'chip' + (nightAfter === n ? ' on' : '')} onClick={() => choose.nightAfter(n)}>{n ? `${n} feeds` : 'Don’t use'}</button>
             ))}
           </div>
-          <p class="hint">During night sleep there’s no feed countdown and nothing goes overdue; in the morning the next feed is due when he wakes. You can switch any sleep between nap and night sleep on the card or by tapping it.</p>
+          <p class="hint">During night sleep there’s no feed countdown and nothing goes overdue; in the morning the next feed is due when he’s out of bed. You can switch any sleep between nap and night sleep on the card or by tapping it.</p>
         </div>
         <p class="hint">Changes apply as soon as you pick them.</p>
         <button class="btn primary big" type="submit">Save</button>
