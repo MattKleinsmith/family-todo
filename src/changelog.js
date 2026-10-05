@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'faster-start',
+    at: '2026-10-05T12:34:00-04:00',
+    text: 'The app opens much faster: no more “Opening your family…” screen. It goes straight to where you were.',
+  },
+  {
     id: 'remember-where-you-were',
     at: '2026-10-05T11:32:00-04:00',
     text: 'The app now remembers where you were: opening it again, even hours later after your phone has closed it, puts you back on the same tab or list, scrolled to the same spot, with sections like “Done” open or closed as you left them.',
