@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'duplicate-chore',
+    at: '2026-10-05T15:23:00-04:00',
+    text: 'Chores and repeating items can be duplicated: open one and tap “Duplicate”. The copy appears right below with the same settings (how often, days, owner, icon, link) and opens so you can rename it.',
+    href: '#/house',
+  },
+  {
     id: 'in-bed-out-of-bed',
     at: '2026-10-05T12:46:00-04:00',
     text: 'The Baby tab now says what you actually log: “In bed” and “Out of bed” instead of “Fell asleep” and “Woke up”, since he can take a while to drop off or lie awake before you get him. Everything works the same.',

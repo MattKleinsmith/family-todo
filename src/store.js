@@ -427,6 +427,29 @@ export function createStore({
   }
 
   /**
+   * A copy of a chore or repeating item, right below it: same settings (how
+   * often, days, times, owner, icon, link, list), no history. `copiedFrom`
+   * lets the activity feed say "duplicated".
+   */
+  function duplicateChore(id, { createdBy = '' } = {}) {
+    const c = state.chores[id];
+    if (!c || c.deleted) return null;
+    const { id: _id, done: _d, skipped: _s, order: _o, renumbered: _r, moveBatch: _m, fromItem: _f, convertedTo: _c, starter: _st, copiedFrom: _cf, createdAt: _ca, updatedAt: _u, updatedBy: _ub, ...settings } = c;
+    // Right after the original among its neighbours (same House section, or same list).
+    const siblings = chores().filter((x) => (x.listId || null) === (c.listId || null) && (c.listId || x.cadence === c.cadence));
+    const next = siblings[siblings.findIndex((x) => x.id === c.id) + 1];
+    const order = next ? (sortKey(c) + sortKey(next)) / 2 : sortKey(c) + ORDER_STEP;
+    const copy = putLocal({ ...settings, id: newId(), name: `${c.name} (copy)`, done: [], order, createdBy, createdAt: stamp(), deleted: false, copiedFrom: c.id });
+    if (next && sortKey(next) - sortKey(c) <= MIN_GAP) {
+      // No room between them: renumber the group with the copy in place.
+      const ids = siblings.map((x) => x.id);
+      ids.splice(ids.indexOf(c.id) + 1, 0, copy.id);
+      return moveTo('chore', copy.id, ids) || copy;
+    }
+    return copy;
+  }
+
+  /**
    * Make a one-off list item repeat: it becomes a repeating item in the same
    * list and place, and if it was ticked off, that counts for this period.
    * The two records point at each other (`fromItem` / `convertedTo`) so the
@@ -715,6 +738,7 @@ export function createStore({
     activityBuckets,
     seedLocal,
     addChore,
+    duplicateChore,
     seedChores,
     repeatItem,
     stopRepeating,

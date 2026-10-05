@@ -24,6 +24,7 @@ export function ListView({ id, focus, asTab = false }) {
   const [text, setText] = useState('');
   const [editing, setEditing] = useState(null); // item id
   const [editingChore, setEditingChore] = useState(null); // repeating item id
+  const [copied, setCopied] = useState(null); // one just duplicated, opened to rename
   const [addingRepeat, setAddingRepeat] = useState(false);
   const [moving, setMoving] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -230,7 +231,17 @@ export function ListView({ id, focus, asTab = false }) {
         />
       )}
       {editingChore && store.getEntity('chore', editingChore) && !store.getEntity('chore', editingChore).deleted && (
-        <ChoreSheet chore={store.getEntity('chore', editingChore)} onClose={() => setEditingChore(null)} />
+        <ChoreSheet
+          key={editingChore}
+          chore={store.getEntity('chore', editingChore)}
+          renameNow={editingChore === copied}
+          onClose={() => setEditingChore(null)}
+          onOpen={(cid) => {
+            setCopied(cid);
+            setEditingChore(cid);
+            highlight(cid);
+          }}
+        />
       )}
       {addingRepeat && (
         <NewChoreSheet

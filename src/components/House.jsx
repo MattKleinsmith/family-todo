@@ -66,6 +66,7 @@ export function House({ focus }) {
   const { store, navigate } = useApp();
   const [, tick] = useReducer((x) => x + 1, 0);
   const [editing, setEditing] = useState(null);
+  const [copied, setCopied] = useState(null); // a chore just duplicated, opened to rename
   const [adding, setAdding] = useState(null); // cadence
   const [flash, setFlash] = useState(null);
   useStarterChores();
@@ -132,7 +133,18 @@ export function House({ focus }) {
       <TabBar active="house" />
 
       {editing && store.getEntity('chore', editing) && !store.getEntity('chore', editing).deleted && (
-        <ChoreSheet chore={store.getEntity('chore', editing)} onClose={() => setEditing(null)} />
+        <ChoreSheet
+          key={editing}
+          chore={store.getEntity('chore', editing)}
+          renameNow={editing === copied}
+          onClose={() => setEditing(null)}
+          onOpen={(id) => {
+            setCopied(id);
+            setEditing(id);
+            highlight(id);
+            requestAnimationFrame(() => document.getElementById(`chore-${id}`)?.scrollIntoView({ block: 'nearest' }));
+          }}
+        />
       )}
       {adding && (
         <NewChoreSheet
@@ -698,7 +710,7 @@ const dateInput = (ts) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export function ChoreSheet({ chore, onClose }) {
+export function ChoreSheet({ chore, onClose, onOpen = () => {}, renameNow = false }) {
   const { store, session, deleted } = useApp();
   const inList = !!chore.listId;
   const [name, setName] = useState(chore.name);
@@ -732,8 +744,19 @@ export function ChoreSheet({ chore, onClose }) {
     setIcon(v);
     if (v !== chore.icon) change({ icon: v });
   };
+  // A fresh copy opens with its name selected, ready to type over.
+  useEffect(() => {
+    if (!renameNow) return;
+    const el = document.getElementById('chore-edit-name');
+    if (el) {
+      el.focus({ preventScroll: true });
+      el.select();
+    }
+  }, []);
+  const nameRef = useRef(null);
   const commitName = () => {
-    const n = name.trim();
+    // Read the field itself: closing straight after the last keystroke can beat the re-render.
+    const n = (nameRef.current ? nameRef.current.value : name).trim();
     if (n && n !== chore.name) change({ name: n });
     else if (!n) setName(chore.name);
   };
@@ -760,7 +783,7 @@ export function ChoreSheet({ chore, onClose }) {
       <form class="stack" onSubmit={submit}>
         <div class="field">
           <label for="chore-edit-name">Name</label>
-          <input id="chore-edit-name" type="text" value={name} enterkeyhint="done" onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} />
+          <input id="chore-edit-name" ref={nameRef} type="text" value={name} enterkeyhint="done" onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} />
         </div>
         <LinkField value={chore.link || null} onCommit={(link) => change({ link })} />
         <div class="field">
@@ -801,6 +824,18 @@ export function ChoreSheet({ chore, onClose }) {
         {(!inList || chore.owner) && <OwnerPicker value={chore.owner || null} onChange={pickOwner} />}
         <EmojiPicker value={icon} onChange={pickIcon} prefer={inList ? [] : CHORE_ICONS} />
         <button class="btn primary big" type="submit">Done</button>
+        <button
+          class="btn big"
+          type="button"
+          onClick={() => {
+            commitName();
+            // The copy opens straight away, to rename it or change what's different.
+            const copy = store.duplicateChore(chore.id, { createdBy: session.name });
+            if (copy) onOpen(copy.id);
+          }}
+        >
+          Duplicate
+        </button>
         {inList && (
           <button
             class="btn big"
