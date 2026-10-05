@@ -5,6 +5,11 @@
 
 export const CHANGELOG = [
   {
+    id: 'remember-where-you-were',
+    at: '2026-10-05T11:32:00-04:00',
+    text: 'The app now remembers where you were: opening it again, even hours later after your phone has closed it, puts you back on the same tab or list, scrolled to the same spot, with sections like “Done” open or closed as you left them.',
+  },
+  {
     id: 'tap-countdown-tiles',
     at: '2026-10-04T18:22:00-04:00',
     text: 'The big countdowns on the Baby tab are now buttons too: tap “Next feed” to log a feed, “Next nap” to log that he fell asleep, and “Napping” to log that he woke up. Each tap shows an Undo, in case you only meant to look.',

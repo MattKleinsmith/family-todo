@@ -13,6 +13,7 @@ import { iconToken } from './icons.js';
 import { sameName } from './members.js';
 import { ensurePersonalList, mergeDuplicatePersonalLists, personalListFor, renamePersonalList } from './personal.js';
 import { useRoute, navigate } from './router.js';
+import { useScrollMemory, viewKey } from './viewstate.js';
 import { Join } from './components/Join.jsx';
 import { Home } from './components/Home.jsx';
 import { ListView } from './components/ListView.jsx';
@@ -34,6 +35,8 @@ export function App() {
   const [status, setStatus] = useState({ connected: 0, total: 0, lastSyncAt: null, online: false });
   const [error, setError] = useState(null);
   const route = useRoute();
+  // Each screen keeps its scroll position, across tab switches and relaunches.
+  const routeKey = viewKey(location.hash);
   const [toast, setToast] = useState(null); // { id, text, undo }
   const toastTimer = useRef(null);
   const showToast = (text, undo = null) => {
@@ -254,6 +257,10 @@ export function App() {
     }),
     [session, status, family],
   );
+
+  // Ready once the screen's own content is on show (not a loading spinner).
+  const screenReady = !!family && !!session && route.name !== 'join' && (route.name !== 'mine' || !!personalListFor(family.store.lists(), session.name));
+  useScrollMemory(routeKey, screenReady, !!route.focus);
 
   if (!session || route.name === 'join') {
     return (
