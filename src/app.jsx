@@ -1,7 +1,7 @@
 import { createContext } from 'preact';
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from 'preact/hooks';
 import { loadSession, saveSession, clearSession } from './session.js';
-import { deriveKeys } from './keys.js';
+import { deriveKeys, forgetKeys } from './keys.js';
 import { createStore } from './store.js';
 import { createSync } from './sync.js';
 import { createActivity } from './activity.js';
@@ -85,7 +85,6 @@ export function App() {
         await Promise.all([store.ready, activity.ready]);
         if (cancelled) return;
         sync = createSync({ keys, store, onStatus: setStatus });
-        sync.start();
         // Housekeeping once the first sync has had a chance to land, then every few hours.
         const tidy = () => {
           if (sync && sync.status().online) runMaintenance({ store, sync });
@@ -120,6 +119,9 @@ export function App() {
           setSession(s);
         }
         setFamily({ keys, store, sync, activity });
+        // Show the screen first; connecting to the relays can wait a frame.
+        // (Anything changed in between is still sent: sync sends whatever the relays haven't confirmed.)
+        requestAnimationFrame(() => setTimeout(() => !cancelled && sync.start(), 0));
         setError(null);
       } catch (err) {
         console.error(err);
@@ -250,6 +252,7 @@ export function App() {
           family.activity.flushNow();
           await new Promise((r) => setTimeout(r, 1500));
         }
+        forgetKeys(session.code);
         clearSession();
         setSession(null);
         navigate('/');
@@ -279,14 +282,7 @@ export function App() {
     );
   }
 
-  if (!family) {
-    return (
-      <div class="screen center">
-        <div class="spinner" />
-        <p class="muted">Opening your family…</p>
-      </div>
-    );
-  }
+  if (!family) return <Opening />;
 
   let page;
   const mine = personalListFor(family.store.lists(), session.name);
@@ -317,5 +313,28 @@ export function App() {
         }}
       />
     </AppCtx.Provider>
+  );
+}
+
+/**
+ * While this phone's own copy of the family loads (a few hundredths of a
+ * second): just the page colour, no spinner. "Opening your family…" only
+ * appears if it's somehow taking a while.
+ */
+function Opening() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 1000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div class="screen center" aria-busy="true">
+      {slow && (
+        <>
+          <div class="spinner" />
+          <p class="muted">Opening your family…</p>
+        </>
+      )}
+    </div>
   );
 }

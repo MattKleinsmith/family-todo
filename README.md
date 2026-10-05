@@ -206,6 +206,13 @@ open message stores that anyone can publish to and subscribe from.
 
 - The family code is run through PBKDF2 to derive a secp256k1 key pair. That
   key signs every record, and its public key is the "address" both phones watch.
+- PBKDF2 is deliberately slow (120,000 rounds) and used to run on every launch,
+  which was most of the "Opening your family…" wait. Each phone now derives the
+  keys once (with the browser's native PBKDF2) and keeps them next to the
+  family code it already stores; leaving the family forgets them. Startup is
+  then just reading this phone's copy of the data from IndexedDB: the screen
+  shows as soon as that's in (no spinner unless it takes over a second), and
+  the relays are connected right after the first frame.
 - Every list and item is one *replaceable* event (kind 30078) keyed by its id.
   Relays keep only the newest event per id, so they act as a last-writer-wins
   key/value store with live subscriptions.
