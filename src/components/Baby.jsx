@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from 'preact/hooks';
 import { useApp } from '../app.jsx';
+import { useRemembered } from '../viewstate.js';
 import { Sheet } from './Sheet.jsx';
 import { SyncBadge } from './SyncBadge.jsx';
 import { TabBar } from './TabBar.jsx';
@@ -122,7 +123,7 @@ export function Baby({ focus }) {
   const sleepDue = nextNapAt(state, napAfter);
   const groups = groupByDay(logs);
   const older = store.summaries();
-  const [showOlder, setShowOlder] = useState(false);
+  const [showOlder, setShowOlder] = useRemembered('baby:older', false);
 
   return (
     <div class="screen has-tabs">

@@ -9,6 +9,7 @@ import { Glyph } from './Glyph.jsx';
 import { Bell } from './Bell.jsx';
 import { GearIcon, GripIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { useRemembered } from '../viewstate.js';
 import { LinkButton, LinkField } from './Link.jsx';
 import { swipeDelete } from './SwipeAction.jsx';
 import { familyNames, sameName } from '../members.js';
@@ -262,7 +263,7 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
   };
   const listRef = useRef(null);
   const grip = gripProps(() => ({ container: listRef.current, onDrop: (ids, moved) => store.moveTo('chore', moved, ids) }));
-  const days = useDaysOff(rows);
+  const days = useDaysOff(rows, `off:house:${cadence}`);
   return (
     <section class="day chores">
       <div class="day-head">
@@ -290,8 +291,8 @@ function Section({ cadence, rows, now, flash, onToggle, onEdit, onAdd }) {
  * skipped ones go to the bottom.
  * `stats` is "2 of 3 done" for what's on today.
  */
-export function useDaysOff(rows) {
-  const [showOff, setShowOff] = useState(false);
+export function useDaysOff(rows, rememberAs) {
+  const [showOff, setShowOff] = useRemembered(rememberAs, false);
   const today = rows.filter((x) => x.status.state !== 'off');
   const off = rows.length - today.length;
   // Skipped ones stay in view but don't count either way.

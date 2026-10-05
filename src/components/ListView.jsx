@@ -5,6 +5,7 @@ import { SyncBadge } from './SyncBadge.jsx';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { BackIcon, DotsIcon, GearIcon, GripIcon, PlusIcon } from './Icons.jsx';
 import { gripProps } from '../drag.js';
+import { useRemembered } from '../viewstate.js';
 import { LinkButton, LinkField } from './Link.jsx';
 import { focusWithoutScrolling } from '../focus.js';
 import { ListIcon } from './ListIcon.jsx';
@@ -29,7 +30,7 @@ export function ListView({ id, focus, asTab = false }) {
   const [, tick] = useReducer((x) => x + 1, 0);
   const repRef = useRef(null);
   const repGrip = gripProps(() => ({ container: repRef.current, onDrop: (ids, moved) => store.moveTo('chore', moved, ids) }));
-  const [showDone, setShowDone] = useState(true);
+  const [showDone, setShowDone] = useRemembered(`done:${id}`, true);
   const [flash, setFlash] = useState(null);
   const inputRef = useRef(null);
   const openRef = useRef(null);
@@ -152,6 +153,7 @@ export function ListView({ id, focus, asTab = false }) {
       {/* Only lists that have repeating items get this group; it's how they're told apart from one-offs. */}
       {repeating.length > 0 && (
         <RepeatingGroup
+          listId={id}
           rows={repeating}
           now={now}
           flash={flash}
@@ -284,8 +286,8 @@ function ItemRow({ item, flash, grip, onToggle, onEdit, onDelete }) {
 }
 
 /** The list's repeating items, in your order; ones not on today wait behind a "Show" row. */
-function RepeatingGroup({ rows, now, flash, listRef, grip, onToggle, onEdit, onDelete }) {
-  const days = useDaysOff(rows);
+function RepeatingGroup({ listId, rows, now, flash, listRef, grip, onToggle, onEdit, onDelete }) {
+  const days = useDaysOff(rows, `off:list:${listId}`);
   return (
     <section class="list-group">
       <div class="day-head">

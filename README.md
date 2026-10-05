@@ -159,6 +159,14 @@ history), and can go back to a one-off with **Stop repeating**. They don't appea
 on the House tab or its badge, and ticking one off shows in the activity feed
 without counting on anyone's bell.
 
+## Picking up where you left off
+
+iOS closes home-screen apps in the background and starts them afresh at their
+start address. So each phone remembers (in localStorage, not synced) the
+screen it was last on, each screen's scroll position, and which sections were
+open ("Done", older days, "N not on today"); a fresh launch goes straight back
+there (`src/viewstate.js`). A link that names a screen still opens that screen.
+
 ## The activity feed
 
 The phone that makes a change writes a plain-language entry for it: "Huishi
