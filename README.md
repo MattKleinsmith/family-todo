@@ -93,6 +93,10 @@ unless it was added on that round's last day. Tapping "N overdue" at the top of 
 tab scrolls to the first overdue chore and highlights it. Tap the
 circle when one is done; it counts for the current day, week (Monday to Sunday), two-week
 block (two of those weeks, the same blocks on every phone) or calendar month, then comes back around. Tap it again to undo.
+To make a similar one, open a chore and tap **Duplicate**: the copy goes right
+below it with the same settings (how often, days, times, owner, icon, link) but
+no history, and opens with its name selected to rename.
+
 Not doing one this time? **Swipe it right to skip** this round (or open it
 and tap **Skip today / this week / this month**). A skipped chore isn't done,
 but it isn't missed either, it clears anything overdue before it, it drops

@@ -430,3 +430,28 @@ describe('skipping', () => {
   });
 });
 
+
+describe('duplicating', () => {
+  it('copies the settings, not the history, right below the original, and says so', () => {
+    let t = 1000;
+    const store = createStore({ now: () => (t += 10) });
+    store.addChore({ name: 'Wipe the counters', cadence: 'daily' });
+    const b = store.addChore({ name: 'Pack lunch', cadence: 'daily', days: [1, 2, 3, 4, 5], times: 2, owner: 'Huishi', icon: 'x', link: 'https://forms.gle/a' });
+    store.addChore({ name: 'Do the dishes', cadence: 'daily' });
+    store.addChore({ name: 'Mow the lawn', cadence: 'weekly' });
+    store.markChore(b.id, { at: t, by: 'Matthew' });
+    store.skipChore(b.id, { at: t + 1, by: 'Matthew' });
+    const copy = store.duplicateChore(b.id, { createdBy: 'Matthew' });
+    expect(copy).toMatchObject({ name: 'Pack lunch (copy)', cadence: 'daily', days: [1, 2, 3, 4, 5], times: 2, owner: 'Huishi', icon: 'x', link: 'https://forms.gle/a', done: [], copiedFrom: b.id });
+    expect(copy.skipped).toBeUndefined();
+    expect(store.chores().filter((x) => x.cadence === 'daily').map((x) => x.name)).toEqual(['Wipe the counters', 'Pack lunch', 'Pack lunch (copy)', 'Do the dishes']);
+    expect(describeChange(null, copy, {})).toBe('duplicated the chore “Pack lunch”');
+    // In a list it stays in that list.
+    const L = store.createList({ name: 'Me' });
+    const r = store.addChore({ name: 'Practice Chinese', cadence: 'daily', listId: L.id });
+    const rc = store.duplicateChore(r.id);
+    expect(rc.listId).toBe(L.id);
+    expect(describeChange(null, rc, { listName: () => 'Me' })).toBe('duplicated the repeating item “Practice Chinese” in Me');
+    expect(store.duplicateChore('nope')).toBeNull();
+  });
+});

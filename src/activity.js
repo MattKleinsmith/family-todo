@@ -120,6 +120,7 @@ export function describeChange(prev, next, ctx = {}) {
               ? `added the chore ${q(c.name)} (${often(c).replace(/^on /, '')})`
               : `added the ${often(c)} chore ${q(c.name)}`;
       if (!prev && next.fromItem && !next.deleted) return `made ${q(next.name)} repeat ${often(next)}${where}`;
+      if (!prev && next.copiedFrom && !next.deleted) return `duplicated ${noun} ${q(next.name.replace(/ \(copy\)$/, ''))}${where}`;
       if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.convertedTo) return null; // turned back into a one-off item; that record tells the story
       if (next.moveBatch && next.moveBatch !== prev.moveBatch) return null; // part of moving a whole list
