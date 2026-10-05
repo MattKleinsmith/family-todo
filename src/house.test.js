@@ -455,3 +455,44 @@ describe('duplicating', () => {
     expect(store.duplicateChore('nope')).toBeNull();
   });
 });
+
+describe('splitting', () => {
+  it('turns one chore done N times into N side by side, sharing out this round', () => {
+    const clock = { t: at(2026, 10, 5, 7) };
+    const store = createStore({ now: () => clock.t++ });
+    store.addChore({ name: 'Wipe the counters', cadence: 'daily' });
+    const bottles = store.addChore({ name: 'Wash the bottles', cadence: 'daily', times: 2, icon: 'x', owner: 'Huishi', link: 'https://example.com/b' });
+    store.addChore({ name: 'Do the dishes', cadence: 'daily' });
+    store.markChore(bottles.id, { at: at(2026, 10, 4, 8), by: 'M' }); // yesterday
+    store.markChore(bottles.id, { at: at(2026, 10, 4, 20), by: 'M' });
+    store.markChore(bottles.id, { at: at(2026, 10, 5, 7, 30), by: 'Huishi' }); // this morning
+    clock.t = at(2026, 10, 5, 9);
+    const before = store.getEntity('chore', bottles.id);
+    const split = store.splitChore(bottles.id, { createdBy: 'Matthew' });
+    const daily = store.chores().filter((x) => x.cadence === 'daily');
+    expect(daily.map((x) => x.name)).toEqual(['Wipe the counters', 'Wash the bottles (morning)', 'Wash the bottles (evening)', 'Do the dishes']);
+    const [morning, evening] = [daily[1], daily[2]];
+    expect(morning.id).toBe(bottles.id);
+    expect(morning).toMatchObject({ times: 1, icon: 'x', owner: 'Huishi', link: 'https://example.com/b' });
+    expect(evening).toMatchObject({ times: 1, icon: 'x', owner: 'Huishi', link: 'https://example.com/b', splitFrom: bottles.id });
+    expect(choreStatus(morning, clock.t).state).toBe('done'); // this morning's tick
+    expect(choreStatus(evening, clock.t).state).toBe('due');
+    expect(morning.done).toHaveLength(3); // older history stays with the original
+    expect(describeChange(before, morning, {})).toBe('split “Wash the bottles” into 2: “Wash the bottles (morning)”, “Wash the bottles (evening)”');
+    expect(describeChange(null, evening, {})).toBeNull();
+    // Undo puts it back as it was.
+    const splitState = store.getEntity('chore', bottles.id);
+    store.undoSplit(split);
+    const back = store.getEntity('chore', bottles.id);
+    expect(back).toMatchObject({ name: 'Wash the bottles', times: 2 });
+    expect(back.done).toHaveLength(3);
+    expect(store.chores().filter((x) => x.cadence === 'daily').map((x) => x.name)).toEqual(['Wipe the counters', 'Wash the bottles', 'Do the dishes']);
+    expect(describeChange(splitState, back, {})).toBe('put “Wash the bottles” back together');
+    expect(describeChange(evening, store.getEntity('chore', evening.id), {})).toBeNull();
+    // Nothing to split once a period, and numbered names when it isn't daily-by-time-of-day.
+    expect(store.splitChore(store.addChore({ name: 'Mow', cadence: 'weekly' }).id)).toBeNull();
+    const litter = store.addChore({ name: 'Scoop the litter', cadence: 'weekly', times: 3 });
+    store.splitChore(litter.id);
+    expect(store.chores().filter((x) => x.cadence === 'weekly' && x.name.startsWith('Scoop')).map((x) => x.name)).toEqual(['Scoop the litter (1)', 'Scoop the litter (2)', 'Scoop the litter (3)']);
+  });
+});

@@ -120,6 +120,11 @@ export function describeChange(prev, next, ctx = {}) {
               ? `added the chore ${q(c.name)} (${often(c).replace(/^on /, '')})`
               : `added the ${often(c)} chore ${q(c.name)}`;
       if (!prev && next.fromItem && !next.deleted) return `made ${q(next.name)} repeat ${often(next)}${where}`;
+      // A split is told once, by the original; the new pieces and an undo's removals add nothing.
+      if (!prev && next.splitFrom) return null;
+      if (prev && next.splitBatch && next.splitBatch !== prev.splitBatch && Array.isArray(next.splitInto))
+        return `split ${q(prev.name)} into ${next.splitInto.length}: ${next.splitInto.map(q).join(', ')}${where}`;
+      if (prev && next.unsplit && !prev.unsplit) return next.deleted ? null : `put ${q(next.name)} back together${where}`;
       if (!prev && next.copiedFrom && !next.deleted) return `duplicated ${noun} ${q(next.name.replace(/ \(copy\)$/, ''))}${where}`;
       if (!prev) return next.deleted || next.starter ? null : `${addedAs(next)}${next.owner ? ` for ${next.owner}` : ''}`;
       if (next.convertedTo) return null; // turned back into a one-off item; that record tells the story
