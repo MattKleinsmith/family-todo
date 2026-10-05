@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'in-bed-out-of-bed',
+    at: '2026-10-05T12:46:00-04:00',
+    text: 'The Baby tab now says what you actually log: “In bed” and “Out of bed” instead of “Fell asleep” and “Woke up”, since he can take a while to drop off or lie awake before you get him. Everything works the same.',
+    href: '#/baby',
+  },
+  {
     id: 'faster-start',
     at: '2026-10-05T12:34:00-04:00',
     text: 'The app opens much faster: no more “Opening your family…” screen. It goes straight to where you were.',

@@ -37,8 +37,9 @@ describe('describeChange', () => {
     const sleep = { ...feed, id: 'l2', kind: 'sleep' };
     expect(describeChange(null, feed, ctx)).toBe(`logged a feed at ${formatTime(T)}`);
     expect(describeChange(null, { ...feed, note: '5 oz' }, ctx)).toBe(`logged a feed at ${formatTime(T)} (5 oz)`);
-    expect(describeChange(null, sleep, ctx)).toBe(`logged Theo falling asleep at ${formatTime(T)}`);
-    expect(describeChange(sleep, { ...sleep, endAt: T + 45 * 60000 }, ctx)).toBe(`logged Theo waking up at ${formatTime(T + 45 * 60000)} (slept 45m)`);
+    expect(describeChange(null, sleep, ctx)).toBe(`put Theo in bed for a nap at ${formatTime(T)}`);
+    expect(describeChange(null, { ...sleep, night: true }, ctx)).toBe(`put Theo in bed for the night at ${formatTime(T)}`);
+    expect(describeChange(sleep, { ...sleep, endAt: T + 45 * 60000 }, ctx)).toBe(`took Theo out of bed at ${formatTime(T + 45 * 60000)} (in bed 45m)`);
     expect(describeChange(feed, { ...feed, startAt: T - 30 * 60000 }, ctx)).toBe(`moved the ${formatTime(T)} feed to ${formatTime(T - 30 * 60000)}`);
     expect(describeChange(feed, { ...feed, note: '5 oz' }, ctx)).toBe(`noted “5 oz” on the ${formatTime(T)} feed`);
     expect(describeChange(feed, { ...feed, deleted: true }, ctx)).toBe(`removed the ${formatTime(T)} feed`);
@@ -47,8 +48,8 @@ describe('describeChange', () => {
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', updatedAt: 1 }, ctx)).toBe('named the baby Theo');
     expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 150, updatedAt: 1 }, ctx)).toBe('set feeds to about every 2h 30m');
     expect(describeChange(null, { id: 'baby', type: 'meta', name: 'Theo', feedIntervalMin: 180, napAfterFeedMin: 120, updatedAt: 1 }, ctx)).toBe('named the baby Theo');
-    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 90, updatedAt: 1 }, ctx)).toBe('set naps to about 1h 30m after waking up');
-    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 60, updatedAt: 1 }, ctx)).toBe('set naps to about 1h after waking up');
+    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 90, updatedAt: 1 }, ctx)).toBe('set naps to about 1h 30m after he’s out of bed');
+    expect(describeChange({ id: 'baby', type: 'meta', name: 'Theo' }, { id: 'baby', type: 'meta', name: 'Theo', napAfterWakeMin: 60, updatedAt: 1 }, ctx)).toBe('set naps to about 1h after he’s out of bed');
     const m = { id: 'd1', type: 'member', name: 'Huishi', device: 'iPhone', joinedAt: 1, leftAt: null, updatedAt: 1 };
     expect(describeChange(null, m, ctx)).toBe('joined the family on an iPhone');
     expect(describeChange(null, { ...m, device: 'Mac' }, { ...ctx, knownPerson: true })).toBe('started using the app on a Mac');
