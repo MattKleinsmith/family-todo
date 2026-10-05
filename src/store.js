@@ -2,7 +2,7 @@
 // timestamp; records merge with last-writer-wins, so two phones can edit
 // offline and converge once they both reach the relays. Deletes are tombstones
 // (`deleted: true`) so a delete on one phone beats a stale edit on the other.
-import { DAY_CADENCES, normalizeDays } from './house.js';
+import { DAY_CADENCES, normalizeDays, periodCadence, periodIndex, splitNames } from './house.js';
 import { normalizeLink } from './links.js';
 
 export function newId() {
@@ -450,6 +450,45 @@ export function createStore({
   }
 
   /**
+   * Split a chore done several times a period ("Wash the bottles", 2× a day)
+   * into that many separate ones, once each ("… (morning)", "… (evening)"),
+   * side by side, so each can have its own place in the list. The original
+   * becomes the first; this round's ticks are shared out so nothing done
+   * looks undone again. Returns { batch, before, ids } for undoSplit.
+   */
+  function splitChore(id, { createdBy = '' } = {}) {
+    const c = state.chores[id];
+    const n = c ? Math.round(Number(c.times) || 1) : 0;
+    if (!c || c.deleted || n < 2) return null;
+    const names = splitNames(c.name, c.cadence, n);
+    const period = periodCadence(c);
+    const current = periodIndex(period, now());
+    // This round's ticks, oldest first: one each, in order.
+    const thisRound = (c.done || []).filter((d) => d && periodIndex(period, d.at) === current).sort((a, b) => a.at - b.at);
+    const others = (c.done || []).filter((d) => !thisRound.includes(d));
+    const before = { name: c.name, times: c.times, done: c.done || [] };
+    const batch = newId();
+    const siblings = chores().filter((x) => (x.listId || null) === (c.listId || null) && (c.listId || x.cadence === c.cadence));
+    const next = siblings[siblings.findIndex((x) => x.id === c.id) + 1];
+    const gap = next ? (sortKey(next) - sortKey(c)) / n : ORDER_STEP;
+    const { id: _id, done: _d, order: _o, renumbered: _r, moveBatch: _m, fromItem: _f, convertedTo: _c, starter: _st, copiedFrom: _cf, splitFrom: _sf, splitBatch: _sb, splitInto: _si, unsplit: _u0, createdAt: _ca, updatedAt: _u, updatedBy: _ub, name: _n, times: _t, ...settings } = c;
+    const ids = [];
+    for (let i = 1; i < n; i++) {
+      const copy = putLocal({ ...settings, id: newId(), name: names[i], times: 1, done: thisRound[i] ? [thisRound[i]] : [], order: sortKey(c) + gap * i, createdBy, createdAt: stamp(), deleted: false, splitFrom: c.id, splitBatch: batch });
+      ids.push(copy.id);
+    }
+    patch('chore', id, { name: names[0], times: 1, done: [...(thisRound[0] ? [thisRound[0]] : []), ...others], splitBatch: batch, splitInto: names, unsplit: false });
+    return { id, batch, before, ids };
+  }
+
+  /** Put a split back together: the original as it was, the new ones gone. */
+  function undoSplit(split) {
+    if (!split) return;
+    for (const x of split.ids) patch('chore', x, { deleted: true, unsplit: true });
+    patch('chore', split.id, { ...split.before, splitBatch: null, splitInto: null, unsplit: true });
+  }
+
+  /**
    * Make a one-off list item repeat: it becomes a repeating item in the same
    * list and place, and if it was ticked off, that counts for this period.
    * The two records point at each other (`fromItem` / `convertedTo`) so the
@@ -739,6 +778,8 @@ export function createStore({
     seedLocal,
     addChore,
     duplicateChore,
+    splitChore,
+    undoSplit,
     seedChores,
     repeatItem,
     stopRepeating,

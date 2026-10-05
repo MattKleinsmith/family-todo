@@ -34,6 +34,7 @@ import {
   normalizeDays,
   WEEK_ORDER,
   DAY_CADENCES,
+  MAX_SPLIT,
   WEEKDAYS,
   WEEKENDS,
   DAY_LONG,
@@ -836,6 +837,21 @@ export function ChoreSheet({ chore, onClose, onOpen = () => {}, renameNow = fals
         >
           Duplicate
         </button>
+        {timesOf(chore) >= 2 && timesOf(chore) <= MAX_SPLIT && (
+          <button
+            class="btn big"
+            type="button"
+            onClick={() => {
+              commitName();
+              const split = store.splitChore(chore.id, { createdBy: session.name });
+              if (!split) return;
+              onClose();
+              deleted(`Split “${chore.name}” into ${timesOf(chore)}`, () => store.undoSplit(split));
+            }}
+          >
+            Split into {timesOf(chore)} separate items
+          </button>
+        )}
         {inList && (
           <button
             class="btn big"

@@ -277,3 +277,18 @@ export const DEFAULT_ICON = { daily: iconToken('broom'), weekly: iconToken('buck
 export function overdueChores(chores, now = Date.now()) {
   return chores.filter((c) => choreStatus(c, now).state === 'overdue');
 }
+
+/**
+ * Names for the pieces of a split: a daily chore done 2 or 3 times a day gets
+ * times of day ("Wash the bottles (morning)", "… (evening)"), anything else is
+ * numbered. Easy to rename afterwards.
+ */
+export function splitNames(name, cadence, n) {
+  const parts =
+    cadence === 'daily' && n === 2 ? ['morning', 'evening'] : cadence === 'daily' && n === 3 ? ['morning', 'afternoon', 'evening'] : Array.from({ length: n }, (_, i) => String(i + 1));
+  return parts.map((p) => `${name} (${p})`);
+}
+
+/** Splitting makes one item per time: offered for 2 to this many. */
+export const MAX_SPLIT = 10;
+

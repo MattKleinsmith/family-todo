@@ -5,6 +5,12 @@
 
 export const CHANGELOG = [
   {
+    id: 'split-chore',
+    at: '2026-10-05T16:21:00-04:00',
+    text: 'Something you do twice a day can now be split into two: open it and tap “Split into 2 separate items”. You get “… (morning)” and “… (evening)”, each once a day, to move and rename as you like. Today’s ticks carry over, and there’s an Undo.',
+    href: '#/house',
+  },
+  {
     id: 'duplicate-chore',
     at: '2026-10-05T15:23:00-04:00',
     text: 'Chores and repeating items can be duplicated: open one and tap “Duplicate”. The copy appears right below with the same settings (how often, days, owner, icon, link) and opens so you can rename it.',

@@ -97,6 +97,12 @@ To make a similar one, open a chore and tap **Duplicate**: the copy goes right
 below it with the same settings (how often, days, times, owner, icon, link) but
 no history, and opens with its name selected to rename.
 
+A chore done several times a period can be **split**: open it and tap
+**Split into N separate items**. It becomes N chores, once each, side by side
+with the same settings, named by time of day for a daily 2× or 3× ("… (morning)",
+"… (evening)") and numbered otherwise; this round's ticks are shared out among
+them, older history stays with the first, and the toast has an Undo.
+
 Not doing one this time? **Swipe it right to skip** this round (or open it
 and tap **Skip today / this week / this month**). A skipped chore isn't done,
 but it isn't missed either, it clears anything overdue before it, it drops
